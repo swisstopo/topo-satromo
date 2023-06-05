@@ -1,0 +1,55 @@
+name: Run processor
+
+on:
+  schedule:
+  - cron:  '1 0 * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+jobs:
+  build:
+    # cf. https://docs.github.com/en/github/setting-up-and-managing-billing-and-payments-on-github/about-billing-for-github-actions
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v3
+    
+    - name: Increase git buffer size
+      run: |
+        git config --global http.postBuffer 1048576000
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt      
+    
+    - name: Run Python script
+      run: |
+        python satromo_processor.py
+      env: # Set the secrets as env var
+        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      
+    - name: Push tools files to repo
+      uses: github-actions-x/commit@v2.9
+      with:
+        push-branch: 'main'
+        commit-message: 'Tools files done'
+        force-add: 'true'
+        files: tools/
+        name: autoupdate
+
+    - name: Push processing files to repo
+      uses: github-actions-x/commit@v2.9
+      with:
+        push-branch: 'main'
+        commit-message: 'Processing files done'
+        force-add: 'true'
+        files: processing/
+        name: autoupdate
+        
