@@ -25,7 +25,7 @@ RESULTS = os.path.join("results")  # Local path for results
 
 # General product parameters
 # Coordinate Reference System (EPSG:4326 for WGS84, EPSG:2056 for CH1903+, see epsg.io)
-OUTPUT_CRS = "EPSG:2056"
+OUTPUT_CRS = "EPSG:4326"
 BUFFER_SIZE = 250  # Desired buffer width around ROI, e.g., 25000
 ROI_NAME = "SZ"  # Desired country name. If exact country name cannot be determined, change property 'country_na' -> 'country_co' below and adjust ROI_NAME accordingly. List of country codes: https://en.wikipedia.org/wiki/List_of_FIPS_country_codes
 # Switzerland [5.4, 45.5, 11, 48.1], Bern greater area [7.37605, 46.7218, 7.43870, 46.9510]
