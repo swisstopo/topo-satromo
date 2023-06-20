@@ -21,10 +21,10 @@ def determine_run_type():
     global run_type
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
-        print("\nType 2 run PROCESSOR: We are on DEV")
+        print("\nType 2 run PUBLISHER: We are on DEV")
     else:
         run_type = 1
-        print("\nType 1 run PROCESSOR: We are on PROD")
+        print("\nType 1 run PUBLISHER: We are on PROD")
 
 
 def initialize_gee_and_drive():
