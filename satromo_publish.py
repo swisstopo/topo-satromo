@@ -184,6 +184,16 @@ def merge_files_with_gdal(source):
                "-input_file_list", source+"_list.txt",source+".vrt"] 
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        print("gdalbuildvrt Command executed successfully!")
+        print("Output:")
+        print(result.stdout)
+        print(result.stderr)
+    else:
+        print("Command failed with a non-zero exit status!")
+        print("Error message:")
+        print(result.stdout)
+        print(result.stderr)
 
     #run gdal translate
     command = ["gdal_translate",
