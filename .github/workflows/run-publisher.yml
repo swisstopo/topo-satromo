@@ -32,6 +32,10 @@ jobs:
     - name: Install rclone
       run: |
         curl https://rclone.org/install.sh | sudo bash
+        
+    - name: install gdal
+      run: |
+        sudo apt-get install gdal-bin 
 
     #- name: Create rclone config file
     #  run: echo "${{ secrets.RCLONE_CONFIG }}" > rclone.conf
