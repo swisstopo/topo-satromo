@@ -184,6 +184,7 @@ def merge_files_with_gdal(source):
                "-input_file_list", source+"_list.txt",source+".vrt"] 
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
 
     #run gdal translate
     command = ["gdal_translate",
