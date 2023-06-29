@@ -230,6 +230,7 @@ def get_quadrants(roi):
 def start_export(image, scale, description, region, filename_prefix, crs):
     """
     Starts an export task to export an image to Google Drive.
+    
 
     Args:
         image: The image to be exported.
@@ -242,15 +243,29 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     Returns:
         None
     """
+
+    # only reproject but without scale use this code, based on https://developers.google.com/earth-engine/guides/exporting#setting_scal
+    # projection = image.projection().getInfo()
+    # task = ee.batch.Export.image.toDrive(
+    #     image=image,
+    #     description=description,
+    #     "region "= "region",
+    #     fileNamePrefix=filename_prefix,
+    #     crs=crs,
+    #     maxPixels=1e13,
+    #     fileFormat ="GeoTIFF",
+    #     crsTransform = projection['transform']
+    # )
+
+    # Export in GEE native Geotiff / Projection Webmercator, with proper scale   and reprojetc in satromo_publish/postprocessing with gdal
     task = ee.batch.Export.image.toDrive(
         image=image,
         description=description,
         scale=scale,
         region=region,
-        fileNamePrefix=filename_prefix,
-        crs=crs,
+        fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
-        fileFormat="GeoTIFF"
+        fileFormat ="GeoTIFF",        
     )
     task.start()
 

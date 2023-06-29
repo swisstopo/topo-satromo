@@ -9,6 +9,7 @@ import ee
 import configuration as config
 from collections import OrderedDict
 import subprocess
+import glob
 
 
 def determine_run_type():
@@ -55,6 +56,8 @@ def initialize_gee_and_drive():
             gauth.service_account_file, scopes=scopes
         )
 
+        rclone_config_file = config.RCLONE_SECRETS
+        google_secret_file = config.GDRIVE_SECRETS
     else:
         # Initialize GEE and Google Drive using GitHub secrets
 
@@ -75,6 +78,30 @@ def initialize_gee_and_drive():
         rclone_config_file = "rclone.conf"
         with open(rclone_config_file, "w") as f:
             f.write(rclone_config)
+
+        # Write rclone config to a file
+        rclone_config = os.environ.get('RCONF_SECRET')
+        rclone_config_file = "rclone.conf"
+        with open(rclone_config_file, "w") as f:
+            f.write(rclone_config)
+
+        # Write GDRIVE Secrest config to a file
+        google_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+        google_secret_file = "keyfile.json"
+        with open(google_secret_file, "w") as f:
+            f.write(google_secret)
+        
+        #Create mountpoint GDRIVE
+        command = ["mkdir", config.GDRIVE_MOUNT]
+        print(command)
+        result=subprocess.run(command, check=True)
+
+        #GDRIVE Mount
+        command = ["rclone", "mount", "--config", "rclone.conf", #"--allow-other",
+                    os.path.join(config.GDRIVE_SOURCE),config.GDRIVE_MOUNT,"--vfs-cache-mode", "full"]
+
+        print(command)
+        subprocess.Popen(command)
 
     # Create the Google Drive client
     global drive
@@ -134,6 +161,121 @@ def move_files_with_rclone(source, destination):
 
     print("SUCCESS: moved " + source + " to " + destination)
 
+def merge_files_with_gdal(source):
+    """
+    Merge with GDAL 
+
+    Parameters:
+    source (str): Source filename .
+        
+    Returns:
+    None
+    """
+    
+    # Get the list of all quadrant files matching the pattern
+    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
+
+    # Write the file names to _list.txt
+    with open(source+"_list.txt", "w") as file:
+        file.writelines([f"{filename}\n" for filename in file_list])
+    
+    #run gdal vrt
+    command = ["gdalbuildvrt",
+               "-input_file_list", source+"_list.txt",source+".vrt"] 
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+
+    #run gdal translate
+    command = ["gdal_translate",
+                source+".vrt", source+"_merged.tif",
+                "-of", "COG",
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "COMPRESS=LZW",
+                "-co", "BIGTIFF=YES",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                ]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+
+    print("SUCCESS: merged " + source+"_merged.tif")
+    return(source+"_merged.tif")
+
+def reproject_with_gdal(source):
+    """
+    Merge with GDAL 
+
+    Parameters:
+    source (str): Source filename .
+        
+    Returns:
+    Filename reprojected
+    """
+    
+    #
+
+    #run gdal translate
+    command = ["gdalwarp",
+                source+"_merged.tif", source+".tif",
+                "-t_srs", config.OUTPUT_CRS,
+                "-tr","10 10",
+                "-of", "COG",
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "COMPRESS=LZW",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                ]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+
+    print("SUCCESS: reprojected " + source+".tif")
+    return(source+".tif")
+
+def clean_up_gdrive(filename):
+    """
+    Deletes files in Google Drive that match the given filename.Writes Metadata of processing results
+
+    Args:
+        filename (str): The name of the file to be deleted.
+
+    Returns:
+        None
+    """
+    #  Find the file in Google Drive by its name
+    file_list = drive.ListFile(
+        {"q": "title contains '"+filename+"'"}).GetList()
+
+    # Check if the file is found
+    if len(file_list) > 0:
+
+        # Iterate through the files and delete them
+        # Get the product and item
+        product, item = extract_product_and_item(
+            task_status['description'])
+        
+        for file in file_list:
+             
+             # Delete the file
+            file.Delete()
+            print(f"File {file['title']} DELETED on Google Drive.")
+
+            # Add DATA GEE PROCESSING info to stats
+            write_file(task_status, config.GEE_COMPLETED_TASKS)
+
+            # Remove the line from the RUNNING tasks file
+            delete_line_in_file(config.GEE_RUNNING_TASKS, task_id)
+
+    
+        # Add DATA GEE PROCESSING info to Metadata of item,
+        write_file_meta(task_status, os.path.join(
+            config.PROCESSING_DIR, item+".csv"))
+
+        # Update Status in RUNNING tasks file
+        replace_running_with_complete(
+            config.LAST_PRODUCT_UPDATES, product)
+    return
 
 def write_file(input_dict, output_file):
     """
@@ -262,75 +404,73 @@ if __name__ == "__main__":
     with open(config.GEE_RUNNING_TASKS, "r") as f:
         lines = f.readlines()
 
-    # Process each line
-    for line in lines[1:]:
+    #Get the unique filename
+    unique_filenames = set()
 
-        # Get the task ID
-        task_id = line.strip().split(",")[0]
+    for line in lines[1:]:  # Start from the second line
+        _, filename = line.strip().split(',')
+        filename = filename.split('quadrant')[0]  # Take the part before "quadrant"
+        unique_filenames.add(filename.strip())
 
-        # Get the corresponding second entry
-        filename = line.strip().split(",")[1]
+    unique_filenames=list(unique_filenames)
+    
+    # Check  if each quandrant is complete then process
+    # Iterate over unique filenames
+    for filename in unique_filenames:
+        
+        # Keep track of completion status
+        all_completed = True
+        for quadrant_num in range(1, 5):
+            # Construct the filename with the quadrant
+            full_filename = filename + "quadrant" + str(quadrant_num)
 
-        # Check task status
-        task_status = ee.data.getTaskStatus(task_id)[0]
+            # Find the corresponding task ID in the lines list
+            task_id = None
+            for line in lines[1:]:
+                if full_filename in line:
+                    task_id = line.strip().split(",")[0]
+                    break
 
-        if task_status["state"] == "COMPLETED":
-            #  Find the file in Google Drive by its name
-            file_list = drive.ListFile(
-                {"q": "title contains '"+filename+"'"}).GetList()
+            if task_id:
+                # Check task status
+                task_status = ee.data.getTaskStatus(task_id)[0]
 
-            # Check if the file is found
-            if len(file_list) > 0:
+            if task_status["state"] != "COMPLETED":
+                # Task is not completed
+                all_completed = False
+                print(f"{full_filename} - {task_status['state']}")
 
-                # Iterate through the files and delete them
+        # Check overall completion status
+        if all_completed:
+            if run_type == 2:
+                # local machine run
+                # Download DATA
+                breakpoint()
+                download_and_delete_file(filename)
+            else:
+                print(filename+" is ready to process")
+                
                 # Get the product and item
                 product, item = extract_product_and_item(
                     task_status['description'])
+        
+                #merge files
+                file_merged = merge_files_with_gdal(filename)
 
-                for file in file_list:
+                #reproject files
+                file_reprojected=reproject_with_gdal(file_merged)
 
-                    # Local / DEV
-                    if run_type == 2:
-                        # local machine run
-                        # Download DATA
-
-                        download_and_delete_file(file)
-
-                    # Github /PROD
-                    else:
-                        # add move to s3 etc
-
-                        move_files_with_rclone(
-                            config.GDRIVE_SOURCE+file["title"], os.path.join(config.S3_DESTINATION, product))
-
-                    # Add DATA GEE PROCESSING info to stats
-                    write_file(task_status, config.GEE_COMPLETED_TASKS)
-
-                    # Remove the line from the RUNNING tasks file
-                    delete_line_in_file(config.GEE_RUNNING_TASKS, task_id)
-
-                    # only after the first oof a set of data is done
-                    if filename.endswith("quadrant1"):
-                        # Add DATA GEE PROCESSING info to Metadata of item,
-
-                        write_file_meta(task_status, os.path.join(
-                            config.PROCESSING_DIR, item+".csv"))
-
-                        # On Prod move data to S3 Destination
-                        if run_type == 1:
-                            move_files_with_rclone(os.path.join(
-                                config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product))
-
-                        # Update Status in RUNNING tasks file
-                        replace_running_with_complete(
-                            config.LAST_PRODUCT_UPDATES, product)
-
-            else:
-                print(filename+" not found in Google Drive.")
-                delete_line_in_file(config.GEE_RUNNING_TASKS, task_id)
-        elif task_status["state"] in ["FAILED", "CANCELLED"]:
-            print("Export task failed or was cancelled.")
-            task_run = False
+                #move file to Destination
+                move_files_with_rclone(
+                                file_reprojected, os.path.join(config.S3_DESTINATION, product))
+                
+                #clean up GDrive and local drive
+                os.remove(file_merged)
+                clean_up_gdrive(filename)
+   
+        else: 
+            print(filename+" is NOT ready to process")       
+   
 
     # Last step
     if run_type == 1:
