@@ -468,7 +468,7 @@ if __name__ == "__main__":
                 file_merged = merge_files_with_gdal(filename)
 
                 #reproject files
-                file_reprojected=reproject_with_gdal(file_merged)
+                file_reprojected=reproject_with_gdal(filename)
 
                 #move file to Destination
                 move_files_with_rclone(
