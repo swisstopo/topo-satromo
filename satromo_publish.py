@@ -11,6 +11,8 @@ from collections import OrderedDict
 import subprocess
 import glob
 
+# Set the CPL_DEBUG environment variable to enable verbose output
+os.environ["CPL_DEBUG"] = "ON"
 
 def determine_run_type():
     """
@@ -225,17 +227,17 @@ def reproject_with_gdal(source):
     
     #
 
-    #run gdal translate
+    #run gdalwarp
     command = ["gdalwarp",
                 source+"_merged.tif", source+".tif",
                 "-t_srs", config.OUTPUT_CRS,
                 "-tr","10 10",
-                #"-of", "COG",
-                #"-co", "NUM_THREADS=ALL_CPUS",
-                #"-co", "COMPRESS=LZW",
-                #"--config", "GDAL_CACHEMAX", "9999",
-                #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                #"--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                "-of", "COG",
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "COMPRESS=LZW",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                 ]
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
