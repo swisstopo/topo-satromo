@@ -239,7 +239,16 @@ def reproject_with_gdal(source):
                 ]
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
-
+    if result.returncode == 0:
+        print("gdalwarp Command executed successfully!")
+        print("Output:")
+        print(result.stdout)
+        print(result.stderr)
+    else:
+        print("gdalwarp command failed with a non-zero exit status!")
+        print("Error message:")
+        print(result.stdout)
+        print(result.stderr)
     print("SUCCESS: reprojected " + source+".tif")
     return(source+".tif")
 
