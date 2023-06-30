@@ -246,15 +246,15 @@ def reproject_with_gdal(source):
     #run gdalwarp
     command = ["gdalwarp",
                 source+"_merged.tif", source+".tif",
-                "-t_srs", "EPSG:2056",
-                #"-t_srs", config.OUTPUT_CRS,
+                #"-t_srs", "EPSG:2056",
+                "-t_srs", config.OUTPUT_CRS,
                 "-tr","10.0", "10.0",
-                #"-of", "COG",
-                #"-co", "NUM_THREADS=ALL_CPUS",
-                #"-co", "COMPRESS=LZW",
-                #"--config", "GDAL_CACHEMAX", "9999",
-                #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                #"--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                "-of", "COG",
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "COMPRESS=LZW",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                 ]
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
