@@ -225,11 +225,27 @@ def reproject_with_gdal(source):
     Filename reprojected
     """
     
-    #
+    #run gdalinfo
+    command = ["gdalinfo",
+                "Sentinel_NDVI-MAX_SR_CloudFree_crop20230603-20230628_run20230629_merged.tif",
+                ]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        print("gdalinfo Command executed successfully!")
+        print("Output:")
+        print(result.stdout)
+        print(result.stderr)
+    else:
+        print("gdalinfo command failed with a non-zero exit status!")
+        print("Error message:")
+        print(result.stdout)
+        print(result.stderr)
+    
 
     #run gdalwarp
     command = ["gdalwarp",
-                source+"_merged.tif", source+".tif",
+                "Sentinel_NDVI-MAX_SR_CloudFree_crop20230603-20230628_run20230629_merged.tif", source+".tif",
                 "-t_srs", config.OUTPUT_CRS,
                 "-tr","10 10",
                 "-of", "COG",
