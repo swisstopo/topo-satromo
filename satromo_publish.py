@@ -227,7 +227,7 @@ def reproject_with_gdal(source):
     
     #run gdalinfo
     command = ["gdalinfo",
-                "Sentinel_NDVI-MAX_SR_CloudFree_crop20230603-20230628_run20230629_merged.tif",
+                source+"_merged.tif",
                 ]
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
@@ -245,7 +245,7 @@ def reproject_with_gdal(source):
 
     #run gdalwarp
     command = ["gdalwarp",
-                "Sentinel_NDVI-MAX_SR_CloudFree_crop20230603-20230628_run20230629_merged.tif", "Sentinel_NDVI-MAX_SR_CloudFree_crop20230603-20230628_run20230629.tif",
+                source+"_merged.tif", source+".tif",
                 "-t_srs", "EPSG:2056",
                 #"-t_srs", config.OUTPUT_CRS,
                 #"-tr","10.0 10.0",
@@ -503,8 +503,8 @@ if __name__ == "__main__":
                                 file_reprojected, os.path.join(config.S3_DESTINATION, product))
                 
                 #clean up GDrive and local drive
-                os.remove(file_merged)
-                clean_up_gdrive(filename)
+                #os.remove(file_merged)
+                #clean_up_gdrive(filename)
    
         else: 
             print(filename+" is NOT ready to process")       
