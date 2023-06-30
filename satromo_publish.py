@@ -248,7 +248,7 @@ def reproject_with_gdal(source):
                 source+"_merged.tif", source+".tif",
                 "-t_srs", "EPSG:2056",
                 #"-t_srs", config.OUTPUT_CRS,
-                "-tr","10.0 10.0",
+                "-tr","10.0", "10.0",
                 #"-of", "COG",
                 #"-co", "NUM_THREADS=ALL_CPUS",
                 #"-co", "COMPRESS=LZW",
