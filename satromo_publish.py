@@ -261,8 +261,9 @@ def clean_up_gdrive(filename):
         None
     """
     #  Find the file in Google Drive by its name
-    file_list = drive.ListFile(
-        {"q": "title contains '"+filename+"'"}).GetList()
+    file_list = drive.ListFile({
+        "q": "title contains '"+filename+"' and trashed=false"
+        }).GetList()
 
     # Check if the file is found
     if len(file_list) > 0:
@@ -430,8 +431,13 @@ if __name__ == "__main__":
     # Authenticate with GEE and GDRIVE
     initialize_gee_and_drive()
 
-    # Read the status file
+    #empty temp files on GDrive
+    file_list = drive.ListFile({'q': "trashed=true"}).GetList()
+    for file in file_list:
+        file.Delete()
+        print('GDRIVE TRASH: Deleted file: %s' % file['title'])  
 
+    # Read the status file
     with open(config.GEE_RUNNING_TASKS, "r") as f:
         lines = f.readlines()
 
@@ -513,4 +519,4 @@ if __name__ == "__main__":
     for file in file_list:
         file.Delete()
         print('GDRIVE TRASH: Deleted file: %s' % file['title'])    
-    print("done!!!")
+    print("PUBLISH Process done.")
