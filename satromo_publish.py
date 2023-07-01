@@ -184,7 +184,7 @@ def merge_files_with_gdal(source):
     #run gdal vrt
     command = ["gdalbuildvrt",
                "-input_file_list", source+"_list.txt",source+".vrt"] 
-    print(command)
+    #print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
     print(result)
 
@@ -199,8 +199,9 @@ def merge_files_with_gdal(source):
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                 ]
-    print(command)
+    #print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
 
     print("SUCCESS: merged " + source+"_merged.tif")
     return(source+"_merged.tif")
@@ -229,6 +230,8 @@ def reproject_with_gdal(source):
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                 ]
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
     print("SUCCESS: reprojected " + source+".tif")
     return(source+".tif")
 
