@@ -215,29 +215,11 @@ def reproject_with_gdal(source):
     Returns:
     Filename reprojected
     """
-    
-    #run gdalinfo
-    command = ["gdalinfo",
-                source+"_merged.tif",
-                ]
-    print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    if result.returncode == 0:
-        print("gdalinfo Command executed successfully!")
-        print("Output:")
-        print(result.stdout)
-        print(result.stderr)
-    else:
-        print("gdalinfo command failed with a non-zero exit status!")
-        print("Error message:")
-        print(result.stdout)
-        print(result.stderr)
-    
+       
 
     #run gdalwarp
     command = ["gdalwarp",
                 source+"_merged.tif", source+".tif",
-                #"-t_srs", "EPSG:2056",
                 "-t_srs", config.OUTPUT_CRS,
                 "-tr","10.0", "10.0",
                 "-of", "COG",
@@ -247,20 +229,23 @@ def reproject_with_gdal(source):
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                 ]
-    print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    if result.returncode == 0:
-        print("gdalwarp Command executed successfully!")
-        print("Output:")
-        print(result.stdout)
-        print(result.stderr)
-    else:
-        print("gdalwarp command failed with a non-zero exit status!")
-        print("Error message:")
-        print(result.stdout)
-        print(result.stderr)
     print("SUCCESS: reprojected " + source+".tif")
     return(source+".tif")
+
+def extract_value_from_csv(filename, search_string, search_col, col_result):
+    try:
+        with open(filename, "r") as file:
+            reader = csv.DictReader(file)
+            
+            for row in reader:
+                if row[search_col] == search_string:
+                    return row[col_result]
+            
+            print(f"Entry not found for '{search_string}' in column '{search_col}'")
+    except FileNotFoundError:
+        print("File not found.")
+    
+    return None
 
 def clean_up_gdrive(filename):
     """
@@ -279,31 +264,45 @@ def clean_up_gdrive(filename):
     # Check if the file is found
     if len(file_list) > 0:
 
-        # Iterate through the files and delete them
-        # Get the product and item
-        product, item = extract_product_and_item(
-            task_status['description'])
+
         
+        # Iterate through the files and delete them    
         for file in file_list:
-             
-             # Delete the file
+            
+
+            #Get the current Task id
+            file_on_drive=file['title']
+            file_task_id=extract_value_from_csv(config.GEE_RUNNING_TASKS,file_on_drive.replace(".tif", ""),"Filename","Task ID")
+
+            # Check task status
+            file_task_status = ee.data.getTaskStatus(file_task_id)[0]
+
+            # Get the product and item
+            file_product, file_item = extract_product_and_item(
+                file_task_status['description'])
+        
+            # Delete the file
             file.Delete()
             print(f"File {file['title']} DELETED on Google Drive.")
 
             # Add DATA GEE PROCESSING info to stats
-            write_file(task_status, config.GEE_COMPLETED_TASKS)
+            write_file(file_task_status, config.GEE_COMPLETED_TASKS)
 
             # Remove the line from the RUNNING tasks file
-            delete_line_in_file(config.GEE_RUNNING_TASKS, task_id)
+            delete_line_in_file(config.GEE_RUNNING_TASKS, file_task_id)
 
     
         # Add DATA GEE PROCESSING info to Metadata of item,
-        write_file_meta(task_status, os.path.join(
+        write_file_meta(file_task_status, os.path.join(
             config.PROCESSING_DIR, item+".csv"))
+        
+        # Move Metadata of item to Destination Dir,
+        move_files_with_rclone(os.path.join(
+                                config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product))
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
-            config.LAST_PRODUCT_UPDATES, product)
+            config.LAST_PRODUCT_UPDATES, file_product)
     return
 
 def write_file(input_dict, output_file):
@@ -494,8 +493,8 @@ if __name__ == "__main__":
                                 file_reprojected, os.path.join(config.S3_DESTINATION, product))
                 
                 #clean up GDrive and local drive
-                #os.remove(file_merged)
-                #clean_up_gdrive(filename)
+                os.remove(file_merged)
+                clean_up_gdrive(filename)
    
         else: 
             print(filename+" is NOT ready to process")       

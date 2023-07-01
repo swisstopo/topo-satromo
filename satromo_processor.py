@@ -265,6 +265,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         region=region,
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
+        crs ="EPSG:3857",
         fileFormat ="GeoTIFF",        
     )
     task.start()
