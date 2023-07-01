@@ -11,6 +11,8 @@ from collections import OrderedDict
 import subprocess
 import glob
 
+# Set the CPL_DEBUG environment variable to enable verbose output
+os.environ["CPL_DEBUG"] = "ON"
 
 def determine_run_type():
     """
@@ -214,13 +216,30 @@ def reproject_with_gdal(source):
     Filename reprojected
     """
     
-    #
+    #run gdalinfo
+    command = ["gdalinfo",
+                source+"_merged.tif",
+                ]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        print("gdalinfo Command executed successfully!")
+        print("Output:")
+        print(result.stdout)
+        print(result.stderr)
+    else:
+        print("gdalinfo command failed with a non-zero exit status!")
+        print("Error message:")
+        print(result.stdout)
+        print(result.stderr)
+    
 
-    #run gdal translate
+    #run gdalwarp
     command = ["gdalwarp",
                 source+"_merged.tif", source+".tif",
+                #"-t_srs", "EPSG:2056",
                 "-t_srs", config.OUTPUT_CRS,
-                "-tr","10 10",
+                "-tr","10.0", "10.0",
                 "-of", "COG",
                 "-co", "NUM_THREADS=ALL_CPUS",
                 "-co", "COMPRESS=LZW",
@@ -230,7 +249,16 @@ def reproject_with_gdal(source):
                 ]
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
-
+    if result.returncode == 0:
+        print("gdalwarp Command executed successfully!")
+        print("Output:")
+        print(result.stdout)
+        print(result.stderr)
+    else:
+        print("gdalwarp command failed with a non-zero exit status!")
+        print("Error message:")
+        print(result.stdout)
+        print(result.stderr)
     print("SUCCESS: reprojected " + source+".tif")
     return(source+".tif")
 
@@ -459,15 +487,15 @@ if __name__ == "__main__":
                 file_merged = merge_files_with_gdal(filename)
 
                 #reproject files
-                file_reprojected=reproject_with_gdal(file_merged)
+                file_reprojected=reproject_with_gdal(filename)
 
                 #move file to Destination
                 move_files_with_rclone(
                                 file_reprojected, os.path.join(config.S3_DESTINATION, product))
                 
                 #clean up GDrive and local drive
-                os.remove(file_merged)
-                clean_up_gdrive(filename)
+                #os.remove(file_merged)
+                #clean_up_gdrive(filename)
    
         else: 
             print(filename+" is NOT ready to process")       
