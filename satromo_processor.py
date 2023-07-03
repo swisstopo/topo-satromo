@@ -257,7 +257,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     #     crsTransform = projection['transform']
     # )
 
-    # Export in GEE native Geotiff / Projection Webmercator, with proper scale   and reprojetc in satromo_publish/postprocessing with gdal
+    # Export in GEE native Geotiff / Projection  with proper scale   and reprojetc in satromo_publish/postprocessing with gdal
     task = ee.batch.Export.image.toDrive(
         image=image,
         description=description,
@@ -265,7 +265,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         region=region,
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
-        crs ="EPSG:3857",
+        #crs ="EPSG:3857",
         fileFormat ="GeoTIFF",        
     )
     task.start()
