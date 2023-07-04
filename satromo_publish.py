@@ -173,6 +173,12 @@ def merge_files_with_gdal(source):
     Returns:
     None
     """
+
+    #check local disk disk space
+    command = ["df","-h"]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
     
     # Get the list of all quadrant files matching the pattern
     file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
@@ -468,7 +474,7 @@ if __name__ == "__main__":
         
         # Keep track of completion status
         all_completed = True
-        for quadrant_num in range(1, 5):
+        for quadrant_num in range(1, 5): #You need to change this if we have more than 4 quadrants
             # Construct the filename with the quadrant
             full_filename = filename + "quadrant" + str(quadrant_num)
 
