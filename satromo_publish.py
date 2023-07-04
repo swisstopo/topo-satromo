@@ -197,11 +197,14 @@ def merge_files_with_gdal(source):
                 source+".vrt", source+"_merged.tif",
                 "-of", "COG",
                 "-co", "NUM_THREADS=ALL_CPUS",
-                "-co", "COMPRESS=LZW",
+                #"-co", "COMPRESS=LZW",
                 "-co", "BIGTIFF=YES",
                 "--config", "GDAL_CACHEMAX", "9999",
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+               #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2",
                 ]
     #print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
@@ -229,10 +232,14 @@ def reproject_with_gdal(source):
                 "-tr","10.0", "10.0",
                 "-of", "COG",
                 "-co", "NUM_THREADS=ALL_CPUS",
-                "-co", "COMPRESS=LZW",
+                #"-co", "COMPRESS=LZW",
                 "--config", "GDAL_CACHEMAX", "9999",
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
+                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2"
                 ]
     result=subprocess.run(command, check=True, capture_output=True, text=True)
     print(result)
