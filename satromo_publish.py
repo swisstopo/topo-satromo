@@ -12,7 +12,7 @@ import subprocess
 import glob
 
 # Set the CPL_DEBUG environment variable to enable verbose output
-#os.environ["CPL_DEBUG"] = "ON"
+os.environ["CPL_DEBUG"] = "ON"
 
 def determine_run_type():
     """
