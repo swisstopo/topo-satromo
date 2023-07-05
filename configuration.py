@@ -31,7 +31,7 @@ OUTPUT_CRS = "EPSG:2056"
 BUFFER_SIZE = 250  # Desired buffer width around ROI, e.g., 25000
 ROI_NAME = "SZ"  # Desired country name. If exact country name cannot be determined, change property 'country_na' -> 'country_co' below and adjust ROI_NAME accordingly. List of country codes: https://en.wikipedia.org/wiki/List_of_FIPS_country_codes
 # Switzerland [5.4, 45.5, 11, 48.1], Schönbühl [ 7.471940, 47.011335, 7.497431, 47.027602] Martigny [ 7.075402, 46.107098, 7.100894, 46.123639]
-ROI_RECTANGLE = [ 5.4, 45.5, 11, 48.1]
+ROI_RECTANGLE = [7.075402, 46.107098, 7.100894, 46.123639]
 NODATA = -9999  # No data values
 
 # NDVI product parameters
