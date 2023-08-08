@@ -261,12 +261,11 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     task = ee.batch.Export.image.toDrive(
         image=image,
         description=description,
-        #scale=scale,
+        scale=scale,
         region=region,
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
         crs = "EPSG:3857",
-        crsTransform = "[10,0,0,0,10,0]",
         fileFormat ="GeoTIFF",        
     )
     task.start()
