@@ -252,6 +252,58 @@ def reproject_with_gdal(source):
     print("SUCCESS: reprojected " + source+".tif")
     return(source+".tif")
 
+def reprojectmerge_with_gdal(source):
+    """
+    reproject & merge with GDALwarp (no use to gdal_translate, might be slower
+
+    Parameters:
+    source (str): Source filename .
+        
+    Returns:
+    Filename reprojected
+    """
+    
+    # Get the list of all quadrant files matching the pattern
+    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
+
+    # Write the file names to _list.txt
+    with open(source+"_list.txt", "w") as file:
+        file.writelines([f"{filename}\n" for filename in file_list])
+    
+    #run gdal vrt
+    command = ["gdalbuildvrt",
+                "-input_file_list", source+"_list.txt",source+".vrt",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                ]
+    #print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)   
+
+    #run gdalwarp
+    command = ["gdalwarp",
+                source+".vrt", source+".tif",
+                "-t_srs", config.OUTPUT_CRS,
+                "-tr","10.0", "10.0",
+                "-r","near",
+                "-of", "COG",
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "BIGTIFF=YES",
+                "- overwrite", 
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw 
+                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2"
+                ]
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
+    print("SUCCESS: merge & reprojected " + source+".tif")
+    return(source+".tif")
+
 def extract_value_from_csv(filename, search_string, search_col, col_result):
     try:
         with open(filename, "r") as file:
