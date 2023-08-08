@@ -487,8 +487,8 @@ def process_NDVI_MAX():
 
         mosaic = sensor.qualityMosaic("NDVI")
         ndvi_max = mosaic.select("NDVI")
-        #ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
-        ndvi_max_int = ndvi_max.multiply(100).int8() #keep this for int8
+        ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
+        #ndvi_max_int = ndvi_max.multiply(100).int8() #keep this for int8
         ndvi_max_int = maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
 
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
