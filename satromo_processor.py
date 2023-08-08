@@ -487,7 +487,10 @@ def process_NDVI_MAX():
 
         mosaic = sensor.qualityMosaic("NDVI")
         ndvi_max = mosaic.select("NDVI")
-        ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
+        #ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
+        
+        # Divide by 100 to move the decimal point two places back to the left and get rounded values, than multiply to get the ndvi scled, then multiply to get int8 
+        ndvi_max_int = ndvi_max_int.divide(100).round().multiply(100).multiply(100).int8()
         #ndvi_max_int = ndvi_max.multiply(100).int8() #keep this for int8
         ndvi_max_int = maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
 
