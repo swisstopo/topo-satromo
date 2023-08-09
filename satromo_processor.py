@@ -253,7 +253,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     #     fileNamePrefix=filename_prefix,
     #     crs=crs,
     #     maxPixels=1e13,
-    #     fileFormat ="GeoTIFF",
+    #     fileFormat = "GeoTIFF",
     #     crsTransform = projection['transform']
     # )
 
@@ -278,7 +278,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
         crs = "EPSG:32632",
-        crsTransform = '[10,0,0,0,-10,0]'
+        crsTransform = '[10,0,0,0,-10,0]',
         fileFormat ="GeoTIFF",
         formatOptions: {
             cloudOptimized: true
