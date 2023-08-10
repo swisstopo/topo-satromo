@@ -257,30 +257,31 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     #     crsTransform = projection['transform']
     # )
 
-    # Export in GEE native Geotiff / Projection  with proper scale   and reprojetc in satromo_publish/postprocessing with gdal
-    #task = ee.batch.Export.image.toDrive(
-    #    image=image,
-    #    description=description,
-    #    scale=scale,
-    #    region=region,
-    #    fileNamePrefix=filename_prefix,        
-    #    maxPixels=1e13,
-    #    crs = "EPSG:3857",
-    #    fileFormat ="GeoTIFF"        
-    #)
-
-    # Export in GEE with UTM32
+    # Export in GEE 
     task = ee.batch.Export.image.toDrive(
         image=image,
         description=description,
-        #scale=scale,
+        scale=scale,
         region=region,
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
-        crs = crs,
-        crsTransform = '[10,0,0,0,-10,0]',
-        fileFormat ="GeoTIFF"
+        crs = crs
+        fileFormat ="GeoTIFF"        
     )
+
+    # Export in GEE with UTM32
+    #task = ee.batch.Export.image.toDrive(
+    #    image=image,
+    #    description=description,
+    #    #scale=scale,
+    #    region=region,
+    #    fileNamePrefix=filename_prefix,        
+    #    maxPixels=1e13,
+    #    crs = crs,
+    #    crsTransform = '[10,0,0,0,-10,0]',
+    #    fileFormat ="GeoTIFF"
+    #)
+    
     task.start()
 
     # Get Task ID
