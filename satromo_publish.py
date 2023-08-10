@@ -200,7 +200,7 @@ def merge_files_with_gdal(source):
 
     #run gdal translate
     command = ["gdal_translate",
-                source+".vrt", source+"_merged.tif",
+                source+".vrt", source+".tif", # rename to source+"_merged.tif" when doing reprojection afterwards
                 "-of", "COG",
                 "-co", "NUM_THREADS=ALL_CPUS",
                 #"-co", "COMPRESS=LZW",
@@ -216,8 +216,8 @@ def merge_files_with_gdal(source):
     result=subprocess.run(command, check=True, capture_output=True, text=True)
     print(result)
 
-    print("SUCCESS: merged " + source+"_merged.tif")
-    return(source+"_merged.tif")
+    print("SUCCESS: merged " + source+".tif")
+    return(source+".tif")
 
 def reproject_with_gdal(source):
     """
