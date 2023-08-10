@@ -563,12 +563,12 @@ if __name__ == "__main__":
                 #merge files
                 file_merged = merge_files_with_gdal(filename)
 
-                #reproject files
-                file_reprojected=reproject_with_gdal(filename)
+                #reproject files: not needed, since we will prohject on export in satromo_processer.py on export
+                #file_reprojected=reproject_with_gdal(filename)
 
-                #move file to Destination
+                #move file to Destination: in case reproejction si done here: move file_reprojected
                 move_files_with_rclone(
-                                file_reprojected, os.path.join(config.S3_DESTINATION, product))
+                                file_merged, os.path.join(config.S3_DESTINATION, product))
                 
                 #clean up GDrive and local drive
                 os.remove(file_merged)
