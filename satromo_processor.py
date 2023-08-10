@@ -265,7 +265,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         region=region,
         fileNamePrefix=filename_prefix,        
         maxPixels=1e13,
-        crs = crs
+        crs = crs,
         fileFormat ="GeoTIFF"        
     )
 
