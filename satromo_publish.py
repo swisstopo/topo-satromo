@@ -163,7 +163,7 @@ def move_files_with_rclone(source, destination):
 
     print("SUCCESS: moved " + source + " to " + destination)
 
-def merge_files_with_gdal(source):
+def merge_files_with_gdal_translate(source):
     """
     Merge with GDAL 
 
@@ -209,6 +209,64 @@ def merge_files_with_gdal(source):
                 "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                 "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2",
+                ]
+    #print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
+
+    print("SUCCESS: merged " + source+".tif")
+    return(source+".tif")
+
+def merge_files_with_gdal_warp(source):
+    """
+    Merge with GDAL 
+
+    Parameters:
+    source (str): Source filename .
+        
+    Returns:
+    None
+    """
+
+    #check local disk disk space
+    command = ["df","-h"]
+    print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
+    
+    # Get the list of all quadrant files matching the pattern
+    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
+
+    # Write the file names to _list.txt
+    with open(source+"_list.txt", "w") as file:
+        file.writelines([f"{filename}\n" for filename in file_list])
+    
+    #run gdal vrt
+    command = ["gdalbuildvrt",
+                "-input_file_list", source+"_list.txt",source+".vrt",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+                ]
+    #print(command)
+    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    print(result)
+
+    #run gdal translate
+    command = ["gdalwarp",
+                source+".vrt", source+".tif", # rename to source+"_merged.tif" when doing reprojection afterwards
+                "-of", "COG",
+                "-cutline",config.BUFFER,
+                "-crop_to_cutline","-dstnodata", config.NODATA,
+                "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "BIGTIFF=YES",
+                "--config", "GDAL_CACHEMAX", "9999",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+               #added thsiconfig to test. otherwise use compress=lzw above
+               # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                 "-co", "COMPRESS=DEFLATE",
                 "-co", "PREDICTOR=2",
                 ]
@@ -561,7 +619,7 @@ if __name__ == "__main__":
                     task_status['description'])
         
                 #merge files
-                file_merged = merge_files_with_gdal(filename)
+                file_merged = merge_files_with_gdal_warp(filename)
 
                 #reproject files: not needed, since we will prohject on export in satromo_processer.py on export
                 #file_reprojected=reproject_with_gdal(filename)

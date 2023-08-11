@@ -502,20 +502,17 @@ def process_NDVI_MAX():
         mosaic = sensor.qualityMosaic("NDVI")
         ndvi_max = mosaic.select("NDVI")
 
-        #Mask outside
-        ndvi_max = maskOutside(ndvi_max, roi).unmask(config.NODATA)
-
         # Scale to Int8 or Int16    
         # Multiply by 1000  then cast to get int16
         #ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
         
-        # Multiply by 100 to move the decimal point two places back to the left and get rounded values, then round then cast to get int8 then cast to byte
-        ndvi_max_int = ndvi_max.multiply(100).round().int8().byte()
+        # Multiply by 100 to move the decimal point two places back to the left and get rounded values, then round then cast to get int8 
+        ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
         
-
         #Mask outside
-        #ndvi_max_int = maskOutside(ndvi_max_int8bit, roi).unmask(config.NODATA)
+        ndvi_max_int = maskOutside(ndvi_max_int, roi).unmask(config.NODATA)     
 
+  
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
         if sensor_stats[2] > 0:
             # Start the export
@@ -549,7 +546,7 @@ if __name__ == "__main__":
 
     # Or borders on country level (might be useful to reduce file size)
     # border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(
-    #     ee.Filter.eq("country_co", config.ROI_NAME))
+    #     ee.Filter.eq("country_co", "SZ"))
     # roi = border.geometry()
 
     # Generate PRODUCT
