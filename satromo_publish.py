@@ -258,8 +258,8 @@ def merge_files_with_gdal_warp(source):
     command = ["gdalwarp",
                 source+".vrt", source+".tif", # rename to source+"_merged.tif" when doing reprojection afterwards
                 "-of", "COG",
-                "-cutline ch_buffer_5000m.shp",
-                "-crop_to_cutline","-dstnodata", "999",
+                "-cutline", "ch_buffer_5000m.shp",
+                "-crop_to_cutline", "-dstnodata", "999",
                 "-co", "NUM_THREADS=ALL_CPUS",
                 "-co", "BIGTIFF=YES",
                 "--config", "GDAL_CACHEMAX", "9999",
@@ -273,6 +273,12 @@ def merge_files_with_gdal_warp(source):
     print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
     print(result)
+    
+    print("Standard Output:")
+    print(result.stdout)
+
+    print("Standard Error:")
+    print(result.stderr)
 
     print("SUCCESS: merged " + source+".tif")
     return(source+".tif")
