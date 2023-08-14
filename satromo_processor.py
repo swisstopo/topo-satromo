@@ -10,7 +10,6 @@ import os
 import ee
 import configuration as config
 
-import product_NDVIMAX
 
 
 def determine_run_type():
@@ -528,7 +527,7 @@ def process_NDVI_MAX():
             # TODO: If there are not enough scenes, quit processing
             return 0
     else:
-        return "no new imagery "
+        return "no new imagery"
 
 
 if __name__ == "__main__":
