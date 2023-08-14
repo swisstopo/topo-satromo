@@ -10,6 +10,8 @@ import os
 import ee
 import configuration as config
 
+import product_NDVIMAX
+
 
 def determine_run_type():
     """
@@ -383,7 +385,7 @@ def update_product_status_file(input_dict, output_file):
     return None
 
 
-def prepare_export(roi, filename, image, sensor_stats, current_date_str):
+def prepare_export(roi, filename, productname, scale, image, sensor_stats, current_date_str):
     """
     Prepare the export of the image by splitting it into quadrants and starting the export tasks.
     It also generates product status information, updates the product status file,
@@ -392,6 +394,8 @@ def prepare_export(roi, filename, image, sensor_stats, current_date_str):
     Args:
         roi (ee.Geometry): Region of interest for the export.
         filename (str): Base filename for the exported files.
+        productname (str): Product name of the exported files.
+        scale (str): Scalenumber in [m] of the exported file
         image (ee.Image): Image to be exported.
         sensor_stats (list): List containing sensor statistics.
         current_date_str (str): Current date in string format.
@@ -410,12 +414,12 @@ def prepare_export(roi, filename, image, sensor_stats, current_date_str):
         # Create filename for each quadrant
         filename_q = filename + quadrant_name
         # Start the export for each quadrant
-        start_export(image, int(config.PRODUCT_NDVI_MAX['spatial_scale_export']),
-                     "P:" + config.PRODUCT_NDVI_MAX['product_name'] + " I:" + filename, quadrant, filename_q, config.OUTPUT_CRS)
+        start_export(image, int(scale),
+                     "P:" + productname + " I:" + filename, quadrant, filename_q, config.OUTPUT_CRS)
 
     # Generate product status information
     product_status = {
-        'Product': config.PRODUCT_NDVI_MAX['product_name'],
+        'Product': productname,
         'LastSceneDate': sensor_stats[1],
         'RunDate': current_date_str,
         'Status': "RUNNING"
@@ -427,7 +431,7 @@ def prepare_export(roi, filename, image, sensor_stats, current_date_str):
     # Write the product description to a CSV file
     header = ["Product", "Item", "DateFirstScene", "DateLastScene",
               "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion"]
-    data = [config.PRODUCT_NDVI_MAX['product_name'], filename, str(sensor_stats[0]), str(
+    data = [productname, filename, str(sensor_stats[0]), str(
         sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"]]
 
     with open(os.path.join(config.PROCESSING_DIR, filename + ".csv"), "w", newline="") as f:
@@ -439,30 +443,30 @@ def prepare_export(roi, filename, image, sensor_stats, current_date_str):
     return None
 
 
-def addNDVI(image, bands):
+def addINDEX(image, bands):
     """
-    Add the Normalized Difference Vegetation Index (NDVI) band to the image.
+    Add an Index (eg NDVI) band to the image based on two bands.
 
     Args:
         image (ee.Image): Input image to add the NDVI band.
         bands (dict): Dictionary containing band names for NIR and RED.
 
     Returns:
-        ee.Image: Image with the NDVI band added.
+        ee.Image: Image with the index band added.
     """
 
     # Extract the band names for NIR and RED from the input dictionary
     NIR = bands['NIR']
     RED = bands['RED']
 
-    # Compute the NDVI using the normalizedDifference() function and rename the band to "NDVI"
-    ndvi = image.normalizedDifference([NIR, RED]).rename("NDVI")
+    # Compute the index using the normalizedDifference() function and rename the band to "NDVI"
+    index = image.normalizedDifference([NIR, RED]).rename("index")
 
-    # Add the NDVI band to the image using the addBands() function
-    image_with_ndvi = image.addBands(ndvi)
+    # Add the index band to the image using the addBands() function
+    image_with_index = image.addBands(index)
 
     # Return the image with the NDVI band added
-    return image_with_ndvi
+    return image_with_index
 
 
 def process_NDVI_MAX():
@@ -496,7 +500,7 @@ def process_NDVI_MAX():
         print(filename)
 
         # Create NDVI and NDVI max
-        sensor = sensor.map(lambda image: addNDVI(
+        sensor = sensor.map(lambda image: addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX['band_names'][0]))
 
         mosaic = sensor.qualityMosaic("NDVI")
@@ -516,7 +520,7 @@ def process_NDVI_MAX():
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
         if sensor_stats[2] > 0:
             # Start the export
-            prepare_export(roi, filename, ndvi_max_int,
+            prepare_export(roi, filename, config.PRODUCT_NDVI_MAX['product_name'], config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
                            sensor_stats, current_date_str)
 
             return 1
@@ -524,8 +528,7 @@ def process_NDVI_MAX():
             # TODO: If there are not enough scenes, quit processing
             return 0
     else:
-        print("no new imagery")
-        return 0
+        return "no new imagery "
 
 
 if __name__ == "__main__":
@@ -551,6 +554,7 @@ if __name__ == "__main__":
 
     # Generate PRODUCT
     result = process_NDVI_MAX()
+
     print("Result:", result)
 
 print("done!!!!")
