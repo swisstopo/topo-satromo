@@ -205,12 +205,12 @@ def merge_files_with_gdal_translate(source):
                 "-co", "NUM_THREADS=ALL_CPUS",
                 #"-co", "COMPRESS=LZW",
                 "-co", "BIGTIFF=YES",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
+               # "--config", "GDAL_CACHEMAX", "9999",
+               # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+               # "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
-                "-co", "COMPRESS=DEFLATE",
-                "-co", "PREDICTOR=2",
+               # "-co", "COMPRESS=DEFLATE",
+               # "-co", "PREDICTOR=2",
                 ]
     #print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
