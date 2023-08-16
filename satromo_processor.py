@@ -384,7 +384,7 @@ def update_product_status_file(input_dict, output_file):
     return None
 
 
-def prepare_export(roi, filename, productname, scale, image, sensor_stats, current_date_str):
+def prepare_export(roi, productitem , productasset, productname, scale, image, sensor_stats, current_date_str):
     """
     Prepare the export of the image by splitting it into quadrants and starting the export tasks.
     It also generates product status information, updates the product status file,
@@ -392,7 +392,8 @@ def prepare_export(roi, filename, productname, scale, image, sensor_stats, curre
 
     Args:
         roi (ee.Geometry): Region of interest for the export.
-        filename (str): Base filename for the exported files.
+        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT240000" for a day 
+        productasset (str): Base filename for the exported files.
         productname (str): Product name of the exported files.
         scale (str): Scalenumber in [m] of the exported file
         image (ee.Image): Image to be exported.
@@ -411,10 +412,10 @@ def prepare_export(roi, filename, productname, scale, image, sensor_stats, curre
 
     for quadrant_name, quadrant in quadrants.items():
         # Create filename for each quadrant
-        filename_q = filename + quadrant_name
+        filename_q = productasset + quadrant_name
         # Start the export for each quadrant
         start_export(image, int(scale),
-                     "P:" + productname + " I:" + filename, quadrant, filename_q, config.OUTPUT_CRS)
+                     "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
 
     # Generate product status information
     product_status = {
@@ -428,12 +429,12 @@ def prepare_export(roi, filename, productname, scale, image, sensor_stats, curre
     update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
 
     # Write the product description to a CSV file
-    header = ["Product", "Item", "DateFirstScene", "DateLastScene",
+    header = ["Product", "Item", "Asset", "DateFirstScene", "DateLastScene",
               "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion"]
-    data = [productname, filename, str(sensor_stats[0]), str(
+    data = [productname, productitem, productasset, str(sensor_stats[0]), str(
         sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"]]
 
-    with open(os.path.join(config.PROCESSING_DIR, filename + ".csv"), "w", newline="") as f:
+    with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerow(data)
@@ -486,7 +487,7 @@ def process_NDVI_MAX():
         .filterBounds(roi)
     )
 
-    # Get information about the available sensor data
+    # Get information about the available sensor data for the range
     sensor_stats = get_collection_info(sensor)
 
     # Check if there is new sensor data compared to the stored dataset
@@ -515,11 +516,13 @@ def process_NDVI_MAX():
         #Mask outside
         ndvi_max_int = maskOutside(ndvi_max_int, roi).unmask(config.NODATA)     
 
-  
+        # Define item Name
+        timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+        
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
         if sensor_stats[2] > 0:
             # Start the export
-            prepare_export(roi, filename, config.PRODUCT_NDVI_MAX['product_name'], config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
+            prepare_export(roi, timestamp.strftime('%Y%m%dT240000'), filename, config.PRODUCT_NDVI_MAX['product_name'], config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
                            sensor_stats, current_date_str)
 
             return 1
@@ -529,6 +532,79 @@ def process_NDVI_MAX():
     else:
         return "no new imagery"
 
+def process_S2_LEVEL_2A():
+    """
+    Export the S2 Level 2A product.
+
+    Returns:
+        str: "no new imagery" if no new imagery found, None if new imagery is processed.
+    """
+
+    print("********* processing " +
+          config.PRODUCT_S2_LEVEL_2A['product_name']+" *********")
+    
+    # Filter the sensor collection based on date and region
+    collection = (
+        ee.ImageCollection(config.PRODUCT_S2_LEVEL_2A['image_collection'])
+        .filterDate(current_date.advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage']), 'day'), current_date)
+        .filterBounds(roi)
+    )
+    
+    # Get the number of images found in the collection
+    num_images = collection.size().getInfo()
+    
+    # Check if there are any new imagery
+    if num_images !=0:
+
+        # Get information about the available sensor data for the range
+        sensor_stats = get_collection_info(collection)
+
+        # Check if there is new sensor data compared to the stored dataset
+        if check_product_update(config.PRODUCT_S2_LEVEL_2A['product_name'], sensor_stats[1]) is True:
+         
+            # Get the list of images
+            image_list = collection.toList(collection.size()) 
+            print(str(image_list.size().getInfo())+ " new image(s) for: "+sensor_stats[1] + " to: "+current_date_str)
+            
+            #For each image, process
+            for i in range(image_list.size().getInfo()):
+                image= ee.Image(image_list.get(i))
+                
+                #EE asset ids for Sentinel-2 L2 assets have the following format: 20151128T002653_20151128T102149_T56MNN.
+                #  Here the first numeric part represents the sensing date and time, the second numeric part represents the product generation date and time,
+                #  and the final 6-character string is a unique granule identifier indicating its UTM grid reference
+                image_id = image.id().getInfo()
+                image_sensing_timestamp= image_id.split('_')[0]
+                print("processing "+str(i)+" of "+str(image_list.size().getInfo()) +" "+ image_sensing_timestamp+" ...") #first numeric part represents the sensing date, needs to be used in publisher
+
+                # Clip Image to 
+                clipped_image = image.clip(roi).unmask(config.NODATA)
+                
+                # Generate the filename
+                filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + '_' + image_id
+                
+                # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
+                multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
+                multiband_export_name = filename + '_10M'+"_run"+current_date_str.replace("-", "")
+                prepare_export(roi, image_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
+                                sensor_stats, current_date_str)
+                
+                # Export QA60 band as a separate GeoTIFF with '_QA60'
+                qa60_export = clipped_image.select('QA60')
+                qa60_export_name = filename + '_QA60'+"_run"+current_date_str.replace("-", "")
+                prepare_export(roi, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], qa60_export,
+                                sensor_stats, current_date_str)
+
+                # Export Image Properties into a json file
+                with open(os.path.join(config.PROCESSING_DIR, filename + "_properties"+"_run"+current_date_str.replace("-", "")+".json"), "w") as json_file:
+                    json.dump(image.getInfo(), json_file)
+            return 1
+        else:
+            print("no new imagery")
+            return 0    
+    else:
+        print("no new imagery")
+        return 0
 
 if __name__ == "__main__":
     # Test if we are on Local DEV Run or if we are on PROD
@@ -539,21 +615,26 @@ if __name__ == "__main__":
 
     # Get current date
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
+
+    #For debugging MArtigny
+    #current_date_str ="2022-01-10"
+
     global current_date
     current_date = ee.Date(current_date_str)
 
-    # Set ROI
-    # Either use a rectangle
+ 
+    # Generate PRODUCTS
+    # NDVI MAX
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-
-    # Or borders on country level (might be useful to reduce file size)
-    # border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(
-    #     ee.Filter.eq("country_co", "SZ"))
-    # roi = border.geometry()
-
-    # Generate PRODUCT
     result = process_NDVI_MAX()
+    print("Result:", result)
+
+    # S2_L2A
+    #border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+    #roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+    roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+    result = process_S2_LEVEL_2A()
 
     print("Result:", result)
 
-print("done!!!!")
+print("Processing done!")

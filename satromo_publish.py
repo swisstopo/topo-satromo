@@ -271,7 +271,7 @@ def merge_files_with_gdal_warp(source):
                 "-co", "COMPRESS=DEFLATE",
                 "-co", "PREDICTOR=2",
                 ]
-    print(command)
+    #print(command)
     result=subprocess.run(command, check=True, capture_output=True, text=True)
     print(result)
 
@@ -434,9 +434,17 @@ def clean_up_gdrive(filename):
         write_file_meta(file_task_status, os.path.join(
             config.PROCESSING_DIR, item+".csv"))
         
-        # Move Metadata of item to Destination Dir,
+        # Get the filename metadata
+        metadata = read_file_meta(os.path.join(config.PROCESSING_DIR,filename+".csv"))
+
+        # Move Description of item to destination DIR
         move_files_with_rclone(os.path.join(
-                                config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product))
+                                config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product,metadata['Item']))
+        
+        # Move Metadata of item to destination DIR, only for  RAW data products
+        pattern = f"*{metadata['Item']}*_properties_*.json"
+        files_matching_pattern = glob.glob(os.path.join(config.PROCESSING_DIR, pattern))
+        move_files_with_rclone(files_matching_pattern, os.path.join(config.S3_DESTINATION, product,metadata['Item']))
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
@@ -514,6 +522,23 @@ def write_file_meta(input_dict, output_file):
         writer.writerow(list(existing_data.keys()))
         writer.writerow(list(existing_data.values()))
 
+def read_file_meta(input_file):
+    """
+    Read the existing CSV file
+
+    Parameters:
+    input_file (str): Path of the output CSV file.
+
+    Returns:
+    None
+    """
+    existing_data = OrderedDict()
+    if os.path.isfile(input_file):
+        with open(input_file, "r", encoding="utf-8", newline='') as f:
+            reader = csv.reader(f)
+            existing_data = OrderedDict(zip(next(reader), next(reader)))
+
+    return existing_data
 
 def extract_product_and_item(task_description):
     """
@@ -624,6 +649,9 @@ if __name__ == "__main__":
                 # Get the product and item
                 product, item = extract_product_and_item(
                     task_status['description'])
+                
+                # Get the metadata
+                metadata = read_file_meta(os.path.join(config.PROCESSING_DIR,filename+".csv"))
         
                 #merge files
                 file_merged = merge_files_with_gdal_warp(filename)
@@ -631,9 +659,9 @@ if __name__ == "__main__":
                 #reproject files: not needed, since we will prohject on export in satromo_processer.py on export
                 #file_reprojected=reproject_with_gdal(filename)
 
-                #move file to Destination: in case reproejction si done here: move file_reprojected
+                #move file to Destination: in case reproejction is done here: move file_reprojected
                 move_files_with_rclone(
-                                file_merged, os.path.join(config.S3_DESTINATION, product))
+                                file_merged, os.path.join(config.S3_DESTINATION, product,metadata['Item']))
                 
                 #clean up GDrive and local drive
                 #os.remove(file_merged)
