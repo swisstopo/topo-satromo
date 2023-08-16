@@ -441,10 +441,10 @@ def clean_up_gdrive(filename):
         move_files_with_rclone(os.path.join(
                                 config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product,metadata['Item']))
         
-        # Move Metadata of item to destination DIR, only for  RAW data products
+        # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
         pattern = f"*{metadata['Item']}*_properties_*.json"
         files_matching_pattern = glob.glob(os.path.join(config.PROCESSING_DIR, pattern))
-        move_files_with_rclone(files_matching_pattern, os.path.join(config.S3_DESTINATION, product,metadata['Item']))
+        move_files_with_rclone(files_matching_pattern[0], os.path.join(config.S3_DESTINATION, product,metadata['Item']))
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
