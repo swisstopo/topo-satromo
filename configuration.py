@@ -49,7 +49,7 @@ PRODUCT_NDVI_MAX = {
 PRODUCT_S2_LEVEL_2A = {
     "prefix": "S2_L2A_SR",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "10",  # Days
+    "temporal_coverage": "1",  # Days
     "spatial_scale_export": "10",  # Meters
     "product_name": "S2_LEVEL_2A"
 }
