@@ -32,7 +32,7 @@ OUTPUT_CRS = "EPSG:2056"
 BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
 # Switzerland border with 10km buffer: [5.78, 45.70, 10.69, 47.89] , Schönbühl [ 7.471940, 47.011335, 7.497431, 47.027602] Martigny [ 7.075402, 46.107098, 7.100894, 46.123639]
 # is not the final extent is defined by buffer above
-ROI_RECTANGLE = [7.075402, 46.107098, 7.100894, 46.123639]
+ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 NODATA = 9999  # No data values
 

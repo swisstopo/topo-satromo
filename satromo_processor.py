@@ -584,8 +584,8 @@ def process_S2_LEVEL_2A():
                 image_id = image.id().getInfo()
                 image_sensing_timestamp = image_id.split('_')[0]
                 # first numeric part represents the sensing date, needs to be used in publisher
-                print("processing "+str(i)+" of "+str(image_list.size().getInfo()
-                                                      ) + " " + image_sensing_timestamp+" ...")
+                print("processing "+str(i+1)+" of "+str(image_list.size().getInfo()
+                                                        ) + " " + image_sensing_timestamp+" ...")
 
                 # Clip Image to
                 clipped_image = image.clip(roi).unmask(config.NODATA)
@@ -673,9 +673,10 @@ if __name__ == "__main__":
     print("Result:", result)
 
     # S2_L2A
-    # border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
-    # roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
-    roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+    border = ee.FeatureCollection(
+        "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+    roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+    # roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
     result = process_S2_LEVEL_2A()
     print("Result:", result)
 
