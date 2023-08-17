@@ -677,7 +677,7 @@ if __name__ == "__main__":
         "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
     roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
     # roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-    result = process_S2_LEVEL_2A()
-    print("Result:", result)
+    # result = process_S2_LEVEL_2A()
+    # print("Result:", result)
 
 print("Processing done!")
