@@ -591,7 +591,7 @@ if __name__ == "__main__":
 
     # Authenticate with GEE and GDRIVE
     initialize_gee_and_drive()
-
+    
     #empty temp files on GDrive
     file_list = drive.ListFile({'q': "trashed=true"}).GetList()
     for file in file_list:
