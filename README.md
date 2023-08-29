@@ -12,7 +12,7 @@ This project aims to define automated spatial satellite products, indices, and a
 The aim is to have a serverless processing chain to derive and publish satrellite sensore derived products for drought monitoring. 
 There are two enviroments
 - DEV which is  a local machine with python installes
-- PROD which is GitHub ACtion based .
+- PROD which is GitHub Action based .
 
 ## Installation
 
@@ -46,6 +46,7 @@ You need in addition to trun the processor as well
 ## Usage
 
 Describe how to use your Python code or library. Provide code examples, API documentation, or usage instructions to help users understand how to interact with your code effectively. Include any relevant screenshots or GIFs to demonstrate your project in action.
+![Diagram](satromo_processor.drawio.svg)
 
 ## Features
 
