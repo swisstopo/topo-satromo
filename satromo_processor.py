@@ -621,34 +621,6 @@ def process_S2_LEVEL_2A():
         return 0
 
 
-# old stuff
-########################################
-#
-def addNDVI_old(image, bands):
-    """
-    Add the Normalized Difference Vegetation Index (NDVI) band to the image.
-
-    Args:
-        image (ee.Image): Input image to add the NDVI band.
-        bands (dict): Dictionary containing band names for NIR and RED.
-
-    Returns:
-        ee.Image: Image with the NDVI band added.
-    """
-
-    # Extract the band names for NIR and RED from the input dictionary
-    NIR = bands['NIR']
-    RED = bands['RED']
-
-    # Compute the NDVI using the normalizedDifference() function and rename the band to "NDVI"
-    ndvi = image.normalizedDifference([NIR, RED]).rename("NDVI")
-
-    # Add the NDVI band to the image using the addBands() function
-    image_with_ndvi = image.addBands(ndvi)
-
-    # Return the image with the NDVI band added
-    return image_with_ndvi
-
 
 if __name__ == "__main__":
     # Test if we are on Local DEV Run or if we are on PROD
