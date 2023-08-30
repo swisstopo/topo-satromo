@@ -244,20 +244,11 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         None
     """
 
-    # only reproject but without scale use this code, based on https://developers.google.com/earth-engine/guides/exporting#setting_scal
-    # projection = image.projection().getInfo()
-    # task = ee.batch.Export.image.toDrive(
-    #     image=image,
-    #     description=description,
-    #     "region "= "region",
-    #     fileNamePrefix=filename_prefix,
-    #     crs=crs,
-    #     maxPixels=1e13,
-    #     fileFormat = "GeoTIFF",
-    #     crsTransform = projection['transform']
-    # )
-
     # Export in GEE
+    #TODO Getting S2_mosaic.projection() makes no sense, it will always be a computed image, with 1 degree scale and EPSG 4326, unless manually reprojected.
+    #  Use projection() from one of the original images instead, e.g., S2_collection.first().projection(), *after the aoi/date filters but before mapping any transformation function* then
+    #  work with the corresponding CrsTtransform derived from it  crs:'EPSG:32632',   crsTransform: '[10,0,0,0,10,0]'
+
 
     task = ee.batch.Export.image.toDrive(
         image=image,
@@ -270,7 +261,8 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         fileFormat="GeoTIFF"
     )
 
-    # Export in GEE with UTM32
+    # OPTION Export in GEE with UTM32
+    # for images covering that UTM zone this will be the best, but for the neighbouring UTM zones, images will be reprojected. So, for mosaics for larger areas spanning multiple UTM zones maybe some alternative projection is more convenient.
     # task = ee.batch.Export.image.toDrive(
     #    image=image,
     #    description=description,
@@ -278,9 +270,22 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     #    "region=region,"
     #    fileNamePrefix=filename_prefix,
     #    maxPixels=1e13,
-    #    crs = crs,
-    #    crsTransform = '[10,0,0,0,-10,0]',
+    #    crs = 'EPSG:32632',
+    #    crsTransform = '[10,0,300000,0,-10,5200020]',
     #    fileFormat ="GeoTIFF"
+    # )
+
+    # OPTION: only reproject but without scale use this code, based on https://developers.google.com/earth-engine/guides/exporting#setting_scal
+    # projection = image.projection().getInfo()
+    # task = ee.batch.Export.image.toDrive(
+    #     image=image,
+    #     description=description,
+    #     "region "= "region",
+    #     fileNamePrefix=filename_prefix,
+    #     crs=crs,
+    #     maxPixels=1e13,
+    #     fileFormat = "GeoTIFF",
+    #     crsTransform = projection['transform']
     # )
 
     task.start()
@@ -505,18 +510,10 @@ def process_NDVI_MAX():
         sensor = sensor.map(lambda image: addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX['band_names'][0], index_name="NDVI"))
 
-        # Create NDVI and NDVI max
-        # sensor = sensor.map(lambda image: addNDVI_old(
-        #    image, bands=config.PRODUCT_NDVI_MAX['band_names'][0]))
-
         mosaic = sensor.qualityMosaic("NDVI")
         ndvi_max = mosaic.select("NDVI")
 
-        # Scale to Int8 or Int16
-        # Multiply by 1000  then cast to get int16
-        # ndvi_max_int = ndvi_max.multiply(10000).int16() #keep this for int16
-
-        # Multiply by 100 to move the decimal point two places back to the left and get rounded values, then round then cast to get int8
+        # Multiply by 100 to move the decimal point two places back to the left and get rounded values, then round then cast to get int16, Int8 is not a sultion since COGTiff is not supported
         ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
 
         # Mask outside
