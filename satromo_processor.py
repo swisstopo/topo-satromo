@@ -245,10 +245,9 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     """
 
     # Export in GEE
-    #TODO Getting S2_mosaic.projection() makes no sense, it will always be a computed image, with 1 degree scale and EPSG 4326, unless manually reprojected.
+    # TODO Getting S2_mosaic.projection() makes no sense, it will always be a computed image, with 1 degree scale and EPSG 4326, unless manually reprojected.
     #  Use projection() from one of the original images instead, e.g., S2_collection.first().projection(), *after the aoi/date filters but before mapping any transformation function* then
     #  work with the corresponding CrsTtransform derived from it  crs:'EPSG:32632',   crsTransform: '[10,0,0,0,10,0]'
-
 
     task = ee.batch.Export.image.toDrive(
         image=image,
@@ -587,6 +586,9 @@ def process_S2_LEVEL_2A():
                 # Clip Image to
                 clipped_image = image.clip(roi).unmask(config.NODATA)
 
+                # Get the bounding box of the clipped image
+                clipped_image_bounding_box = clipped_image.geometry().bounds()
+
                 # Generate the filename
                 filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
                     '_' + image_id
@@ -596,14 +598,14 @@ def process_S2_LEVEL_2A():
                     ['B4', 'B3', 'B2', 'B8'])
                 multiband_export_name = filename + '_10M' + \
                     "_run"+current_date_str.replace("-", "")
-                prepare_export(roi, image_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
+                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
                                sensor_stats, current_date_str)
 
                 # Export QA60 band as a separate GeoTIFF with '_QA60'
                 qa60_export = clipped_image.select('QA60')
                 qa60_export_name = filename + '_QA60' + \
                     "_run"+current_date_str.replace("-", "")
-                prepare_export(roi, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], qa60_export,
+                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], qa60_export,
                                sensor_stats, current_date_str)
 
                 # Export Image Properties into a json file
@@ -616,7 +618,6 @@ def process_S2_LEVEL_2A():
     else:
         print("no new imagery")
         return 0
-
 
 
 if __name__ == "__main__":
@@ -642,10 +643,10 @@ if __name__ == "__main__":
     print("Result:", result)
 
     # S2_L2A
-    #border = ee.FeatureCollection(
-    #    "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
-    #roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
-    roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+    border = ee.FeatureCollection(
+        "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+    roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+    # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
     result = process_S2_LEVEL_2A()
     print("Result:", result)
 
