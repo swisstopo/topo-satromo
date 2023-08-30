@@ -10,11 +10,11 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 
 ## Introduction and Project Description
 
-This project aims to define automated spatial satellite products, indices, and analysis-ready datasets, as well as establish a geospatial data processing pipeline with traceable algorithms in the field of drought monitoring.
-The aim is to have a serverless processing chain to derive and publish satrellite sensore derived products for drought monitoring. 
+This project aims to define automated spatial satellite products, indices, and analysis-ready datasets (ARD), as well as establish a geospatial data processing pipeline with traceable algorithms in the field of drought monitoring.
+The aim is to have a serverless processing chain to derive and publish satellite sensor derived products for drought monitoring. 
 There are two enviroments
 - DEV which is  a local machine with python installes
-- PROD which is GitHub Action based .
+- PROD which is GitHub Action based.
 
 ## Installation
 
@@ -28,7 +28,7 @@ git clone https://github.com/swisstopo/topo-satromo.git
 ```
 pip install -r requirements.txt
 ```
-3.Make sure you have Python 3.x and pip installed on your system.
+3. Make sure you have Python 3.x and pip installed on your system.
 
 [Optional] If you are using a virtual environment, activate it:
 ```
@@ -39,10 +39,10 @@ This step is recommended to isolate the project dependencies from your system-wi
 4. You are now ready to use the project!
 
 For the use on your local machine / DEV 
-- PROCESSOR: You need to create a folder "secrets" containing the GEE json according [Google Service Account](https://developers.google.com/earth-engine/guides/service_account) and a private key for the [service account](https://developers.google.com/earth-engine/guides/service_account#create-a-private-key-for-the-service-account)
+- PROCESSOR: You need to create a folder "secrets" containing the GEE json according to your [Google Service Account](https://developers.google.com/earth-engine/guides/service_account) and a private key for the [service account](https://developers.google.com/earth-engine/guides/service_account#create-a-private-key-for-the-service-account)
 
 For the use with GithubAction / PROD
-You need in addition to run the processor as well:
+In addition, you need to run the processor as well:
 - PUBLISHER: a rclone set up which transfers your data out of GDRIVE to you prefered location
 
 ## Solution architecture
@@ -54,14 +54,14 @@ You need in addition to run the processor as well:
 
 For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions). During a "processor" run, the code:
 1. triggers GEE extraction of products for the region of Switzerland using the configuration given in `configuration.py` and last update information in `tools/last_updates.csv`
-2. stores ruining tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
+2. stores running tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
 3. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.
 
-A pre-defined time after the "processor" run, a "publisher" run starts. Assuming all exports are done. In it, the publisher process:
+A pre-defined time after the "processor" run, a "publisher" run starts, assuming all exports are done. In it, the publisher process:
 1. reads the persisted information as to the most recently bprocessed  products based on IDs in `processing/running_tasks.csv`
-2. merges and clips the products, e.g. ARD, Indices etc locally in GitHubAction runner. be aware that the current limit is the disk space available on github ( it is approx 7 GB)
-3. moves the product and its persisted information with rclone to S3. 
-4. updates `tools/last_updates.csv`
+2. merges and clips the products, e.g. ARD, indices etc. locally in GitHubAction runner. Be aware that the current limit is the disk space available on github (approximately 7 GB)
+3. moves the product and its persisted information with rclone to S3 
+4. updates `tools/last_updates.csv`.
 
 ## Technologies
 
