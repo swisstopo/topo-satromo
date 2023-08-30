@@ -51,5 +51,6 @@ PRODUCT_S2_LEVEL_2A = {
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "temporal_coverage": "1",  # Days
     "spatial_scale_export": "10",  # Meters
+    "spatial_scale_export_qa60": "60",  # Meters
     "product_name": "S2_LEVEL_2A"
 }

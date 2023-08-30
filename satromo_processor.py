@@ -605,7 +605,7 @@ def process_S2_LEVEL_2A():
                 qa60_export = clipped_image.select('QA60')
                 qa60_export_name = filename + '_QA60' + \
                     "_run"+current_date_str.replace("-", "")
-                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], qa60_export,
+                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'], qa60_export,
                                sensor_stats, current_date_str)
 
                 # Export Image Properties into a json file
