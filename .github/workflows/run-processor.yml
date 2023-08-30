@@ -2,7 +2,7 @@ name: Run processor
 
 on:
   schedule:
-  - cron:  '0 1 * * *'
+  - cron:  '0 23 * * *'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
   
