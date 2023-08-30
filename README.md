@@ -52,7 +52,7 @@ You need in addition to run the processor as well:
 
 ## Functionality in detail
 
-For starters, we build a GithubAction & GEE python based ARD and Indicices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions). During a "processor" run, the code:
+For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions). During a "processor" run, the code:
 1. triggers GEE extraction of products for the region of Switzerland using the configuration given in `configuration.py` and last update information in `tools/last_updates.csv`
 2. stores ruining tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
 3. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.
