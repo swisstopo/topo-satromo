@@ -111,7 +111,6 @@ Distributed under the BSD-3-Clause License. See `LICENSE.txt` for more informati
 ## Contact Information
 
 David Oesch - david.oesch@swisstopo.ch
-
 Joan Sturm - joan.sturm@swisstopo.ch
 
 Project Link: [https://github.com/swisstopo/satromo](https://github.com/swisstopo/satromo)
