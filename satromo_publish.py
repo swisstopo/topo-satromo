@@ -14,6 +14,7 @@ import glob
 # Set the CPL_DEBUG environment variable to enable verbose output
 os.environ["CPL_DEBUG"] = "ON"
 
+
 def determine_run_type():
     """
     Determines the run type based on the existence of the SECRET on the local machine file.
@@ -92,15 +93,15 @@ def initialize_gee_and_drive():
         google_secret_file = "keyfile.json"
         with open(google_secret_file, "w") as f:
             f.write(google_secret)
-        
-        #Create mountpoint GDRIVE
+
+        # Create mountpoint GDRIVE
         command = ["mkdir", config.GDRIVE_MOUNT]
         print(command)
-        result=subprocess.run(command, check=True)
+        result = subprocess.run(command, check=True)
 
-        #GDRIVE Mount
-        command = ["rclone", "mount", "--config", "rclone.conf", #"--allow-other",
-                    os.path.join(config.GDRIVE_SOURCE),config.GDRIVE_MOUNT,"--vfs-cache-mode", "full"]
+        # GDRIVE Mount
+        command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
+                   os.path.join(config.GDRIVE_SOURCE), config.GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
 
         print(command)
         subprocess.Popen(command)
@@ -163,61 +164,6 @@ def move_files_with_rclone(source, destination):
 
     print("SUCCESS: moved " + source + " to " + destination)
 
-def merge_files_with_gdal_translate(source):
-    """
-    Merge with GDAL 
-
-    Parameters:
-    source (str): Source filename .
-        
-    Returns:
-    None
-    """
-
-    #check local disk disk space
-    command = ["df","-h"]
-    print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)
-    
-    # Get the list of all quadrant files matching the pattern
-    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
-
-    # Write the file names to _list.txt
-    with open(source+"_list.txt", "w") as file:
-        file.writelines([f"{filename}\n" for filename in file_list])
-    
-    #run gdal vrt
-    command = ["gdalbuildvrt",
-                "-input_file_list", source+"_list.txt",source+".vrt",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-                ]
-    #print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)
-
-    #run gdal translate
-    command = ["gdal_translate",
-                source+".vrt", source+".tif", # rename to source+"_merged.tif" when doing reprojection afterwards
-                "-of", "COG",
-                "-co", "NUM_THREADS=ALL_CPUS",
-                #"-co", "COMPRESS=LZW",
-                "-co", "BIGTIFF=YES",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-               #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
-                "-co", "COMPRESS=DEFLATE",
-                "-co", "PREDICTOR=2",
-                ]
-    #print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)
-
-    print("SUCCESS: merged " + source+".tif")
-    return(source+".tif")
 
 def merge_files_with_gdal_warp(source):
     """
@@ -225,164 +171,87 @@ def merge_files_with_gdal_warp(source):
 
     Parameters:
     source (str): Source filename .
-        
+
     Returns:
     None
     """
 
-    #check local disk disk space
-    command = ["df","-h"]
+    # check local disk disk space
+    command = ["df", "-h"]
     print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
     print(result)
-    
+
     # Get the list of all quadrant files matching the pattern
-    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
+    file_list = sorted(glob.glob(os.path.join(
+        config.GDRIVE_MOUNT, source+"*.tif")))
 
     # Write the file names to _list.txt
     with open(source+"_list.txt", "w") as file:
         file.writelines([f"{filename}\n" for filename in file_list])
-    
-    #run gdal vrt
+
+    # run gdal vrt
     command = ["gdalbuildvrt",
-                "-input_file_list", source+"_list.txt",source+".vrt",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-                ]
-    #print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
+               "-input_file_list", source+"_list.txt", source+".vrt",
+               "--config", "GDAL_CACHEMAX", "9999",
+               "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+               ]
+    # print(command)
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
     print(result)
 
-    #run gdal translate
+    # run gdal translate
     command = ["gdalwarp",
-                source+".vrt", source+".tif", # rename to source+"_merged.tif" when doing reprojection afterwards
-                "-of", "COG",
-                "-cutline", config.BUFFER,
-                "-dstnodata", str(config.NODATA),
-                "-srcnodata", str(config.NODATA),
-                "-co", "NUM_THREADS=ALL_CPUS",
-                "-co", "BIGTIFF=YES",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-               #otherwise use compress=lzw 
+               # rename to source+"_merged.tif" when doing reprojection afterwards
+               source+".vrt", source+".tif",
+               "-of", "COG",
+               "-cutline", config.BUFFER,
+               "-dstnodata", str(config.NODATA),
+               "-srcnodata", str(config.NODATA),
+               "-co", "NUM_THREADS=ALL_CPUS",
+               "-co", "BIGTIFF=YES",
+               "--config", "GDAL_CACHEMAX", "9999",
+               "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+               # otherwise use compress=lzw
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
-                "-co", "COMPRESS=DEFLATE",
-                "-co", "PREDICTOR=2",
-                ]
-    #print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
+               "-co", "COMPRESS=DEFLATE",
+               "-co", "PREDICTOR=2",
+               ]
+    # print(command)
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
     print(result)
 
-    #For Debugging uncomment  below
-    #print("Standard Output:")
-    #print(result.stdout)
-    #print("Standard Error:")
-    #print(result.stderr)
+    # For Debugging uncomment  below
+    # print("Standard Output:")
+    # print(result.stdout)
+    # print("Standard Error:")
+    # print(result.stderr)
 
     print("SUCCESS: merged " + source+".tif")
-    return(source+".tif")
+    return (source+".tif")
 
-def reproject_with_gdal(source):
-    """
-    Merge with GDAL 
-
-    Parameters:
-    source (str): Source filename .
-        
-    Returns:
-    Filename reprojected
-    """
-       
-
-    #run gdalwarp
-    command = ["gdalwarp",
-                source+"_merged.tif", source+".tif",
-                "-t_srs", config.OUTPUT_CRS,
-                "-tr","10.0", "10.0",
-                "-of", "COG",
-                "-co", "NUM_THREADS=ALL_CPUS",
-                #"-co", "COMPRESS=LZW",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw above
-                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
-                "-co", "COMPRESS=DEFLATE",
-                "-co", "PREDICTOR=2"
-                ]
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)
-    print("SUCCESS: reprojected " + source+".tif")
-    return(source+".tif")
-
-def reprojectmerge_with_gdal(source):
-    """
-    reproject & merge with GDALwarp (no use to gdal_translate, might be slower
-
-    Parameters:
-    source (str): Source filename .
-        
-    Returns:
-    Filename reprojected
-    """
-    
-    # Get the list of all quadrant files matching the pattern
-    file_list = sorted(glob.glob(os.path.join(config.GDRIVE_MOUNT, source+"*.tif")))
-
-    # Write the file names to _list.txt
-    with open(source+"_list.txt", "w") as file:
-        file.writelines([f"{filename}\n" for filename in file_list])
-    
-    #run gdal vrt
-    command = ["gdalbuildvrt",
-                "-input_file_list", source+"_list.txt",source+".vrt",
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-                ]
-    #print(command)
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)   
-
-    #run gdalwarp
-    command = ["gdalwarp",
-                source+".vrt", source+".tif",
-                "-t_srs", config.OUTPUT_CRS,
-                "-tr","10.0", "10.0",
-                "-r","near",
-                "-of", "COG",
-                "-co", "NUM_THREADS=ALL_CPUS",
-                "-co", "BIGTIFF=YES",
-                "- overwrite", 
-                "--config", "GDAL_CACHEMAX", "9999",
-                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE","YES",
-                #added thsiconfig to test. otherwise uncomment it and as well add compress=lzw 
-                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
-                "-co", "COMPRESS=DEFLATE",
-                "-co", "PREDICTOR=2"
-                ]
-    result=subprocess.run(command, check=True, capture_output=True, text=True)
-    print(result)
-    print("SUCCESS: merge & reprojected " + source+".tif")
-    return(source+".tif")
 
 def extract_value_from_csv(filename, search_string, search_col, col_result):
     try:
         with open(filename, "r") as file:
             reader = csv.DictReader(file)
-            
+
             for row in reader:
                 if row[search_col] == search_string:
                     return row[col_result]
-            
-            print(f"Entry not found for '{search_string}' in column '{search_col}'")
+
+            print(
+                f"Entry not found for '{search_string}' in column '{search_col}'")
     except FileNotFoundError:
         print("File not found.")
-    
+
     return None
+
 
 def clean_up_gdrive(filename):
     """
@@ -397,20 +266,18 @@ def clean_up_gdrive(filename):
     #  Find the file in Google Drive by its name
     file_list = drive.ListFile({
         "q": "title contains '"+filename+"' and trashed=false"
-        }).GetList()
+    }).GetList()
 
     # Check if the file is found
     if len(file_list) > 0:
 
-
-        
-        # Iterate through the files and delete them    
+        # Iterate through the files and delete them
         for file in file_list:
-            
 
-            #Get the current Task id
-            file_on_drive=file['title']
-            file_task_id=extract_value_from_csv(config.GEE_RUNNING_TASKS,file_on_drive.replace(".tif", ""),"Filename","Task ID")
+            # Get the current Task id
+            file_on_drive = file['title']
+            file_task_id = extract_value_from_csv(
+                config.GEE_RUNNING_TASKS, file_on_drive.replace(".tif", ""), "Filename", "Task ID")
 
             # Check task status
             file_task_status = ee.data.getTaskStatus(file_task_id)[0]
@@ -418,7 +285,7 @@ def clean_up_gdrive(filename):
             # Get the product and item
             file_product, file_item = extract_product_and_item(
                 file_task_status['description'])
-        
+
             # Delete the file
             file.Delete()
             print(f"File {file['title']} DELETED on Google Drive.")
@@ -429,29 +296,31 @@ def clean_up_gdrive(filename):
             # Remove the line from the RUNNING tasks file
             delete_line_in_file(config.GEE_RUNNING_TASKS, file_task_id)
 
-    
         # Add DATA GEE PROCESSING info to Metadata of item,
         write_file_meta(file_task_status, os.path.join(
             config.PROCESSING_DIR, item+".csv"))
-        
+
         # Get the filename metadata
-        metadata = read_file_meta(os.path.join(config.PROCESSING_DIR,filename+".csv"))
+        metadata = read_file_meta(os.path.join(
+            config.PROCESSING_DIR, filename+".csv"))
 
         # Move Description of item to destination DIR
         move_files_with_rclone(os.path.join(
-                                config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product,metadata['Item']))
-        
+            config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product, metadata['Item']))
+
         # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
         pattern = f"*{metadata['Item']}*_properties_*.json"
-        files_matching_pattern = glob.glob(os.path.join(config.PROCESSING_DIR, pattern))
+        files_matching_pattern = glob.glob(
+            os.path.join(config.PROCESSING_DIR, pattern))
         if files_matching_pattern:
-            move_files_with_rclone(files_matching_pattern[0], os.path.join(config.S3_DESTINATION, product,metadata['Item']))
-        
+            move_files_with_rclone(files_matching_pattern[0], os.path.join(
+                config.S3_DESTINATION, product, metadata['Item']))
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
             config.LAST_PRODUCT_UPDATES, file_product)
     return
+
 
 def write_file(input_dict, output_file):
     """
@@ -524,6 +393,7 @@ def write_file_meta(input_dict, output_file):
         writer.writerow(list(existing_data.keys()))
         writer.writerow(list(existing_data.values()))
 
+
 def read_file_meta(input_file):
     """
     Read the existing CSV file
@@ -541,6 +411,7 @@ def read_file_meta(input_file):
             existing_data = OrderedDict(zip(next(reader), next(reader)))
 
     return existing_data
+
 
 def extract_product_and_item(task_description):
     """
@@ -591,34 +462,36 @@ if __name__ == "__main__":
 
     # Authenticate with GEE and GDRIVE
     initialize_gee_and_drive()
-    
-    #empty temp files on GDrive
+
+    # empty temp files on GDrive
     file_list = drive.ListFile({'q': "trashed=true"}).GetList()
     for file in file_list:
         file.Delete()
-        print('GDRIVE TRASH: Deleted file: %s' % file['title'])  
+        print('GDRIVE TRASH: Deleted file: %s' % file['title'])
 
     # Read the status file
     with open(config.GEE_RUNNING_TASKS, "r") as f:
         lines = f.readlines()
 
-    #Get the unique filename
+    # Get the unique filename
     unique_filenames = set()
 
     for line in lines[1:]:  # Start from the second line
         _, filename = line.strip().split(',')
-        filename = filename.split('quadrant')[0]  # Take the part before "quadrant"
+        # Take the part before "quadrant"
+        filename = filename.split('quadrant')[0]
         unique_filenames.add(filename.strip())
 
-    unique_filenames=list(unique_filenames)
-    
+    unique_filenames = list(unique_filenames)
+
     # Check  if each quandrant is complete then process
     # Iterate over unique filenames
     for filename in unique_filenames:
-        
+
         # Keep track of completion status
         all_completed = True
-        for quadrant_num in range(1, 5): #You need to change this if we have more than 4 quadrants
+        # You need to change this if we have more than 4 quadrants
+        for quadrant_num in range(1, 5):
             # Construct the filename with the quadrant
             full_filename = filename + "quadrant" + str(quadrant_num)
 
@@ -643,44 +516,41 @@ if __name__ == "__main__":
             if run_type == 2:
                 # local machine run
                 # Download DATA
-                breakpoint()
+                breakpoint()  # TODO add local processor
                 download_and_delete_file(filename)
             else:
                 print(filename+" is ready to process")
-                
+
                 # Get the product and item
                 product, item = extract_product_and_item(
                     task_status['description'])
-                
+
                 # Get the metadata
-                metadata = read_file_meta(os.path.join(config.PROCESSING_DIR,filename+".csv"))
-        
-                #merge files
+                metadata = read_file_meta(os.path.join(
+                    config.PROCESSING_DIR, filename+".csv"))
+
+                # merge files
                 file_merged = merge_files_with_gdal_warp(filename)
 
-                #reproject files: not needed, since we will prohject on export in satromo_processer.py on export
-                #file_reprojected=reproject_with_gdal(filename)
-
-                #move file to Destination: in case reproejction is done here: move file_reprojected
+                # move file to Destination: in case reproejction is done here: move file_reprojected
                 move_files_with_rclone(
-                                file_merged, os.path.join(config.S3_DESTINATION, product,metadata['Item']))
-                
-                #clean up GDrive and local drive
-                #os.remove(file_merged)
+                    file_merged, os.path.join(config.S3_DESTINATION, product, metadata['Item']))
+
+                # clean up GDrive and local drive
+                os.remove(file_merged)
                 clean_up_gdrive(filename)
-   
-        else: 
-            print(filename+" is NOT ready to process")       
-   
+
+        else:
+            print(filename+" is NOT ready to process")
 
     # Last step
     if run_type == 1:
         # Remove the key file so It wont be commited
         os.remove("keyfile.json")
         os.remove("rclone.conf")
-    #empty temp files on GDrive
+    # empty temp files on GDrive
     file_list = drive.ListFile({'q': "trashed=true"}).GetList()
     for file in file_list:
         file.Delete()
-        print('GDRIVE TRASH: Deleted file: %s' % file['title'])    
+        print('GDRIVE TRASH: Deleted file: %s' % file['title'])
     print("PUBLISH Process done.")
