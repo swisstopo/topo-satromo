@@ -12,8 +12,9 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 
 This project aims to define automated spatial satellite products, indices, and analysis-ready datasets (ARD), as well as establish a geospatial data processing pipeline with traceable algorithms in the field of drought monitoring.
 The aim is to have a serverless processing chain to derive and publish satellite sensor derived products for drought monitoring. 
-There are two enviroments
-- DEV which is  a local machine with python installes
+
+There are two environments:
+- DEV which is a local machine with python installes
 - PROD which is GitHub Action based.
 
 ## Installation
