@@ -537,7 +537,7 @@ if __name__ == "__main__":
                     file_merged, os.path.join(config.S3_DESTINATION, product, metadata['Item']))
 
                 # clean up GDrive and local drive
-                os.remove(file_merged)
+                # os.remove(file_merged)
                 clean_up_gdrive(filename)
 
         else:
