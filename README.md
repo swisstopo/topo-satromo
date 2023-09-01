@@ -40,7 +40,7 @@ This step is recommended to isolate the project dependencies from your system-wi
 4. You are now ready to use the project!
 
 For the use on your local machine / DEV 
-- PROCESSOR: You need to create a folder "secrets" containing the GEE json according to your [Google Service Account](https://developers.google.com/earth-engine/guides/service_account) and a private key for the [service account](https://developers.google.com/earth-engine/guides/service_account#create-a-private-key-for-the-service-account)
+- PROCESSOR: You need to create a folder "secrets" containing the GEE json according to your [Google Service Account](https://developers.google.com/earth-engine/guides/service_account) and a private key for the [service account](https://developers.google.com/earth-engine/guides/service_account#create-a-private-key-for-the-service-account). Ensure that service  account has the [Earth Engine API enabled](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup) and has been has been [registered](https://code.earthengine.google.com/register) for use with Earth Engine. Then you also need to activate your  GoogleDrive / Google developers console API activation for your ServiceAccount Project https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=<YourprojectID> to access GDRIVE via API
 
 For the use with GithubAction / PROD
 In addition, you need to run the processor as well:
