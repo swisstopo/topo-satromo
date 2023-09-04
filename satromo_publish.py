@@ -23,6 +23,8 @@ def determine_run_type():
     Otherwise, sets the run type to 1 (PROD) and prints a corresponding message.
     """
     global run_type
+    global GDRIVE_SOURCE
+    global S3_DESTINATION
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
         print("\nType 2 run PUBLISHER: We are on DEV")
