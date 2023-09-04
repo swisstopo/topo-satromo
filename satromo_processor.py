@@ -24,7 +24,7 @@ def determine_run_type():
         print("\nType 2 run PROCESSOR: We are on DEV")
     else:
         run_type = 1
-        print("\nType 1 run PROCESSOR: We are on PROD")
+        print("\nType 1 run PROCESSOR: We are on INT")
 
 
 def get_github_info():

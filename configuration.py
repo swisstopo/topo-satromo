@@ -14,10 +14,16 @@ GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
 GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
-GDRIVE_SOURCE = "geedrivetest:"
 GDRIVE_MOUNT = "localgdrive"
-S3_DESTINATION = os.path.join(
+# DEV
+GDRIVE_SOURCE_DEV = "geedrivetest:"
+S3_DESTINATION_DEV = os.path.join(
     "gees3test:cms.geo.admin.ch", "test", "topo", "umweltbeobachtung")
+# INT
+GDRIVE_SOURCE_INT = "geedriveINT:"
+S3_DESTINATION_INT = os.path.join(
+    "s3INT:satromoint.s3.eu-central-2.amazonaws.com")
+
 
 # General GEE parameters
 SHARD_SIZE = 256
@@ -32,7 +38,7 @@ OUTPUT_CRS = "EPSG:2056"
 BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
 # Switzerland border with 10km buffer: [5.78, 45.70, 10.69, 47.89] , Schönbühl [ 7.471940, 47.011335, 7.497431, 47.027602] Martigny [ 7.075402, 46.107098, 7.100894, 46.123639]
 # is not the final extent is defined by buffer above
-ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
+ROI_RECTANGLE = [7.075402, 46.107098, 7.100894, 46.123639]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 NODATA = 9999  # No data values
 

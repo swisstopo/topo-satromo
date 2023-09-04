@@ -26,9 +26,13 @@ def determine_run_type():
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
         print("\nType 2 run PUBLISHER: We are on DEV")
+        GDRIVE_SOURCE = config.GDRIVE_SOURCE_DEV
+        S3_DESTINATION = config.S3_DESTINATION_DEV
     else:
         run_type = 1
-        print("\nType 1 run PUBLISHER: We are on PROD")
+        print("\nType 1 run PUBLISHER: We are on INT")
+        GDRIVE_SOURCE = config.GDRIVE_SOURCE_INT
+        S3_DESTINATION = config.S3_DESTINATION_INT
 
 
 def initialize_gee_and_drive():
@@ -101,7 +105,7 @@ def initialize_gee_and_drive():
 
         # GDRIVE Mount
         command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
-                   os.path.join(config.GDRIVE_SOURCE), config.GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
+                   os.path.join(GDRIVE_SOURCE), config.GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
 
         print(command)
         subprocess.Popen(command)
@@ -306,7 +310,7 @@ def clean_up_gdrive(filename):
 
         # Move Description of item to destination DIR
         move_files_with_rclone(os.path.join(
-            config.PROCESSING_DIR, item+".csv"), os.path.join(config.S3_DESTINATION, product, metadata['Item']))
+            config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
 
         # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
         pattern = f"*{metadata['Item']}*_properties_*.json"
@@ -314,7 +318,7 @@ def clean_up_gdrive(filename):
             os.path.join(config.PROCESSING_DIR, pattern))
         if files_matching_pattern:
             move_files_with_rclone(files_matching_pattern[0], os.path.join(
-                config.S3_DESTINATION, product, metadata['Item']))
+                S3_DESTINATION, product, metadata['Item']))
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
@@ -534,7 +538,7 @@ if __name__ == "__main__":
 
                 # move file to Destination: in case reproejction is done here: move file_reprojected
                 move_files_with_rclone(
-                    file_merged, os.path.join(config.S3_DESTINATION, product, metadata['Item']))
+                    file_merged, os.path.join(S3_DESTINATION, product, metadata['Item']))
 
                 # clean up GDrive and local drive
                 # os.remove(file_merged)
