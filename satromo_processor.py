@@ -570,6 +570,46 @@ def process_S2_LEVEL_2A():
             print(str(image_list.size().getInfo()) + " new image(s) for: " +
                   sensor_stats[1] + " to: "+current_date_str)
 
+            # Generate the mosaic name and snsing date by geeting EE asset ids from the first image
+            mosaic_id = ee.Image(image_list.get(0))
+            mosaic_id = mosaic_id.id().getInfo()
+            mosaic_sensing_timestamp = mosaic_id.split('_')[0]
+
+            # Split the string by underscores
+            parts = mosaic_id.split('_')
+
+            # Join the first two parts with an underscore to get the desired result
+            mosaic_id = '_'.join(parts[:2])
+
+            # Create a mosaic of the images for the specified date and time
+            mosaic = collection.mosaic()
+
+            # Clip Image to
+            # might add .unmask(config.NODATA)
+            clipped_image = mosaic.clip(roi)
+
+            # Get the bounding box of the clipped image
+            clipped_image_bounding_box = clipped_image.geometry().bounds()
+
+            # Generate the filename
+            filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
+                '_' + mosaic_id
+
+            # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
+            multiband_export = clipped_image.select(
+                ['B4', 'B3', 'B2', 'B8'])
+            multiband_export_name = filename + '_10M' + \
+                "_run"+current_date_str.replace("-", "")
+            prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
+                           sensor_stats, current_date_str)
+
+            # Export QA60 band as a separate GeoTIFF with '_QA60'
+            qa60_export = clipped_image.select('QA60')
+            qa60_export_name = filename + '_QA60' + \
+                "_run"+current_date_str.replace("-", "")
+            prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'], qa60_export,
+                           sensor_stats, current_date_str)
+
             # For each image, process
             for i in range(image_list.size().getInfo()):
                 image = ee.Image(image_list.get(i))
@@ -583,30 +623,9 @@ def process_S2_LEVEL_2A():
                 print("processing "+str(i+1)+" of "+str(image_list.size().getInfo()
                                                         ) + " " + image_sensing_timestamp+" ...")
 
-                # Clip Image to
-                clipped_image = image.clip(roi).unmask(config.NODATA)
-
-                # Get the bounding box of the clipped image
-                clipped_image_bounding_box = clipped_image.geometry().bounds()
-
                 # Generate the filename
                 filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
                     '_' + image_id
-
-                # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
-                multiband_export = clipped_image.select(
-                    ['B4', 'B3', 'B2', 'B8'])
-                multiband_export_name = filename + '_10M' + \
-                    "_run"+current_date_str.replace("-", "")
-                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
-                               sensor_stats, current_date_str)
-
-                # Export QA60 band as a separate GeoTIFF with '_QA60'
-                qa60_export = clipped_image.select('QA60')
-                qa60_export_name = filename + '_QA60' + \
-                    "_run"+current_date_str.replace("-", "")
-                prepare_export(clipped_image_bounding_box, image_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'], qa60_export,
-                               sensor_stats, current_date_str)
 
                 # Export Image Properties into a json file
                 with open(os.path.join(config.PROCESSING_DIR, filename + "_properties"+"_run"+current_date_str.replace("-", "")+".json"), "w") as json_file:
