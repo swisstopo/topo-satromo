@@ -22,7 +22,7 @@ S3_DESTINATION_DEV = os.path.join(
 # INT
 GDRIVE_SOURCE_INT = "geedriveINT:"
 S3_DESTINATION_INT = os.path.join(
-    "s3INT:satromoint.s3.eu-central-2.amazonaws.com", "data")
+    "s3INT:satromoint", "data")
 
 
 # General GEE parameters
