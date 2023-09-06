@@ -14,13 +14,15 @@ GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
 GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
-GDRIVE_MOUNT = "localgdrive"
 # DEV
 GDRIVE_SOURCE_DEV = "geedrivetest:"
-S3_DESTINATION_DEV = os.path.join(
-    "gees3test:cms.geo.admin.ch", "test", "topo", "umweltbeobachtung")
+# under Windows, add \\ to escape the backslash like r'Y:\\'
+GDRIVE_MOUNT_DEV = r'Y:\\'
+# under Windows, add \\ to escape the backslash like r'X:\\'
+S3_DESTINATION_DEV = r'X:\\'
 # INT
 GDRIVE_SOURCE_INT = "geedriveINT:"
+GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join(
     "s3INT:satromoint", "data")
 

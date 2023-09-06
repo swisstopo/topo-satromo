@@ -10,6 +10,7 @@ import configuration as config
 from collections import OrderedDict
 import subprocess
 import glob
+import platform
 
 # Set the CPL_DEBUG environment variable to enable verbose output
 os.environ["CPL_DEBUG"] = "ON"
@@ -17,7 +18,7 @@ os.environ["CPL_DEBUG"] = "ON"
 
 def determine_run_type():
     """
-    Determines the run type based on the existence of the SECRET on the local machine file.
+    Determines the run type based on the existence of the SECRET on the local machine file. And determine platform
 
     If the file `config.GDRIVE_SECRETS` exists, sets the run type to 2 (DEV) and prints a corresponding message.
     Otherwise, sets the run type to 1 (PROD) and prints a corresponding message.
@@ -25,15 +26,25 @@ def determine_run_type():
     global run_type
     global GDRIVE_SOURCE
     global S3_DESTINATION
+    global GDRIVE_MOUNT
+    global os_name
+
+    # Get the operating system name
+    os_name = platform.system()
+
+    # Set SOURCE , DESTINATION and MOUNTPOINTS
+
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
         print("\nType 2 run PUBLISHER: We are on DEV")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_DEV
+        GDRIVE_MOUNT = config.GDRIVE_MOUNT_DEV
         S3_DESTINATION = config.S3_DESTINATION_DEV
     else:
         run_type = 1
         print("\nType 1 run PUBLISHER: We are on INT")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_INT
+        GDRIVE_MOUNT = config.GDRIVE_MOUNT_INT
         S3_DESTINATION = config.S3_DESTINATION_INT
 
 
@@ -101,13 +112,13 @@ def initialize_gee_and_drive():
             f.write(google_secret)
 
         # Create mountpoint GDRIVE
-        command = ["mkdir", config.GDRIVE_MOUNT]
+        command = ["mkdir", GDRIVE_MOUNT]
         print(command)
         result = subprocess.run(command, check=True)
 
         # GDRIVE Mount
         command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
-                   os.path.join(GDRIVE_SOURCE), config.GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
+                   os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
 
         print(command)
         subprocess.Popen(command)
@@ -164,7 +175,14 @@ def move_files_with_rclone(source, destination):
     """
     # Run rclone command to move files
     # See hint https://forum.rclone.org/t/s3-rclone-v-1-52-0-or-after-permission-denied/21961/2
-    command = ["rclone", "move", "--config", "rclone.conf", "--s3-no-check-bucket",
+
+    if run_type == 2:
+        rclone = os.path.join("secrets", "rclone")
+        rclone_conf = os.path.join("secrets", "rclone.conf")
+    else:
+        rclone = "rclone"
+        rclone_conf = "rclone.conf"
+    command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
                source, destination]
     subprocess.run(command, check=True)
 
@@ -183,15 +201,22 @@ def merge_files_with_gdal_warp(source):
     """
 
     # check local disk disk space
-    command = ["df", "-h"]
-    print(command)
-    result = subprocess.run(command, check=True,
-                            capture_output=True, text=True)
-    print(result)
+    if os_name == "Windows":
+        print("This is a Windows operating system, make sure you have enough disk space.")
+    else:
+        command = ["df", "-h"]
+        print(command)
+        result = subprocess.run(command, check=True,
+                                capture_output=True, text=True)
+        print(result)
 
     # Get the list of all quadrant files matching the pattern
     file_list = sorted(glob.glob(os.path.join(
-        config.GDRIVE_MOUNT, source+"*.tif")))
+        GDRIVE_MOUNT, source+"*.tif")))
+
+    # under Windows Replace double backslashes with single backslashes in the file list
+    if os_name == "Windows":
+        file_list = [filename.replace('\\\\', '\\') for filename in file_list]
 
     # Write the file names to _list.txt
     with open(source+"_list.txt", "w") as file:
@@ -233,10 +258,10 @@ def merge_files_with_gdal_warp(source):
     print(result)
 
     # For Debugging uncomment  below
-    # print("Standard Output:")
-    # print(result.stdout)
-    # print("Standard Error:")
-    # print(result.stderr)
+    print("Standard Output:")
+    print(result.stdout)
+    print("Standard Error:")
+    print(result.stderr)
 
     print("SUCCESS: merged " + source+".tif")
     return (source+".tif")
@@ -319,12 +344,29 @@ def clean_up_gdrive(filename):
         files_matching_pattern = glob.glob(
             os.path.join(config.PROCESSING_DIR, pattern))
         if files_matching_pattern:
-            move_files_with_rclone(files_matching_pattern[0], os.path.join(
-                S3_DESTINATION, product, metadata['Item']))
+            destination_dir = os.path.join(
+                S3_DESTINATION, product, metadata['Item'])
+            for file_to_move in files_matching_pattern:
+                move_files_with_rclone(file_to_move, destination_dir)
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
             config.LAST_PRODUCT_UPDATES, file_product)
+
+        # Clean up GDAL temporary files
+
+        # VRT file, Pattern for .vrt files
+        vrt_pattern = f"*{metadata['Item']}*.vrt"
+        vrt_files = glob.glob(vrt_pattern)
+        [os.remove(file_path)
+         for file_path in vrt_files if os.path.exists(file_path)]
+
+        # Pattern for _list.txt files
+        list_txt_pattern = f"*{metadata['Item']}*_list.txt"
+        list_files = glob.glob(list_txt_pattern)
+        [os.remove(file_path)
+         for file_path in list_files if os.path.exists(file_path)]
+
     return
 
 
@@ -519,32 +561,32 @@ if __name__ == "__main__":
 
         # Check overall completion status
         if all_completed:
-            if run_type == 2:
-                # local machine run
-                # Download DATA
-                breakpoint()  # TODO add local processor
-                download_and_delete_file(filename)
-            else:
-                print(filename+" is ready to process")
+            # if run_type == 2:
+            # local machine run
+            # Download DATA
+            # breakpoint()  # TODO add local processor
+            # download_and_delete_file(filename)
+            # else:
+            print(filename+" is ready to process")
 
-                # Get the product and item
-                product, item = extract_product_and_item(
-                    task_status['description'])
+            # Get the product and item
+            product, item = extract_product_and_item(
+                task_status['description'])
 
-                # Get the metadata
-                metadata = read_file_meta(os.path.join(
-                    config.PROCESSING_DIR, filename+".csv"))
+            # Get the metadata
+            metadata = read_file_meta(os.path.join(
+                config.PROCESSING_DIR, filename+".csv"))
 
-                # merge files
-                file_merged = merge_files_with_gdal_warp(filename)
+            # merge files
+            file_merged = merge_files_with_gdal_warp(filename)
 
-                # move file to Destination: in case reproejction is done here: move file_reprojected
-                move_files_with_rclone(
-                    file_merged, os.path.join(S3_DESTINATION, product, metadata['Item']))
+            # move file to Destination: in case reproejction is done here: move file_reprojected
+            move_files_with_rclone(
+                file_merged, os.path.join(S3_DESTINATION, product, metadata['Item']))
 
-                # clean up GDrive and local drive
-                # os.remove(file_merged)
-                clean_up_gdrive(filename)
+            # clean up GDrive and local drive
+            # os.remove(file_merged)
+            clean_up_gdrive(filename)
 
         else:
             print(filename+" is NOT ready to process")
