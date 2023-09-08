@@ -258,10 +258,10 @@ def merge_files_with_gdal_warp(source):
     print(result)
 
     # For Debugging uncomment  below
-    print("Standard Output:")
-    print(result.stdout)
-    print("Standard Error:")
-    print(result.stderr)
+    # print("Standard Output:")
+    # print(result.stdout)
+    # print("Standard Error:")
+    # print(result.stderr)
 
     print("SUCCESS: merged " + source+".tif")
     return (source+".tif")
