@@ -584,12 +584,31 @@ def process_S2_LEVEL_2A():
             # Create a mosaic of the images for the specified date and time
             mosaic = collection.mosaic()
 
-            # Clip Image to
+            # Clip Image to ROI
             # might add .unmask(config.NODATA)
             clipped_image = mosaic.clip(roi)
 
-            # Get the bounding box of the clipped image
-            clipped_image_bounding_box = clipped_image.geometry().bounds()
+            # Intersect ROI and clipped mosaic
+            # Create an empty list to hold the footprints
+            footprints = ee.List([])
+
+            # Function to extract footprint from each image and add to the list
+            def add_footprint(image, lst):
+                footprint = image.geometry()
+                return ee.List(lst).add(footprint)
+
+            # Map the add_footprint function over the collection to create a list of footprints
+            footprints_list = collection.iterate(add_footprint, footprints)
+
+            # Reduce the list of footprints into a single geometry using reduce
+            combined_swath_geometry = ee.Geometry.MultiPolygon(footprints_list)
+
+            # Clip the ROI with the combined_swath_geometry
+            clipped_roi = roi.intersection(
+                combined_swath_geometry, ee.ErrorMargin(1))
+
+            # Get the bounding box of clippedRoi
+            clipped_image_bounding_box = clipped_roi.bounds()
 
             # Generate the filename
             filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
@@ -650,7 +669,12 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging Martigny
-    # current_date_str = "2022-01-10"
+    # current_date_str = "2023-09-05"
+    # print("*****************************")
+    # print("")
+    # print("using a manual set Date: "+current_date_str)
+    # print("*****************************")
+    # print("")
 
     global current_date
     current_date = ee.Date(current_date_str)
