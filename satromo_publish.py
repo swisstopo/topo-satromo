@@ -119,9 +119,7 @@ def initialize_gee_and_drive():
         # GDRIVE Mount
         command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full", "--timeout", "1h", "--user-agent", "agent", "--dir-cache-time", "7620m", "--vfs-cache-mode", "writes", "--vfs-cache-max-age", "1h", "--vfs-read-chunk-size-limit", "1024M", "--vfs-read-chunk-size", "64M", "--buffer-size", "256M"]
-        # Append "&" to the command to run it in the background
-        command.append("&")
-
+       
         print(command)
         subprocess.Popen(command)
 
