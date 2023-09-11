@@ -668,13 +668,13 @@ if __name__ == "__main__":
     # Get current date
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
-    # For debugging Martigny
-    # current_date_str = "2023-09-05"
-    # print("*****************************")
-    # print("")
-    # print("using a manual set Date: "+current_date_str)
-    # print("*****************************")
-    # print("")
+    # For debugging
+    current_date_str = "2023-09-10"
+    print("*****************************")
+    print("")
+    print("using a manual set Date: "+current_date_str)
+    print("*****************************")
+    print("")
 
     global current_date
     current_date = ee.Date(current_date_str)
