@@ -1,0 +1,2 @@
+Product,Item,Asset,DateFirstScene,DateLastScene,NumberOfScenes,DateItemGeneration,ProcessorHashLink,ProcessorReleaseVersion
+S2_LEVEL_2A,20230909T103631,S2_L2A_SR_20230909T103631_20230909T104403_10M_run20230910,2023-09-09,2023-09-09,4,2023-09-10,https://github.com/swisstopo/topo-satromo/commit/ac61931593def9710a414440e32d4cabf6055366,0.0.0
