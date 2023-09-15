@@ -251,6 +251,7 @@ def merge_files_with_gdal_warp(source):
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                "-co", "COMPRESS=LZW",
                "-co", "PREDICTOR=2",
+               "-r", "near", #enforce nearest with cutline
                ]
     # print(command)
     result = subprocess.run(command, check=True,
