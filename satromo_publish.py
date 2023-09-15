@@ -239,9 +239,9 @@ def merge_files_with_gdal_warp(source):
                # rename to source+"_merged.tif" when doing reprojection afterwards
                source+".vrt", source+".tif",
                "-of", "COG",
-               "-cutline", config.BUFFER,
-               "-dstnodata", str(config.NODATA),
-               "-srcnodata", str(config.NODATA),
+               #"-cutline", config.BUFFER,
+               #"-dstnodata", str(config.NODATA),
+               #"-srcnodata", str(config.NODATA),
                #"-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
                #"--config", "GDAL_CACHEMAX", "9999",
