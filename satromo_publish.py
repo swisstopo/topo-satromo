@@ -246,7 +246,7 @@ def merge_files_with_gdal_warp(source):
                "-co", "BIGTIFF=YES",
                #"--config", "GDAL_CACHEMAX", "9999",
                #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+               #"--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
                # otherwise use compress=DEFLATE
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                "-co", "COMPRESS=LZW",
