@@ -2,11 +2,14 @@
 [![GitHub commit](https://img.shields.io/github/last-commit/swisstopo/topo-satromo)](https://github.com/swisstopo/topo-satromo/commits/main)
 # SATROMO Processing chain
 
-The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) consists of python code with ETL functionalities to operationally generate and provide AnalysisReadyData and indices from satellite sensors using GoogleEarthEngine, GithubAction and AWS S3. 
+The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) consists of python code with ETL functionalities to operationally generate and provide AnalysisReadyData and indices from satellite sensors using GoogleEarthEngine, GithubAction and AWS S3 / Cloudfront 
 
 ## Disclaimer
 
 **Note: This project is currently in the proof of concept phase and is not intended for operational use.**
+
+Access to data:  [STAC BROWSER](https://tinyurl.com/satromo-int)
+
 
 ## Introduction and Project Description
 
