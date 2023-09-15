@@ -85,7 +85,7 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 3. moves the product and its persisted information with rclone to S3
 4. creates a static STAC Catalog
 5. updates `tools/last_updates.csv`.
-6. invalidates the STAC Catalog on Coudfront: [STACB ROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
+6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
 
 ## Technologies
 
