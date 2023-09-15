@@ -44,6 +44,8 @@ ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 NODATA = 9999  # No data values
 
+## PRODUCTS and INDICES ###
+
 # NDVI product parameters
 PRODUCT_NDVI_MAX = {
     "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
@@ -62,3 +64,9 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_qa60": "60",  # Meters
     "product_name": "S2_LEVEL_2A"
 }
+
+## STAC ###
+
+STAC_FOLDER = "stac-collection"
+STAC_BASE_URL = "https://satromoint.s3.eu-central-2.amazonaws.com/"
+STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
