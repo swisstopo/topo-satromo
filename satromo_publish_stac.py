@@ -75,13 +75,42 @@ def determine_run_type():
         print("\nType 2 run PUBLISHER: We are on DEV")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_DEV
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_DEV
-        S3_DESTINATION = config.S3_DESTINATION_DEV
+        S3_DESTINATION = config.STAC_DESTINATION_DEV
     else:
         run_type = 1
         print("\nType 1 run PUBLISHER: We are on INT")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_INT
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_INT
-        S3_DESTINATION = config.S3_DESTINATION_INT
+        S3_DESTINATION = config.STAC_DESTINATION_INT
+
+
+def initialize_s3():
+    """
+    Initialize S3 RCLONE  authentication.
+
+    This function authenticates S3 either using a service account key file
+    via GitHub secrets depending on the run type.
+
+    Returns:
+    None
+    """
+
+    if run_type == 2:
+        print("using local rclone installation")
+    else:
+        # Initialize S3 using GitHub secrets
+
+        # Write rclone config to a file
+        rclone_config = os.environ.get('RCONF_SECRET')
+        rclone_config_file = "rclone.conf"
+        with open(rclone_config_file, "w") as f:
+            f.write(rclone_config)
+
+        # Write rclone config to a file
+        rclone_config = os.environ.get('RCONF_SECRET')
+        rclone_config_file = "rclone.conf"
+        with open(rclone_config_file, "w") as f:
+            f.write(rclone_config)
 
 
 def move_files_with_rclone(source, destination):
@@ -106,6 +135,7 @@ def move_files_with_rclone(source, destination):
         rclone_conf = "rclone.conf"
     command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
                source, destination]
+
     subprocess.run(command, check=True)
 
     print("SUCCESS: moved " + source + " to " + destination)
@@ -326,21 +356,23 @@ def ndvimax_get_start_end(img_uri):
 
 
 if __name__ == "__main__":
-    
+
     # Starting STAC
     print("Starting STAC generation")
 
     # Test if we are on Local DEV Run or if we are on PROD
     determine_run_type()
 
-    # Get Products
+    # get s3 connection
+    initialize_s3()
 
+    # Get Products
     product = config.STAC_PRODUCT
 
-    # Now, we can create a Catalog 
+    # Now, we can create a Catalog
     catalog = pystac.Catalog(id="Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring (SATROMO) STAC INTEGRATION",
                                 description="INTEGRATION *not for operational use*  ACCESS to automated spatial satellite products, indices, and analysis-ready datasets for  drought monitoring and more. Further info under https://github.com/swisstopo/topo-satromo.Contains modified Copernicus Sentinel data [2017-2023] for Sentinel data")
-    
+
     # We loops through the products and add them as collection and descripe each product, currently two.
     for i in product:
         print(i)
@@ -404,8 +436,6 @@ if __name__ == "__main__":
                     "img": config.STAC_BASE_URL+"{}".format(uri)}
                 counter += 1  # Increment the counter for the next entry
 
-
-
         # ITEMS
         # ***********************************************
 
@@ -413,7 +443,7 @@ if __name__ == "__main__":
         # Note that the image CRS is in WGS:84 (Lat/Lng). If it wasn’t, we’d have to reproject the footprint to WGS:84 in order to be compliant with the spec
         #  (which can easily be done with pyproj).
         # Here we’re taking advantage of rasterio’s ability to read S3 URIs, which only grabs the GeoTIFF metadata and does not pull the whole file down.
-        
+
         # Let’s turn each of those chips into a STAC Item that represents the image.
         satromo_id_to_items = {}
 
@@ -423,7 +453,7 @@ if __name__ == "__main__":
 
             # Get the bounding box and footprint of the image
             bbox, footprint = get_bbox_and_footprint(img_uri)
-            
+
             # Extract the image identifier from the URI
             img = img_uri.split(
                 f"data/{product_name}/", 1)[-1].split("/", 1)[0]
@@ -518,7 +548,7 @@ if __name__ == "__main__":
                     # Add the JSON asset to the STAC item (assuming you have an 'item' variable)
                     item.add_asset(key="SentinelProcessingLog" +
                                    tile_id, asset=json_asset)
-            
+
             # Add the created STAC Item to the dictionary
             satromo_id_to_items[chip_id] = item
 
@@ -568,5 +598,5 @@ if __name__ == "__main__":
     # Move Description of item to destination DIR
     move_files_with_rclone(config.STAC_FOLDER, os.path.join(
         S3_DESTINATION, config.STAC_FOLDER))
-    
+
     print("STAC Updated")

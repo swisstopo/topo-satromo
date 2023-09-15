@@ -70,3 +70,9 @@ PRODUCT_S2_LEVEL_2A = {
 STAC_FOLDER = "stac-collection"
 STAC_BASE_URL = "https://satromoint.s3.eu-central-2.amazonaws.com/"
 STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
+# under Windows, add \\ to escape the backslash like r'X:\\'
+STAC_DESTINATION_DEV = r'X:\\'
+# INT
+GDRIVE_SOURCE_INT = "geedriveINT:"
+GDRIVE_MOUNT_INT = "localgdrive"
+STAC_DESTINATION_INT = "s3INT:satromoint"
