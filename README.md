@@ -82,8 +82,10 @@ For starters, we build a GithubAction & GEE python based ARD and Indices extract
 A pre-defined time after the "processor" run, a "publisher" run starts, assuming all exports are done. In it, the publisher process:
 1. reads the persisted information as to the most recently bprocessed  products based on IDs in `processing/running_tasks.csv`
 2. merges and clips the products, e.g. ARD, indices etc. locally in GitHubAction runner. Be aware that the current limit is the disk space available on github (approximately 7 GB)
-3. moves the product and its persisted information with rclone to S3 
-4. updates `tools/last_updates.csv`.
+3. moves the product and its persisted information with rclone to S3
+4. creates a static STAC Catalog
+5. updates `tools/last_updates.csv`.
+6. invalidates the STAC Catalog on Coudfront: [STACB ROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
 
 ## Technologies
 
@@ -95,7 +97,7 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 ## Roadmap
 
 - [ ] Add Changelog
-- [ ] Implement STAC Cataloge description  
+- [X] Implement STAC Cataloge description  
 - [ ] Implement Co-Registration correction
 - [ ] Implement Topografic shadow information
 - [ ] Products
