@@ -58,9 +58,16 @@ jobs:
     #- name: Create rclone config file
     #  run: echo "${{ secrets.RCLONE_CONFIG }}" > rclone.conf
     
-    - name: Run Python script
+    - name: Run Python script PUBLISH
       run: |
         python satromo_publish.py
+      env: # Set the secrets as env var
+        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
+
+    - name: Run Python script PUBLISH STAC
+      run: |
+        python satromo_publish_stac.py
       env: # Set the secrets as env var
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
