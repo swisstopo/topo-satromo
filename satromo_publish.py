@@ -239,14 +239,14 @@ def merge_files_with_gdal_warp(source):
                # rename to source+"_merged.tif" when doing reprojection afterwards
                source+".vrt", source+".tif",
                "-of", "COG",
-               #"-cutline", config.BUFFER,
-               #"-dstnodata", str(config.NODATA),
-               #"-srcnodata", str(config.NODATA),
+               "-cutline", config.BUFFER,
+               "-dstnodata", -32768,
+               "-srcnodata", str(config.NODATA),
                #"-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
                #"--config", "GDAL_CACHEMAX", "9999",
                #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-               #"--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
                # otherwise use compress=DEFLATE
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                "-co", "COMPRESS=LZW",
