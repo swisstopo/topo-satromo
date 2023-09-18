@@ -228,8 +228,8 @@ def merge_files_with_gdal_warp(source):
                "--config", "GDAL_CACHEMAX", "9999",
                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               "-vrtnodata", str(config.NODATA),
-               "-srcnodata", str(config.NODATA),
+               #"-vrtnodata", str(config.NODATA),
+               #"-srcnodata", str(config.NODATA),
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -242,8 +242,8 @@ def merge_files_with_gdal_warp(source):
                source+".vrt", source+".tif",
                "-of", "COG",
                "-cutline", config.BUFFER,
-               "-dstnodata", str(config.NODATA),
-               "-srcnodata", str(config.NODATA),
+               "-dstnodata",  "-32768",
+               #"-srcnodata", str(config.NODATA),
                #"-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
                #"--config", "GDAL_CACHEMAX", "9999",
