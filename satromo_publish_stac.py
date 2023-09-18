@@ -579,7 +579,7 @@ if __name__ == "__main__":
             id=collection_id,
             description=collection_description,
             extent=collection_extent,
-            license='See legal notice on the use of Copernicus Sentinel Data and Service Information',
+            license='ESA',
             providers=[provider_sat, provider_host, provider_processor],
         )
 

@@ -68,7 +68,7 @@ PRODUCT_S2_LEVEL_2A = {
 ## STAC ###
 
 STAC_FOLDER = "stac-collection"
-STAC_BASE_URL = "https://satromoint.s3.eu-central-2.amazonaws.com/"
+STAC_BASE_URL = "https://d29cp2gnktw6by.cloudfront.net/" #Use the AWS Cloudfront distribution instead of  "https://satromoint.s3.eu-central-2.amazonaws.com/"
 STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
