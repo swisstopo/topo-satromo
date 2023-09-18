@@ -54,8 +54,10 @@ jobs:
         
     - name: install gdal
       run: |
+        sudo add-apt-repository ppa:ubuntugis/ppa
         sudo apt-get update
-        sudo apt-get install gdal-bin 
+        sudo apt-get install gdal-bin
+        sudo apt-get install libgdal-dev
 
     #- name: Create rclone config file
     #  run: echo "${{ secrets.RCLONE_CONFIG }}" > rclone.conf
