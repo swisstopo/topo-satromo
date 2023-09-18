@@ -394,13 +394,13 @@ if __name__ == "__main__":
         else:
             product_bands = [
                 Band.create(
-                    name="B4", description="664.5nm (S2A) / 665nm (S2B)", common_name="Red"),
+                    name="B4", description="664.5nm (S2A) / 665nm (S2B)", common_name="red"),
                 Band.create(
-                    name="B3", description="560nm (S2A) / 559nm (S2B)", common_name="Green"),
+                    name="B3", description="560nm (S2A) / 559nm (S2B)", common_name="green"),
                 Band.create(
-                    name="B2", description="496.6nm (S2A) / 492.1nm (S2B)", common_name="Blue"),
+                    name="B2", description="496.6nm (S2A) / 492.1nm (S2B)", common_name="blue"),
                 Band.create(
-                    name="B8", description="835.1nm (S2A) / 833nm (S2B)", common_name="NIR")
+                    name="B8", description="835.1nm (S2A) / 833nm (S2B)", common_name="nir")
             ]
             product_name = "S2_LEVEL_2A"
             pattern = r'.*' + re.escape(product_name) + \
@@ -573,15 +573,30 @@ if __name__ == "__main__":
         # Create the complete extent for the collection
         collection_extent = pystac.Extent(
             spatial=spatial_extent, temporal=temporal_extent)
+        
+        # Define the licenses and their respective links
+        licenses = [
+            {
+                "license": "Legal notice on the use of Copernicus Sentinel Data and Service Information",
+                "url": "https://scihub.copernicus.eu/twiki/pub/SciHubWebPortal/TermsConditions/Sentinel_Data_Terms_and_Conditions.pdf"
+            },
+            {
+                "license": "swisstopo OGD ",
+                "url": "https://www.swisstopo.admin.ch/en/home/meta/conditions/geodata.html"
+            }
+        ]
 
         # Create a STAC Collection with relevant metadata
         collection = pystac.Collection(
             id=collection_id,
             description=collection_description,
             extent=collection_extent,
-            license='ESA',
+            license="various",
             providers=[provider_sat, provider_host, provider_processor],
+ 
         )
+        # Add the licenses to the collection
+        collection.extra_fields["licenses"] = licenses
 
         # Add STAC Items to the Collection
         collection.add_items(satromo_id_to_items.values())
