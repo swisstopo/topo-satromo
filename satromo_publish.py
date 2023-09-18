@@ -240,7 +240,7 @@ def merge_files_with_gdal_warp(source):
                source+".vrt", source+".tif",
                "-of", "COG",
                "-cutline", config.BUFFER,
-               "-dstnodata", "-32768 32768 9999",
+               "-dstnodata", "-32767 32767 9999",
                "-srcnodata", str(config.NODATA),
                #"-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
