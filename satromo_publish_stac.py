@@ -380,7 +380,7 @@ if __name__ == "__main__":
         if i == "NDVI-MAX":
             product_bands = [
                 Band.create(
-                    name="NDVI-MAX-30DAY", description="Maximumm NDVI last 30 days, Range -100 to 100 divide by 1000 to get NDVI values, nodata is 9999", common_name="ndvi-max")
+                    name="NDVI-MAX-30DAY", description="Maximumm NDVI last 30 days, Range -100 to 100 divide by 100 to get NDVI values, nodata is 9999", common_name="ndvi-max")
             ]
             product_name = "NDVI-MAX"
             pattern = r'.*' + re.escape(product_name) + \
