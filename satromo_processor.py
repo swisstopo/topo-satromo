@@ -669,7 +669,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-09-17"
+    current_date_str = "2023-20-17"
     print("*****************************")
     print("")
     print("using a manual set Date: "+current_date_str)
