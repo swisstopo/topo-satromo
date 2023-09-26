@@ -15,11 +15,11 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
 # DEV
-GDRIVE_SOURCE_DEV = "geedrivetest:"
+GDRIVE_SOURCE= "satromo_exolabs:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
-GDRIVE_MOUNT_DEV = r'Y:\\'
+GDRIVE_MOUNT= "localgdrive"
 # under Windows, add \\ to escape the backslash like r'X:\\'
-S3_DESTINATION_DEV = r'X:\\'
+S3_DESTINATION= 'exolabs_s3:/satromo'
 # INT
 GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
