@@ -40,20 +40,32 @@ source <virtual-environment>/bin/activate
 ```
 This step is recommended to isolate the project dependencies from your system-wide Python installation.
 
-4. You are now ready to use the project!
+4. By default, the configuration used is the file `configuration\dev_config.py`.
+You can use another configuration file for your own setup. 
+To choose another configuration, use the environmental variable `SATROMO_CONFIG` to point towards 
+the configuration module (filename without extention).
+
+For example, if you want the configuration file `configuration\myconfig.py` to be used for your processing,
+you can define it using the following statement:
+
+> export SATROMO_CONFIG=myconfig
+
+Note that all configuration files have to be located in the configuration folder
+
+5. You are now ready to use the project!
 
 For the use on your local machine / DEV 
 - You need to create a folder "secrets" containing
     - GoogleEarthEngine credentials: the GEE json `keyfile.json` according to your [Google Service Account](https://developers.google.com/earth-engine/guides/service_account) and a private key for the [service account](https://developers.google.com/earth-engine/guides/service_account#create-a-private-key-for-the-service-account). Ensure that service  account has the [Earth Engine API enabled](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup) and has been has been [registered](https://code.earthengine.google.com/register) for use with Earth Engine. Then you also need to activate your  GoogleDrive / Google developers console API activation for your ServiceAccount Project https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=<YourprojectID> to access GDRIVE via API
     - rclone set up: To move files from GoogleDrive to your TargetDestination we use [rclone](https://rclone.org/). Make sure that either rclone is installed,  and path to it is set .set up `rclone.conf` :
         ```
-        [<GEEDRIVE_DEV as definend in configuration.py>]
+        [<GEEDRIVE_DEV as definend in the configuration file>]
         type = drive
         scope = drive
         service_account_file = keyfile.json
         team_drive = 
         
-        [<S3_DEV as definend in configuration.py>]
+        [<S3_DEV as definend in configuration file>]
         type = s3
         provider = AWS
         access_key_id = <your key>
@@ -75,7 +87,7 @@ Adapt your GoogleEarthEngine and rclone credentials
 ## Functionality in detail
 
 For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions). During a "processor" run, the code:
-1. triggers GEE extraction of products for the region of Switzerland using the configuration given in `configuration.py` and last update information in `tools/last_updates.csv`
+1. triggers GEE extraction of products for the region of Switzerland using the configuration and last update information in `tools/last_updates.csv`
 2. stores running tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
 3. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.
 
