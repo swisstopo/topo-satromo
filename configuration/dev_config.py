@@ -23,8 +23,7 @@ S3_DESTINATION_DEV = r'X:\\'
 # INT
 GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
-S3_DESTINATION_INT = os.path.join(
-    "s3INT:satromoint", "data")
+S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
 
 # General GEE parameters
