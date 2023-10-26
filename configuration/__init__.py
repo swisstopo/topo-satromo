@@ -37,6 +37,9 @@ if len(sys.argv) > 1:
         def __getattr__(name):
             return getattr(module, name)
 
+        def __dir__():
+            return dir(module)
+
     else:
         # The configuration file defined by the command-line argument does not exist.
         # Make sure that this file is found in the configuration directory.
