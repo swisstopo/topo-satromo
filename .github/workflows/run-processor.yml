@@ -31,7 +31,7 @@ jobs:
     
     - name: Run Python script
       run: |
-        python satromo_processor.py
+        python satromo_processor.py integration_config.py
       env: # Set the secrets as env var
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       
