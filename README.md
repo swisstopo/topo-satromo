@@ -42,13 +42,13 @@ This step is recommended to isolate the project dependencies from your system-wi
 
 4. By default, the configuration used is the file `configuration\dev_config.py`.
 You can use another configuration file for your own setup. 
-To choose another configuration, use the environmental variable `SATROMO_CONFIG` to point towards 
-the configuration module (filename without extention).
+To choose another configuration, use a command-line argument to point towards 
+the configuration file contained in the <configuration> folder.
 
 For example, if you want the configuration file `configuration\myconfig.py` to be used for your processing,
 you can define it using the following statement:
 
-> export SATROMO_CONFIG=myconfig
+> python satromo_processor.py myconfig.py
 
 Note that all configuration files have to be located in the configuration folder
 
