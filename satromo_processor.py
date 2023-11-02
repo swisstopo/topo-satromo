@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 from pydrive.auth import GoogleAuth
 import csv
 from oauth2client.service_account import ServiceAccountCredentials
@@ -9,6 +10,7 @@ import json
 import os
 import ee
 import configuration as config
+from step0_processor import generate_asset_mosaic_for_single_date
 
 
 def determine_run_type():
@@ -311,6 +313,25 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         writer.writerow(data)
 
 
+def check_product_status(product_name):
+    """
+    Check if the given product has a "Status" marked as complete
+
+    Parameters:
+    product_name (str): Name of the product to check.
+
+    Returns:
+    bool: True if "Status" has a value equal to 'complete'
+    False otherwise
+    """
+
+    with open(config.LAST_PRODUCT_UPDATES, "r", newline="", encoding="utf-8") as f:
+        dict_reader = csv.DictReader(f, delimiter=",")
+        for row in dict_reader:
+            if row["Product"] == product_name:
+                return row['Status'] == 'complete'
+    return False
+
 def check_product_update(product_name, date_string):
     """
     Check if the given product has a newer "LastSceneDate" than the provided date.
@@ -475,7 +496,7 @@ def addINDEX(image, bands, index_name):
     return image_with_index
 
 
-def process_NDVI_MAX():
+def process_NDVI_MAX(roi):
     """
     Process the NDVI MAX product.
 
@@ -535,7 +556,7 @@ def process_NDVI_MAX():
         return "no new imagery"
 
 
-def process_S2_LEVEL_2A():
+def process_S2_LEVEL_2A(roi):
     """
     Export the S2 Level 2A product.
 
@@ -657,6 +678,89 @@ def process_S2_LEVEL_2A():
         print("no new imagery")
         return 0
 
+def generate_step0_assets():
+    pass
+
+def get_date_from_asset(asset):
+    date = asset['name'].split('/')[-1]
+    date = date.split('_')[0]
+    return date
+
+def step0(roi):
+    sensor = (
+        ee.ImageCollection(config.step0['image_collection'])
+        .filterDate(current_date.advance(-int(config.step0['temporal_coverage']), 'day'), current_date)
+        .filterBounds(roi)
+    )
+
+    # Get the number of images found in the collection
+    num_images = sensor.size().getInfo()
+
+    # Check if there are any new imagery
+    if num_images == 0:
+        print('No image to prepare')
+        return True
+
+    # Get information about the available sensor data for the range
+    sensor_stats = get_collection_info(sensor)
+    date_for_step0 = sensor_stats[1]
+
+    # asset_cleaning
+    if 'cleaning_older_than' in config.step0:
+        target_date = datetime.datetime.strptime(date_for_step0, "%Y-%m-%d")
+        target_date = target_date + datetime.timedelta(days=-1 * config.step0['cleaning_older_than'])
+        for key, value in config.step0['custom_collections'].items():
+            list_asset_response = ee.data.listAssets({'parent': value})
+            assets = list_asset_response['assets']
+            present_in_collection = False
+            for asset in assets:
+                print(asset)
+                date = get_date_from_asset(asset)
+                date_as_datetime = datetime.datetime.strptime(date, '%Y-%m-%d')
+                if date_as_datetime < target_date:
+                    print('remove asset {}'.format(date))
+                    # ee.data.deleteAsset(assetId=asset['id'])
+
+    # check processing status of step_zero
+    ready_for_processors = False
+    step0_check = check_product_update("step0", date_for_step0)
+    if step0_check:
+        generate_asset_mosaic_for_single_date(date_for_step0, export_to_asset=True)
+        ready_for_processors = False
+        return ready_for_processors
+
+    # check if step0 is complete
+    if check_product_status("step0"):
+        ready_for_processors = True
+        return ready_for_processors
+
+    # check if all assets are available
+    presence_check_list = list()
+    for key, value in config.step0['custom_collections'].items():
+        list_asset_response = ee.data.listAssets({'parent': value})
+        assets = list_asset_response['assets']
+        present_in_collection = False
+        for asset in assets:
+            date = get_date_from_asset(asset)
+            print(date, date_for_step0)
+            if date == date_for_step0:
+                present_in_collection = True
+        if not present_in_collection:
+            print('custom collection {} not ready for date {}'.format(key, date_for_step0))
+        presence_check_list.append(present_in_collection)
+
+    if all(presence_check_list):
+        product_status = {
+            'Product': "step0",
+            'LastSceneDate': date_for_step0,
+            'RunDate': current_date_str,
+            'Status': "complete"
+        }
+        # Update the product status file
+        update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
+        ready_for_processors = True
+
+    return ready_for_processors
 
 if __name__ == "__main__":
     # Test if we are on Local DEV Run or if we are on PROD
@@ -669,21 +773,26 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    #current_date_str = "2023-09-20"
-    #print("*****************************")
-    #print("")
-    #print("using a manual set Date: "+current_date_str)
-    #print("*****************************")
-    #print("")
+    current_date_str = "2023-06-9"
+    print("*****************************")
+    print("")
+    print("using a manual set Date: "+current_date_str)
+    print("*****************************")
+    print("")
 
-
-    global current_date
     current_date = ee.Date(current_date_str)
 
+    roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+    ready_for_processors = step0(roi)
+    if not ready_for_processors:
+        print('step0 asserts not ready for processors.')
+        sys.exit(0)
+
+    raise BrokenPipeError('Stop')
     # Generate PRODUCTS
     # NDVI MAX
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-    result = process_NDVI_MAX()
+    result = process_NDVI_MAX(roi)
     print("Result:", result)
 
     # S2_L2A
@@ -691,7 +800,7 @@ if __name__ == "__main__":
         "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
     roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
     # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
-    result = process_S2_LEVEL_2A()
+    result = process_S2_LEVEL_2A(roi)
     print("Result:", result)
 
 print("Processing done!")

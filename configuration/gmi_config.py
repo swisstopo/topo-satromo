@@ -43,6 +43,17 @@ ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 NODATA = 9999  # No data values
 
+## Step0 ###
+step0 = {
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "temporal_coverage": 1,
+    "custom_collections": {
+        "collection_10m": "projects/satromo-exolabs/assets/col2",
+        "collection_20m": "projects/satromo-exolabs/assets/col3"
+    },
+    "cleaning_older_than": 2
+}
+
 ## PRODUCTS and INDICES ###
 
 # NDVI product parameters
