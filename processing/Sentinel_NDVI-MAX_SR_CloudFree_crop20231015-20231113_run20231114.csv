@@ -1,2 +1,0 @@
-Product,Item,Asset,DateFirstScene,DateLastScene,NumberOfScenes,DateItemGeneration,ProcessorHashLink,ProcessorReleaseVersion
-NDVI-MAX,20231114T240000,Sentinel_NDVI-MAX_SR_CloudFree_crop20231015-20231113_run20231114,2023-10-15,2023-11-13,246,2023-11-14,https://github.com/swisstopo/topo-satromo/commit/2dc149dff239d21c2c75e3f34e39b671d5f2d7ba,0.0.0
