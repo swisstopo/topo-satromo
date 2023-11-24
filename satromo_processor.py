@@ -10,7 +10,8 @@ import json
 import os
 import ee
 import configuration as config
-from step0_processor import generate_asset_mosaic_for_single_date
+from step0_processor import generate_asset_mosaic_for_single_date, get_step0_dict
+import pandas as pd
 
 
 def determine_run_type():
@@ -125,7 +126,7 @@ def initialize_gee_and_drive():
     credentials = ee.ServiceAccountCredentials(
         gauth.service_account_email, gauth.service_account_file
     )
-    ee.Initialize(credentials)
+    ee.Initialize()
 
     # Test if GEE initialization is successful
     image = ee.Image("NASA/NASADEM_HGT/001")
@@ -176,10 +177,8 @@ def get_collection_info(collection):
     last_image = sorted_collection.sort('system:time_start', False).first()
 
     # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')
-                         ).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')
-                        ).format('YYYY-MM-dd').getInfo()
+    first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
 
     # Get the count of images in the filtered collection
     image_count = collection.size()
@@ -678,89 +677,86 @@ def process_S2_LEVEL_2A(roi):
         print("no new imagery")
         return 0
 
-def generate_step0_assets():
-    pass
 
-def get_date_from_asset(asset):
-    date = asset['name'].split('/')[-1]
-    date = date.split('_')[0]
-    return date
 
-def step0(roi):
-    sensor = (
-        ee.ImageCollection(config.step0['image_collection'])
-        .filterDate(current_date.advance(-int(config.step0['temporal_coverage']), 'day'), current_date)
-        .filterBounds(roi)
-    )
+def step0_check(roi, step0_product_dict):
+    collections_ready = list()
+    # We check every step0 collection independently
+    # The collection is ready if all assets are present for the interval [date-temporal_coverage; date]
+    for step0_collection, (products, temporal_coverage, base_collection) in step0_product_dict.items():
+        temporal_coverage -= 1
+        ok = step0_check_single_collection(roi, step0_collection, temporal_coverage, base_collection)
+        if ok:
+            collections_ready.append(step0_collection)
 
-    # Get the number of images found in the collection
-    num_images = sensor.size().getInfo()
+    return collections_ready
 
-    # Check if there are any new imagery
-    if num_images == 0:
-        print('No image to prepare')
-        return True
 
-    # Get information about the available sensor data for the range
-    sensor_stats = get_collection_info(sensor)
-    date_for_step0 = sensor_stats[1]
+def step0_check_single_collection(roi, collection, temporal_coverage, base_collection):
+    list_asset_response = ee.data.listAssets({'parent': collection})
+    assets = list_asset_response['assets']
+    target_date = datetime.datetime.strptime(current_date_str, "%Y-%m-%d").date()
 
     # asset_cleaning
-    if 'cleaning_older_than' in config.step0:
-        target_date = datetime.datetime.strptime(date_for_step0, "%Y-%m-%d")
-        target_date = target_date + datetime.timedelta(days=-1 * config.step0['cleaning_older_than'])
-        for key, value in config.step0['custom_collections'].items():
-            list_asset_response = ee.data.listAssets({'parent': value})
-            assets = list_asset_response['assets']
-            present_in_collection = False
-            for asset in assets:
-                print(asset)
-                date = get_date_from_asset(asset)
-                date_as_datetime = datetime.datetime.strptime(date, '%Y-%m-%d')
-                if date_as_datetime < target_date:
-                    print('remove asset {}'.format(date))
-                    # ee.data.deleteAsset(assetId=asset['id'])
-
-    # check processing status of step_zero
-    ready_for_processors = False
-    step0_check = check_product_update("step0", date_for_step0)
-    if step0_check:
-        generate_asset_mosaic_for_single_date(date_for_step0, export_to_asset=True)
-        ready_for_processors = False
-        return ready_for_processors
-
-    # check if step0 is complete
-    if check_product_status("step0"):
-        ready_for_processors = True
-        return ready_for_processors
-
-    # check if all assets are available
-    presence_check_list = list()
-    for key, value in config.step0['custom_collections'].items():
-        list_asset_response = ee.data.listAssets({'parent': value})
-        assets = list_asset_response['assets']
-        present_in_collection = False
+    if 'cleaning_older_than' in config.step0[collection]:
+        target_date = target_date + datetime.timedelta(days=-1 * config.step0[collection]['cleaning_older_than'])
         for asset in assets:
-            date = get_date_from_asset(asset)
-            print(date, date_for_step0)
-            if date == date_for_step0:
-                present_in_collection = True
-        if not present_in_collection:
-            print('custom collection {} not ready for date {}'.format(key, date_for_step0))
-        presence_check_list.append(present_in_collection)
+            date = asset['properties']['date']
+            date_as_datetime = datetime.datetime.strptime(date, '%Y-%m-%d')
+            if date_as_datetime < target_date:
+                print('remove asset {}'.format(date))
+                # ee.data.deleteAsset(assetId=asset['id']) TODO uncomment this line to actually delete the assets
 
-    if all(presence_check_list):
-        product_status = {
-            'Product': "step0",
-            'LastSceneDate': date_for_step0,
-            'RunDate': current_date_str,
-            'Status': "complete"
-        }
-        # Update the product status file
-        update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
-        ready_for_processors = True
+    # Check that asset is present for every date of the temporal coverage
+    check_date = target_date + datetime.timedelta(days=-1*temporal_coverage)
+    end_date = target_date
+    all_present = True
+    while check_date <= end_date:
+        asset_prepared = check_if_asset_prepared(roi, collection, assets, check_date, base_collection)
+        if not asset_prepared:
+            print('Asset missing for date {}'.format(check_date))
+            all_present = False
+        check_date += datetime.timedelta(days=1)
 
-    return ready_for_processors
+    return all_present
+
+def check_if_asset_prepared(roi, collection, assets, check_date, base_collection):
+    # 1. check if in asset list
+    # 2. if not in asset list check if in empty_asset_list
+    # 3. if not in the empty_asset_list, check if running tasks
+    # 4. if not in running tasks, start task (if empty, write the empty_asset_list)
+    check_date_str = check_date.strftime('%Y-%m-%d')
+    print('checking date {}'.format(check_date))
+
+    # 1. check if in asset list
+    for asset in assets:
+        asset_date = asset['properties']['date']
+        if asset_date == check_date_str:
+            print('Collection {} READY for date {}'.format(collection, check_date_str))
+            return True
+    print('Asset not found in custom collection, continuing...')
+
+    # 2. if not in asset list check if in empty_asset_list
+    df = pd.read_csv(config.EMPTY_ASSET_LIST)
+    collection_basename = os.path.basename(collection)
+    df_selection = df[(df.collection == collection_basename) & (df.date == check_date_str)]
+    if len(df_selection) > 0:
+        print('Date found in empty_asset_list, skipping date')
+        return True
+
+    tasks = ee.data.listOperations()
+    task_description = collection_basename + '_' + check_date_str
+    for task in tasks:
+        if task['metadata']['description'] != task_description:
+            continue
+        if task['metadata']['state'] in ['PENDING', 'RUNNING']:
+            print('task {} still running, skipping asset creation'.format(task_description))
+            return False
+
+    print('Starting asset generation for {} / {}'.format(collection, check_date_str))
+    generate_asset_mosaic_for_single_date(check_date_str, collection, task_description)
+    return False
+
 
 if __name__ == "__main__":
     # Test if we are on Local DEV Run or if we are on PROD
@@ -773,7 +769,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-06-9"
+    current_date_str = "2023-06-30"
     print("*****************************")
     print("")
     print("using a manual set Date: "+current_date_str)
@@ -783,24 +779,36 @@ if __name__ == "__main__":
     current_date = ee.Date(current_date_str)
 
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-    ready_for_processors = step0(roi)
-    if not ready_for_processors:
-        print('step0 asserts not ready for processors.')
-        sys.exit(0)
+    step0_product_dict = get_step0_dict()
+    print(step0_product_dict)
 
-    raise BrokenPipeError('Stop')
-    # Generate PRODUCTS
-    # NDVI MAX
-    roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-    result = process_NDVI_MAX(roi)
-    print("Result:", result)
+    collections_ready_for_processors = step0_check(roi, step0_product_dict)
+    print(collections_ready_for_processors)
 
-    # S2_L2A
-    border = ee.FeatureCollection(
-        "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
-    roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
-    # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
-    result = process_S2_LEVEL_2A(roi)
-    print("Result:", result)
+    for collection_ready in collections_ready_for_processors:
+        for product_to_be_processed in step0_product_dict[collection_ready][0]:
+            print(product_to_be_processed)
+            print('skipping\n')
+            continue
+            if product_to_be_processed == 'PRODUCT_NDVI_MAX':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                result = process_NDVI_MAX(roi)
+
+            if product_to_be_processed == 'PRODUCT_S2_LEVEL_2A':
+                border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+                # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+                result = process_S2_LEVEL_2A(roi)
+
+            if product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                result = process_NDVI_MAX_TOA(roi)
+
+            if product_to_be_processed == 'PRODUCT_S2_LEVEL_1C':
+                border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+                # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+                result = process_S2_LEVEL_1C(roi)
+            print("Result:", result)
 
 print("Processing done!")
