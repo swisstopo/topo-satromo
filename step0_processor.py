@@ -1,10 +1,12 @@
-import ee
-from datetime import datetime, timedelta
-import math
-import pandas as pd
 import os
+import math
+from datetime import datetime, timedelta
+import json
+import pandas as pd
+import ee
 import configuration as config
-ee.Initialize()
+
+
 
 # Pre-processing pipeline for daily Sentinel-2 L1C top-of-atmosphere (toa) mosaics over Switzerland
 
@@ -71,34 +73,6 @@ exportMasks = True
 # options': True, 'False - defines if S2 cloud probability layer is exported': 'cloudProbability'
 exportS2cloud = True
 
-
-def get_step0_dict():
-    """
-    This function is used to extract the step0 information from the config object and store it in a dictionary.
-    The dictionary has the collection names as keys and the product names and temporal coverages as values
-    """
-    step0_dict = dict()
-    for entry in dir(config):
-        entry_value = getattr(config, entry)
-        if not isinstance(entry_value, dict):
-            continue
-        if 'step0_collection' not in entry_value:
-            continue
-        temporal_coverage = int(entry_value['temporal_coverage'])
-        collection_name = entry_value['step0_collection']
-        base_collection = entry_value['image_collection']
-        if collection_name not in step0_dict:
-            step0_dict[collection_name] = [[entry, ], temporal_coverage, base_collection]
-        else:
-            if base_collection != step0_dict[collection_name][2]:
-                raise BrokenPipeError('Inconsistent base collection in configuration file')
-
-            temporal_coverage = max(step0_dict[collection_name][1], temporal_coverage)
-            step0_dict[collection_name][0].append(entry)
-            step0_dict[collection_name][1] = temporal_coverage
-
-    return step0_dict
-
 def write_asset_as_empty(collection, day_to_process, remark):
     print('Cutting asset create for {} / {}'.format(collection, day_to_process))
     print('Reason: {}'.format(remark))
@@ -154,6 +128,27 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
     S2_toa = ee.ImageCollection('COPERNICUS/S2_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
+
+    image_list = S2_toa.toList(S2_toa.size())
+    image_list_size = image_list.size().getInfo()
+    for i in range(image_list_size):
+        image = ee.Image(image_list.get(i))
+
+        # EE asset ids for Sentinel-2 L2 assets have the following format: 20151128T002653_20151128T102149_T56MNN.
+        #  Here the first numeric part represents the sensing date and time, the second numeric part represents the product generation date and time,
+        #  and the final 6-character string is a unique granule identifier indicating its UTM grid reference
+        image_id = image.id().getInfo()
+        image_sensing_timestamp = image_id.split('_')[0]
+        # first numeric part represents the sensing date, needs to be used in publisher
+        print("generating json {} of {} ({})".format(i+1, image_list_size, image_sensing_timestamp))
+
+        # Generate the filename
+        filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + '_' + image_id
+        # Export Image Properties into a json file
+        file_name = filename + "_properties" + "_run" + day_to_process.replace("-", "") + ".json"
+        json_path = os.path.join(config.PROCESSING_DIR, file_name)
+        with open(json_path, "w") as json_file:
+            json.dump(image.getInfo(), json_file)
 
     length_without_clouds = S2_toa.size().getInfo()
     if length_without_clouds == 0:
@@ -435,10 +430,7 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
     # This function co-registers Sentinel-2 images to the Sentinel-2 global reference image
     def S2regFunc(image):
         # Use bicubic resampling during registration.
-        imageOrig = image.resample('bilinear')
-
-        # extract the mosaic geometry
-        aoi_image = imageOrig.geometry()
+        imageOrig = image.resample('bicubic')
 
         # Choose to register using only the 'R' band.
         imageRedBand = imageOrig.select('B4')
@@ -463,13 +455,11 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
             .addBands(reg_confidence)
         return registered
 
-
     # SWITCH
     if coRegistration is True:
         print('--- Image swath co-registration applied ---')
         # apply the registration function
         S2_toa = S2regFunc(S2_toa)
-
 
     ##############################
     # TOPOGRAPHIC CORRECTION

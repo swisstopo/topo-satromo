@@ -51,8 +51,8 @@ NODATA = 9999  # No data values
 PRODUCT_NDVI_MAX = {
     "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "30",  # Days
-    "spatial_scale_export": "10",  # Meters
+    "temporal_coverage": 30,  # Days
+    "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
     # "step0_collection": "projects/satromo-exolabs/assets/col2"
@@ -61,9 +61,9 @@ PRODUCT_NDVI_MAX = {
 PRODUCT_S2_LEVEL_2A = {
     "prefix": "S2_L2A_SR",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "1",  # Days
-    "spatial_scale_export": "10",  # Meters
-    "spatial_scale_export_qa60": "60",  # Meters
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_qa60": 60,  # Meters
     "product_name": "S2_LEVEL_2A",
     # "step0_collection": "projects/satromo-exolabs/assets/col2"
 }
@@ -71,8 +71,9 @@ PRODUCT_S2_LEVEL_2A = {
 PRODUCT_S2_LEVEL_1C = {
     "prefix": "S2_L1C_TOA",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": "30",  # Days
-    "spatial_scale_export": "10",  # Meters
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask60": 60,
     "product_name": "S2_LEVEL_1C",
     "step0_collection": "projects/satromo-exolabs/assets/col1"
 }
@@ -80,11 +81,11 @@ PRODUCT_S2_LEVEL_1C = {
 PRODUCT_NDVI_MAX_TOA = {
     "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": "30",  # Days
-    "spatial_scale_export": "10",  # Meters
+    "temporal_coverage": 5,  # Days
+    "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX_TOA",
-    # "step0_collection": "projects/satromo-exolabs/assets/col3"
+    "step0_collection": "projects/satromo-exolabs/assets/col1"
 }
 
 # dictionary used to manage custom asset,
