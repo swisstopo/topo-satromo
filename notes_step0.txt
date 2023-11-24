@@ -1,0 +1,56 @@
+The overal idea of step0 is to minimize the computation cost on GEE.
+For this, we create a personal asset collection with quite raw but corrected data,
+that become the source images for all subsequence products.
+
+The step0 has some requirement in the configuration file.
+
+The step0 dictionary
+====================
+
+A dictionary is required to be present with all personal collection as entry keys (sub dictionaries).
+This dictionary is used to manage the asset.
+For example, we can configure the cleaning of older asset with the 'cleaning_older_than' sub-key.
+
+step0 = {
+    'projects/satromo-exolabs/assets/col1': {
+        cleaning_older_than: 30 # entry used to clean assets
+    }
+}
+
+
+The product configurations
+==========================
+
+In every product, we specify which personal correction is used.
+For example, in the product definition here below, the personal collection
+used is "projects/satromo-exolabs/assets/col1".
+
+PRODUCT_S2_LEVEL_1C = {
+    "prefix": "S2_L1C_TOA",
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask60": 60,
+    "product_name": "S2_LEVEL_1C",
+    "step0_collection": "projects/satromo-exolabs/assets/col1"
+}
+
+Note that all the product should have similar pairs of "image_collection" <-> "step0_collection".
+
+
+Pipeline
+========
+
+The creation of a product require that the step0 asset is available.
+Sometimes, it happens that there is no scene on the given date or that
+the swath was too cloudy to be a candidate image. For those cases, the file
+"tools\step0_empty_assets.csv" will store references to each problematic date.
+In this way, we know that an asset is not expected for the given date and that the
+product generation can continue even if the step0 asset is missing.
+
+The check for asset
+    # 1. check if asset is available in the online personal collection.
+    # 2. if not in asset list check if in empty_asset_list csv file.
+    # 3. if not in the empty_asset_list csv file, check if a running task correspond to the targeted asset.
+    # 4. if not in running tasks, start step0 task
+        # 4.1 Along the way, if the swath is empty or cloudy, add asset information to the empty_asset_list csv file.
