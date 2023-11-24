@@ -1,4 +1,5 @@
-The overal idea of step0 is to minimize the computation cost on GEE.
+The overal idea of the step0 pipeline is to minimize the computation cost on GEE.
+This claim concern the integration of the step0 code within the satromo prototype and not the content of the step0 itself.
 For this, we create a personal asset collection with quite raw but corrected data,
 that become the source images for all subsequence products.
 
