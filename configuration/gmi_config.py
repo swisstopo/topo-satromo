@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_1C = {
 PRODUCT_NDVI_MAX_TOA = {
     "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 5,  # Days
+    "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX_TOA",

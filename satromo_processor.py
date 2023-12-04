@@ -697,6 +697,12 @@ def process_S2_LEVEL_1C(roi):
         .filterDate(start_date, end_date)
         .filterBounds(roi)
     )
+    # Get the number of images found in the collection
+    num_images = collection.size().getInfo()
+    # Check if there are any new imagery
+    if num_images == 0:
+        print("no new imagery")
+        return 0
 
     # Get information about the available sensor data for the range
     sensor_stats = get_collection_info(collection)
@@ -778,7 +784,7 @@ def process_NDVI_MAX_TOA(roi):
     print("********* processing {} *********".format(product_name))
 
     # Filter the sensor collection based on date and region
-    start_date = ee.Date(current_date).advance(-int(config.PRODUCT_S2_LEVEL_1C['temporal_coverage'])+1, 'day')
+    start_date = ee.Date(current_date).advance(-int(config.PRODUCT_NDVI_MAX_TOA['temporal_coverage'])+1, 'day')
     end_date = ee.Date(current_date).advance(1, 'day')
 
     sensor = (
@@ -831,7 +837,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-06-05"
+    current_date_str = "2023-10-08"
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
     print("*****************************\n")

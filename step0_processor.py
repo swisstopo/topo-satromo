@@ -53,9 +53,9 @@ terrainShadowDetection = True
 # options': True, False - defines if individual scenes get mosaiced to an image swath
 swathMosaic = True
 # options': True, False - defines if a the image coregistration is applied
-coRegistration = False
+coRegistration = True
 # options': True, False - defines if a topographic correction is applied to the image swath
-topoCorrection = False
+topoCorrection = True
 
 # Export switches
 # options': True, False - defines if image with all bands is exported as an asset
@@ -67,7 +67,7 @@ export20mBands = False
 # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
 export60mBands = False
 # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
-exportRegLayers = False
+exportRegLayers = True
 # options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask'
 exportMasks = True
 # options': True, 'False - defines if S2 cloud probability layer is exported': 'cloudProbability'
@@ -129,8 +129,12 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
 
+    image_list_size = S2_toa.size().getInfo()
+    if image_list_size == 0:
+        write_asset_as_empty(collection, day_to_process, 'No scene')
+        return
+
     image_list = S2_toa.toList(S2_toa.size())
-    image_list_size = image_list.size().getInfo()
     for i in range(image_list_size):
         image = ee.Image(image_list.get(i))
 
@@ -180,11 +184,9 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
         reducer=ee.Reducer.first()
     )
 
-
     # Make a binary mask and clip to area of interest
     lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_rectangle)
     # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
-
 
     # Rivers
     rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
