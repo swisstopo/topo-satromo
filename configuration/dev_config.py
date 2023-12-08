@@ -12,6 +12,7 @@ RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
 GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
+EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
 # DEV
@@ -45,29 +46,65 @@ NODATA = 9999  # No data values
 
 ## PRODUCTS and INDICES ###
 
+## PRODUCTS and INDICES ###
+
 # NDVI product parameters
 PRODUCT_NDVI_MAX = {
     "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "30",  # Days
-    "spatial_scale_export": "10",  # Meters
+    "temporal_coverage": 30,  # Days
+    "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
-    "product_name": "NDVI-MAX"
+    "product_name": "NDVI-MAX",
+    #"step0_collection": "projects/geetest-386915/assets/col_S2_LEVEL_2A"
 }
 
 PRODUCT_S2_LEVEL_2A = {
     "prefix": "S2_L2A_SR",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "1",  # Days
-    "spatial_scale_export": "10",  # Meters
-    "spatial_scale_export_qa60": "60",  # Meters
-    "product_name": "S2_LEVEL_2A"
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_qa60": 60,  # Meters
+    "product_name": "S2_LEVEL_2A",
+    #"step0_collection": "projects/geetest-386915/assets/col_S2_LEVEL_2A"
+}
+
+PRODUCT_S2_LEVEL_1C = {
+    "prefix": "S2_L1C_TOA",
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask60": 60,
+    "product_name": "S2_LEVEL_1C",
+    "step0_collection": "projects/geetest-386915/assets/COL_S2_HARMONIZED_SWISS"
+}
+
+PRODUCT_NDVI_MAX_TOA = {
+    "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
+    "temporal_coverage": 7,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "band_names": [{'NIR': "B8", 'RED': "B4"}],
+    "product_name": "NDVI-MAX_TOA",
+    "step0_collection": "projects/geetest-386915/assets/COL_S2_HARMONIZED_SWISS"
+}
+
+# dictionary used to manage custom asset,
+# for example to clear old images not used anymore.
+step0 = {
+    'projects/geetest-386915/assets/col_test': {
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/geetest-386915/assets/COL_S2_HARMONIZED_SWISS': {
+        # cleaning_older_than: 2 # entry used to clean assets
+    }
 }
 
 ## STAC ###
 
 STAC_FOLDER = "stac-collection"
-STAC_BASE_URL = "https://d29cp2gnktw6by.cloudfront.net/" #Use the AWS Cloudfront distribution instead of  "https://satromoint.s3.eu-central-2.amazonaws.com/"
+# Use the AWS Cloudfront distribution instead of  "https://satromoint.s3.eu-central-2.amazonaws.com/"
+STAC_BASE_URL = "https://d29cp2gnktw6by.cloudfront.net/"
 STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
