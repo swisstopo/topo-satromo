@@ -3,7 +3,7 @@ import pandas as pd
 import configuration as config
 import ee
 from datetime import datetime, timedelta
-from step0_processor import generate_asset_mosaic_for_single_date
+from step0_processors import *
 
 def step0_main(step0_product_dict, current_date_str):
     collections_ready = list()
@@ -16,7 +16,6 @@ def step0_main(step0_product_dict, current_date_str):
             collections_ready.append(step0_collection)
 
     return collections_ready
-
 
 
 def step0_check_collection(collection, temporal_coverage, current_date_str):
@@ -81,7 +80,8 @@ def check_if_asset_prepared(collection, assets, check_date):
             return False
 
     print('Starting asset generation for {} / {}'.format(collection, check_date_str))
-    generate_asset_mosaic_for_single_date(check_date_str, collection, task_description)
+    generate_single_date_function = eval(config.step0[collection]['step0_function'])
+    generate_single_date_function(check_date_str, collection, task_description)
     return False
 
 def get_step0_dict():
