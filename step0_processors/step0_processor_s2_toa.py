@@ -2,10 +2,9 @@ import os
 import math
 from datetime import datetime, timedelta
 import json
-import pandas as pd
 import ee
 import configuration as config
-
+from .step0_utils import write_asset_as_empty
 
 
 # Pre-processing pipeline for daily Sentinel-2 L1C top-of-atmosphere (toa) mosaics over Switzerland
@@ -28,7 +27,6 @@ import configuration as config
 # - export band names - keep as original (differences within the Landsat program, different script for L5+7?)
 #
 
-
 ##############################
 # CONTENT
 # This script includes the following steps:
@@ -42,45 +40,37 @@ import configuration as config
 # The script is set up to export one mosaic image per day.
 
 
-##############################
-# SWITCHES
-# The switches enable / disable the execution of individual steps in this script
+def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
+    ##############################
+    # SWITCHES
+    # The switches enable / disable the execution of individual steps in this script
 
-# options': True, False - defines if individual clouds and cloud shadows are masked
-cloudMasking = True
-# options: True, False - defines if a cast shadow mask is applied
-terrainShadowDetection = True
-# options': True, False - defines if individual scenes get mosaiced to an image swath
-swathMosaic = True
-# options': True, False - defines if a the image coregistration is applied
-coRegistration = True
-# options': True, False - defines if a topographic correction is applied to the image swath
-topoCorrection = True
+    # options': True, False - defines if individual clouds and cloud shadows are masked
+    cloudMasking = True
+    # options: True, False - defines if a cast shadow mask is applied
+    terrainShadowDetection = True
+    # options': True, False - defines if individual scenes get mosaiced to an image swath
+    swathMosaic = True
+    # options': True, False - defines if a the image coregistration is applied
+    coRegistration = True
+    # options': True, False - defines if a topographic correction is applied to the image swath
+    topoCorrection = True
 
-# Export switches
-# options': True, False - defines if image with all bands is exported as an asset
-exportAllToAsset = False
-# options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
-export10mBands = True
-# options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
-export20mBands = False
-# options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
-export60mBands = False
-# options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
-exportRegLayers = True
-# options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask'
-exportMasks = True
-# options': True, 'False - defines if S2 cloud probability layer is exported': 'cloudProbability'
-exportS2cloud = True
-
-def write_asset_as_empty(collection, day_to_process, remark):
-    print('Cutting asset create for {} / {}'.format(collection, day_to_process))
-    print('Reason: {}'.format(remark))
-    collection_name = os.path.basename(collection)
-    df = pd.DataFrame([(collection_name, day_to_process, remark)])
-    df.to_csv(config.EMPTY_ASSET_LIST, mode='a', header=False, index=False)
-
-def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
+    # Export switches
+    # options': True, False - defines if image with all bands is exported as an asset
+    exportAllToAsset = False
+    # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
+    export10mBands = True
+    # options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
+    export20mBands = False
+    # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
+    export60mBands = False
+    # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
+    exportRegLayers = True
+    # options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask'
+    exportMasks = True
+    # options': True, 'False - defines if S2 cloud probability layer is exported': 'cloudProbability'
+    exportS2cloud = True
 
     ##############################
     # TIME
@@ -100,9 +90,9 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
     aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
     # clipping on complex shapefiles costs more processing resources and can cause memory issues
 
-
     ##############################
     # VISUALISATION
+    # not needed here, kept for debugging purposes
     vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [500, 500, 500], 'max': [4000, 5000, 3000]}
 
     ##############################
@@ -131,7 +121,7 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     image_list_size = S2_toa.size().getInfo()
     if image_list_size == 0:
-        write_asset_as_empty(collection, day_to_process, 'No scene')
+        write_asset_as_empty(collection, day_to_process, 'No candidate scene')
         return
 
     image_list = S2_toa.toList(S2_toa.size())
@@ -147,19 +137,12 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
         print("generating json {} of {} ({})".format(i+1, image_list_size, image_sensing_timestamp))
 
         # Generate the filename
-        filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + '_' + image_id
+        filename = config.PRODUCT_S2_LEVEL_1C['prefix'] + '_' + image_id
         # Export Image Properties into a json file
         file_name = filename + "_properties" + "_run" + day_to_process.replace("-", "") + ".json"
         json_path = os.path.join(config.PROCESSING_DIR, file_name)
         with open(json_path, "w") as json_file:
             json.dump(image.getInfo(), json_file)
-
-    length_without_clouds = S2_toa.size().getInfo()
-    if length_without_clouds == 0:
-        write_asset_as_empty(collection, day_to_process, 'No candidate scene')
-        return
-
-    # .filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', 65))     # orbits covering parts of Switzerland (W-E): 8, 108, 65, 22
 
     # S2cloudless
     S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
@@ -203,7 +186,6 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # combine both water masks
     water_binary = rivers_binary.Or(lakes_binary)
-
 
     # Map.addLayer(water_binary, {min:0, max:1}, 'water mask', False)
 
@@ -447,7 +429,9 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Extract relevant displacement parameters
         reg_dx = displacement.select('dx').rename('reg_dx')
+        reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
+        reg_dy = reg_dy.multiply(100).round().toInt16()
         reg_confidence = displacement.select('confidence').rename('reg_confidence')
 
         # Use the computed displacement to register all original bands.
@@ -662,13 +646,3 @@ def generate_asset_mosaic_for_single_date(day_to_process: str, collection: str, 
             assetId=fname_60m
         )
         task.start()
-
-
-if __name__ == '__main__':
-    start_date = datetime(2023, 1, 25)
-    end_date = datetime(2023, 1, 25)
-    delta = timedelta(days=1)
-    while start_date <= end_date:
-        print(start_date.strftime("%Y-%m-%d"))
-        generate_asset_mosaic_for_single_date(day_to_process=start_date, collection='projects/satromo-exolabs/assets/col1')
-        start_date += delta

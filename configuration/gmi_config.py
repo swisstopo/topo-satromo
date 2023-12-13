@@ -55,7 +55,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
-    # "step0_collection": "projects/satromo-exolabs/assets/col2"
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
 }
 
 PRODUCT_S2_LEVEL_2A = {
@@ -65,33 +65,40 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_qa60": 60,  # Meters
     "product_name": "S2_LEVEL_2A",
-    # "step0_collection": "projects/satromo-exolabs/assets/col2"
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
 }
 
 PRODUCT_S2_LEVEL_1C = {
     "prefix": "S2_L1C_TOA",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 30,  # Days
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_mask60": 60,
     "product_name": "S2_LEVEL_1C",
-    "step0_collection": "projects/satromo-exolabs/assets/col1"
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
 }
 
 PRODUCT_NDVI_MAX_TOA = {
     "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
     "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export": 1,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX_TOA",
-    "step0_collection": "projects/satromo-exolabs/assets/col1"
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
 }
 
 # dictionary used to manage custom asset,
 # for example to clear old images not used anymore.
+
+
 step0 = {
-    'projects/satromo-exolabs/assets/col1': {
+    'projects/satromo-exolabs/assets/col_s2_toa': {
+        'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-exolabs/assets/col_s2_sr': {
+        'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
 }

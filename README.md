@@ -99,6 +99,23 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 5. updates `tools/last_updates.csv`.
 6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
 
+## Additional personal collections
+Adding a new collection in the tool require to adapt the configuration file.
+
+A new function specifically designed for this new collections should also be added in the step0_processors folder.
+(If you don't need a new step0 processor function, you certainly don't need a new collection...)
+Create the new function in a new file located in step0_processors folder.
+In the configuration file, add the function to the configuration entry of your new collection:
+
+```
+step0: {
+    ...
+    my_new_collection: {
+        step0_function: <new_file>.<new_function_name>
+    }
+}
+```
+
 ## Technologies
 
 - Python, GEE, GDAL, RCLONE

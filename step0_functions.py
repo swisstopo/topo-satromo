@@ -3,7 +3,9 @@ import pandas as pd
 import configuration as config
 import ee
 from datetime import datetime, timedelta
-from step0_processor import generate_asset_mosaic_for_single_date
+from step0_processors import *
+from satromo_publish import write_file
+
 
 def step0_main(step0_product_dict, current_date_str):
     collections_ready = list()
@@ -16,7 +18,6 @@ def step0_main(step0_product_dict, current_date_str):
             collections_ready.append(step0_collection)
 
     return collections_ready
-
 
 
 def step0_check_collection(collection, temporal_coverage, current_date_str):
@@ -32,14 +33,16 @@ def step0_check_collection(collection, temporal_coverage, current_date_str):
             date_as_datetime = datetime.strptime(date, '%Y-%m-%d')
             if date_as_datetime < target_date:
                 print('remove asset {}'.format(date))
+                print('XXX Actual asset deletion is not activated. Uncomment the code to do so XXXX')
                 # ee.data.deleteAsset(assetId=asset['id']) TODO uncomment this line to actually delete the assets
 
     # Check that asset is present for every date of the temporal coverage
     check_date = target_date + timedelta(days=-1*temporal_coverage)
     end_date = target_date
     all_present = True
+    tasks = ee.data.listOperations()
     while check_date <= end_date:
-        asset_prepared = check_if_asset_prepared(collection, assets, check_date)
+        asset_prepared = check_if_asset_prepared(collection, assets, check_date, tasks)
         if not asset_prepared:
             print('Asset missing for date {}'.format(check_date))
             all_present = False
@@ -47,13 +50,27 @@ def step0_check_collection(collection, temporal_coverage, current_date_str):
 
     return all_present
 
-def check_if_asset_prepared(collection, assets, check_date):
-    # 1. check if in asset list
-    # 2. if not in asset list check if in empty_asset_list
-    # 3. if not in the empty_asset_list, check if running tasks
+def check_if_asset_prepared(collection, assets, check_date, tasks):
+    # 1. we start by checking the state of the task
+    #    (we start by that to fill the completed_tasks.csv if needed)
+    # 2. if not running, check if the asset is already available
+    # 3. if not in the available asset list ,check if in empty_asset_list
     # 4. if not in running tasks, start task (if empty, write the empty_asset_list)
     check_date_str = check_date.strftime('%Y-%m-%d')
     print('checking date {}'.format(check_date))
+
+    collection_basename = os.path.basename(collection)
+    task_description = collection_basename + '_' + check_date_str
+    for task in tasks:
+        if task['metadata']['description'] != task_description:
+            continue
+        if task['metadata']['state'] in ['PENDING', 'RUNNING']:
+            print('task {} still running, skipping asset creation'.format(task_description))
+            return False
+        if task['metadata']['state'] in ['COMPLETE', 'SUCCEEDED']:
+            write_task_metadata_if_needed(task)
+            # we don't return here. Maybe the asset was deleted and need to be restored.
+            break
 
     # 1. check if in asset list
     for asset in assets:
@@ -65,24 +82,24 @@ def check_if_asset_prepared(collection, assets, check_date):
 
     # 2. if not in asset list check if in empty_asset_list
     df = pd.read_csv(config.EMPTY_ASSET_LIST)
-    collection_basename = os.path.basename(collection)
+
     df_selection = df[(df.collection == collection_basename) & (df.date == check_date_str)]
     if len(df_selection) > 0:
         print('Date found in empty_asset_list, skipping date')
         return True
 
-    tasks = ee.data.listOperations()
-    task_description = collection_basename + '_' + check_date_str
-    for task in tasks:
-        if task['metadata']['description'] != task_description:
-            continue
-        if task['metadata']['state'] in ['PENDING', 'RUNNING']:
-            print('task {} still running, skipping asset creation'.format(task_description))
-            return False
-
     print('Starting asset generation for {} / {}'.format(collection, check_date_str))
-    generate_asset_mosaic_for_single_date(check_date_str, collection, task_description)
+    generate_single_date_function = eval(config.step0[collection]['step0_function'])
+    generate_single_date_function(check_date_str, collection, task_description)
     return False
+
+def write_task_metadata_if_needed(task):
+    completed_task_df = pd.read_csv(config.GEE_COMPLETED_TASKS)
+    if task['name'] in completed_task_df.name.values:
+        return
+    file_task_id = os.path.basename(task['name'])
+    file_task_status = ee.data.getTaskStatus(file_task_id)[0]
+    write_file(file_task_status, config.GEE_COMPLETED_TASKS)
 
 def get_step0_dict():
     """
