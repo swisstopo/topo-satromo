@@ -70,7 +70,7 @@ PRODUCT_NDVI_MAX = {
 PRODUCT_S2_LEVEL_1C = {
     "prefix": "S2_L1C_TOA",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 30,  # Days
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_mask": 10,  # Meters
     "product_name": "S2_LEVEL_1C",
