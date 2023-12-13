@@ -208,8 +208,10 @@ def get_collection_info(collection):
     last_image = sorted_collection.sort('system:time_start', False).first()
 
     # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    first_date = ee.Date(first_image.get('system:time_start')
+                         ).format('YYYY-MM-dd').getInfo()
+    last_date = ee.Date(last_image.get('system:time_start')
+                        ).format('YYYY-MM-dd').getInfo()
 
     # Get the count of images in the filtered collection
     image_count = collection.size()
@@ -1102,20 +1104,23 @@ def process_S2_LEVEL_1C(roi):
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
 
-        multiband_export_name = filename + "_10M_run" + current_date_str.replace("-", "")
+        multiband_export_name = filename + "_10M_run" + \
+            current_date_str.replace("-", "")
 
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        mask60_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         mask60_export_name = filename + "_mask60_run" + \
             current_date_str.replace("-", "")
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'],
                        config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask60'], mask60_export,
                        sensor_stats, current_date_str)
+
 
 def process_NDVI_MAX_TOA(roi):
     """
