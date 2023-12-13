@@ -126,7 +126,7 @@ def initialize_gee_and_drive():
     credentials = ee.ServiceAccountCredentials(
         gauth.service_account_email, gauth.service_account_file
     )
-    ee.Initialize()
+    ee.Initialize(credentials)
 
     # Test if GEE initialization is successful
     image = ee.Image("NASA/NASADEM_HGT/001")
@@ -846,10 +846,10 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-07-01"
-    print("*****************************\n")
-    print("using a manual set Date: "+current_date_str)
-    print("*****************************\n")
+    # current_date_str = "2023-07-01"
+    # print("*****************************\n")
+    # print("using a manual set Date: "+current_date_str)
+    # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
