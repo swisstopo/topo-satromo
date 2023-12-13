@@ -177,8 +177,10 @@ def get_collection_info(collection):
     last_image = sorted_collection.sort('system:time_start', False).first()
 
     # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    first_date = ee.Date(first_image.get('system:time_start')
+                         ).format('YYYY-MM-dd').getInfo()
+    last_date = ee.Date(last_image.get('system:time_start')
+                        ).format('YYYY-MM-dd').getInfo()
 
     # Get the count of images in the filtered collection
     image_count = collection.size()
@@ -511,7 +513,6 @@ def process_NDVI_MAX(roi):
         advance(-int(config.PRODUCT_NDVI_MAX['temporal_coverage'])+1, 'day')
     end_date = ee.Date(current_date).advance(1, 'day')
 
-
     # Filter the sensor collection based on date and region
     sensor = (
         ee.ImageCollection(config.PRODUCT_NDVI_MAX['step0_collection'])
@@ -567,7 +568,8 @@ def process_S2_LEVEL_2A(roi):
     print("********* processing {} *********".format(product_name))
 
     # Filter the sensor collection based on date and region
-    start_date = ee.Date(current_date).advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage'])+1, 'day')
+    start_date = ee.Date(
+        current_date).advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage'])+1, 'day')
     end_date = ee.Date(current_date).advance(1, 'day')
 
     collection = (
@@ -638,14 +640,17 @@ def process_S2_LEVEL_2A(roi):
 
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
-        multiband_export_name = filename + '_10M' + "_run"+current_date_str.replace("-", "")
+        multiband_export_name = filename + '_10M' + \
+            "_run"+current_date_str.replace("-", "")
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
-        mask60_export_name = filename + "_mask60_run" + current_date_str.replace("-", "")
+        mask60_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        mask60_export_name = filename + "_mask60_run" + \
+            current_date_str.replace("-", "")
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'],
                        config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'],
@@ -736,20 +741,23 @@ def process_S2_LEVEL_1C(roi):
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
 
-        multiband_export_name = filename + "_10M_run" + current_date_str.replace("-", "")
+        multiband_export_name = filename + "_10M_run" + \
+            current_date_str.replace("-", "")
 
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        mask60_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         mask60_export_name = filename + "_mask60_run" + \
             current_date_str.replace("-", "")
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'],
                        config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask60'], mask60_export,
                        sensor_stats, current_date_str)
+
 
 def process_NDVI_MAX_TOA(roi):
     """
@@ -819,7 +827,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    # current_date_str = "2023-06-12"
+    current_date_str = "2023-06-12"
     # print("*****************************\n")
     # print("using a manual set Date: "+current_date_str)
     # print("*****************************\n")
@@ -843,7 +851,8 @@ if __name__ == "__main__":
                 result = process_NDVI_MAX(roi)
 
             elif product_to_be_processed == 'PRODUCT_S2_LEVEL_2A':
-                border = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                border = ee.FeatureCollection(
+                    "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
                 roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
                 # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
                 result = process_S2_LEVEL_2A(roi)
