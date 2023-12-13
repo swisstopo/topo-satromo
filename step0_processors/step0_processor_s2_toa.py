@@ -84,7 +84,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # Official swisstopo boundaries
     # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
     # processing: reprojected in QGIS to epsg32632
-    aoi_CH = ee.FeatureCollection("users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+    aoi_CH = ee.FeatureCollection(
+        "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
 
     # Region (extended Switzerland) to simplify processing
     aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
@@ -93,7 +94,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     ##############################
     # VISUALISATION
     # not needed here, kept for debugging purposes
-    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [500, 500, 500], 'max': [4000, 5000, 3000]}
+    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [
+        500, 500, 500], 'max': [4000, 5000, 3000]}
 
     ##############################
     # REFERENCE DATA
@@ -134,12 +136,14 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         image_id = image.id().getInfo()
         image_sensing_timestamp = image_id.split('_')[0]
         # first numeric part represents the sensing date, needs to be used in publisher
-        print("generating json {} of {} ({})".format(i+1, image_list_size, image_sensing_timestamp))
+        print("generating json {} of {} ({})".format(
+            i+1, image_list_size, image_sensing_timestamp))
 
         # Generate the filename
         filename = config.PRODUCT_S2_LEVEL_1C['prefix'] + '_' + image_id
         # Export Image Properties into a json file
-        file_name = filename + "_properties" + "_run" + day_to_process.replace("-", "") + ".json"
+        file_name = filename + "_properties" + "_run" + \
+            day_to_process.replace("-", "") + ".json"
         json_path = os.path.join(config.PROCESSING_DIR, file_name)
         with open(json_path, "w") as json_file:
             json.dump(image.getInfo(), json_file)
@@ -204,24 +208,30 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         isNotCloud = clouds.lt(50)
         cloudMask = isNotCloud.Not()
         # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
-        cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(100, 'circle', 'meters', 1, None)
+        cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(
+            100, 'circle', 'meters', 1, None)
 
         # Find dark pixels but exclude lakes and rivers (otherwise projected shadows would cover large parts of water bodies)
-        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(ee.Reducer.sum()).lt(2500).subtract(water_binary).clamp(0, 1)
+        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(
+            ee.Reducer.sum()).lt(2500).subtract(water_binary).clamp(0, 1)
 
         # Project shadows from clouds. This step assumes we're working in a UTM projection.
         shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
         # shadow distance is tied to the solar zenith angle (minimum shadowDistance is 30 pixel)
-        shadowDistance = ee.Number(meanZenith).multiply(0.7).floor().int().max(30)
+        shadowDistance = ee.Number(meanZenith).multiply(
+            0.7).floor().int().max(30)
 
         # With the following algorithm, cloud shadows are projected.
-        isCloud = cloudMask.directionalDistanceTransform(shadowAzimuth, shadowDistance)
-        isCloud = isCloud.reproject(crs=image.select('B2').projection(), scale=100)
+        isCloud = cloudMask.directionalDistanceTransform(
+            shadowAzimuth, shadowDistance)
+        isCloud = isCloud.reproject(
+            crs=image.select('B2').projection(), scale=100)
 
         cloudShadow = isCloud.select('distance').mask()
 
         # combine projectedShadows & darkPixel and buffer the cloud shadow
-        cloudShadow = cloudShadow.And(darkPixels).focalMax(100, 'circle', 'meters', 1, None)
+        cloudShadow = cloudShadow.And(darkPixels).focalMax(
+            100, 'circle', 'meters', 1, None)
 
         # combined mask for clouds and cloud shadows
         cloudAndCloudShadowMask = cloudShadow.Or(cloudMask)
@@ -236,22 +246,25 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
         return image_out
 
-
     # This function detects and adds terrain shadows
+
     def addTerrainShadow(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # Find dark pixels but exclude lakes
-        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(ee.Reducer.sum()).lt(2500)
+        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(
+            ee.Reducer.sum()).lt(2500)
 
         # Terrain shadow
-        terrainShadow = ee.Terrain.hillShadow(DEM_sa3d, meanAzimuth, meanZenith, 100, True)
+        terrainShadow = ee.Terrain.hillShadow(
+            DEM_sa3d, meanAzimuth, meanZenith, 100, True)
         terrainShadow = terrainShadow.Not()  # invert the binaries
 
         # buffering the terrain shadow
-        terrainShadow_buffer = terrainShadow.focalMax(200, 'circle', 'meters', 1, None)
+        terrainShadow_buffer = terrainShadow.focalMax(
+            200, 'circle', 'meters', 1, None)
 
         # extracting the terrain shadow buffer
         shadowBuffer = terrainShadow_buffer.subtract(terrainShadow)
@@ -260,62 +273,65 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         shadowBuffer = shadowBuffer.subtract(water_binary).clamp(0, 1)
 
         # add the new buffer
-        terrainShadow_bufferNoWater = terrainShadow.add(shadowBuffer).clamp(0, 1)
+        terrainShadow_bufferNoWater = terrainShadow.add(
+            shadowBuffer).clamp(0, 1)
 
         # combining castShadow and darkPixels (only from the buffer region)
-        terrainShadow_darkPixels = terrainShadow_bufferNoWater.And(darkPixels).Or(terrainShadow).rename('terrainShadowMask')
+        terrainShadow_darkPixels = terrainShadow_bufferNoWater.And(
+            darkPixels).Or(terrainShadow).rename('terrainShadowMask')
 
         # add the additonal terrainShadow band
         image = image.addBands(terrainShadow_darkPixels)
 
         return image
 
-
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
+
     def addMaskedPixelCount(image):
         # Count the number of all non-masked pixels
         statsMasked = image.select('B2').reduceRegion(
-            reducer= ee.Reducer.count(),
-            geometry= image.geometry(),
-            scale= 100,
-            bestEffort= True,
-            maxPixels= 1e10,
-            tileScale= 4
+            reducer=ee.Reducer.count(),
+            geometry=image.geometry(),
+            scale=100,
+            bestEffort=True,
+            maxPixels=1e10,
+            tileScale=4
         )
         dataPixels = statsMasked.getNumber('B2')
 
         # Remove the mask and count all pixels
         statsAll = image.select('B2').unmask().reduceRegion(
-            reducer= ee.Reducer.count(),
-            geometry= image.geometry(),
-            scale= 100,
-            bestEffort= True,
-            maxPixels= 1e10,
-            tileScale= 4
+            reducer=ee.Reducer.count(),
+            geometry=image.geometry(),
+            scale=100,
+            bestEffort=True,
+            maxPixels=1e10,
+            tileScale=4
         )
         allPixels = statsAll.getNumber('B2')
 
         # Calculate the percentages and add the properties
-        percData = (dataPixels.divide(allPixels)).multiply(1000).round().divide(10)
+        percData = (dataPixels.divide(allPixels)).multiply(
+            1000).round().divide(10)
         percMasked = ee.Number(100).subtract(percData)
 
         return image.set({
             'percentData': percData,  # percentage of unmasked pixel
-            'percentMasked': percMasked  # masked pixels include clouds, cloud shadows and QA pixels
+            # masked pixels include clouds, cloud shadows and QA pixels
+            'percentMasked': percMasked
         })
 
-
     # This function masks all bands to the same extent as the 20 m and 60 m bands
+
     def maskEdges(s2_img):
         return s2_img.updateMask(
             s2_img.select('B8A').mask().updateMask(s2_img.select('B9').mask()))
 
-
     # This function sets the date as an additional property to each image
+
     def set_date(img):
         date = img.date().format('YYYY-MM-dd')
         return img.set('date', date)
-
 
     ##############################
     # PROCESSING
@@ -328,14 +344,16 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     S2_toaWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
         primary=S2_toa,
         secondary=S2_clouds,
-        condition=ee.Filter.equals(leftField='system:index', rightField='system:index')
+        condition=ee.Filter.equals(
+            leftField='system:index', rightField='system:index')
     )
 
     # SWITCH
     if cloudMasking is True:
         print('--- Cloud and cloud shadow masking applied ---')
         # apply the cloud mapping and masking functions
-        S2_toa = ee.ImageCollection(S2_toaWithCloudMask).map(maskCloudsAndShadows)
+        S2_toa = ee.ImageCollection(
+            S2_toaWithCloudMask).map(maskCloudsAndShadows)
 
     # SWITCH
     if terrainShadowDetection is True:
@@ -343,7 +361,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # apply the terrain shadow function
         S2_toa = S2_toa.map(addTerrainShadow)
 
-    ###########################/
+    # /
     # MOSAIC
     # This step mosaics overlapping Sentinel-2 tiles acquired on the same day
 
@@ -360,8 +378,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # 'apply' Joins to collections.
     joinCol_S2_toa = join.apply(distinctDates_S2_toa, S2_toa, filter)
 
-
     # This function mosaics image acquired on the same day (same image swath)
+
     def mosaic_collection(img):
         # create a collection of the date-matching images
         col = ee.ImageCollection.fromImages(img.get('date_match'))
@@ -392,12 +410,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         mosaic = ee.Image(mosaic).setDefaultProjection('epsg:32632', None, 10)
         return mosaic
 
-
     # SWITCH
     if swathMosaic is True:
         print('--- Image swath mosaicing applied ---')
         # apply the mosaicing and maskPixelCount function
-        S2_toa = ee.ImageCollection(joinCol_S2_toa.map(mosaic_collection)).map(addMaskedPixelCount)
+        S2_toa = ee.ImageCollection(joinCol_S2_toa.map(
+            mosaic_collection)).map(addMaskedPixelCount)
         # filter for data availability
         S2_toa = S2_toa.filter(ee.Filter.gte('percentData', 2))
         length_without_clouds = S2_toa.size().getInfo()
@@ -407,11 +425,11 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
         S2_toa = S2_toa.first()
 
-
     ##############################
     # REGISTER
 
     # This function co-registers Sentinel-2 images to the Sentinel-2 global reference image
+
     def S2regFunc(image):
         # Use bicubic resampling during registration.
         imageOrig = image.resample('bicubic')
@@ -428,11 +446,14 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         )
 
         # Extract relevant displacement parameters
+        # Multiply by 100 to move the decimal point two places back to the left and get rounded values,
+        # then round then cast to get int16, Int8 is not a solution since COGTiff is not supported
         reg_dx = displacement.select('dx').rename('reg_dx')
         reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
         reg_dy = reg_dy.multiply(100).round().toInt16()
-        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_confidence = displacement.select(
+            'confidence').rename('reg_confidence')
 
         # Use the computed displacement to register all original bands.
         registered = image.displace(displacement) \
@@ -455,8 +476,10 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # This function calculates the illumination condition during the time of image acquisition
     def topoCorr_S2(img):
         # Extract image metadata about solar position and covert from degree to radians
-        SZ_rad = ee.Image.constant(ee.Number(img.get('MEAN_SOLAR_ZENITH_ANGLE'))).multiply(math.pi).divide(180)
-        SA_rad = ee.Image.constant(ee.Number(img.get('MEAN_SOLAR_AZIMUTH_ANGLE'))).multiply(math.pi).divide(180)
+        SZ_rad = ee.Image.constant(
+            ee.Number(img.get('MEAN_SOLAR_ZENITH_ANGLE'))).multiply(math.pi).divide(180)
+        SA_rad = ee.Image.constant(
+            ee.Number(img.get('MEAN_SOLAR_AZIMUTH_ANGLE'))).multiply(math.pi).divide(180)
 
         # Creat terrain layers and covert from degree to radians
         slp = ee.Terrain.slope(DEM_sa3d)
@@ -484,8 +507,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
                 slp.rename('slope')))
         return img_plus_ic
 
-
     # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
+
     def topoCorr_SCSc_S2(img):
         img_plus_ic = img
 
@@ -496,7 +519,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         img_plus_ic_mask = ee.Image(img_plus_ic.updateMask(mask))
 
         # Specify Bands to topographically correct
-        bandList = ee.List(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'])
+        bandList = ee.List(['B2', 'B3', 'B4', 'B5', 'B6',
+                           'B7', 'B8', 'B8A', 'B11', 'B12'])
 
         # This function quantifies the linear relation between illumination and reflectance and corrects for it
         def apply_SCSccorr(band):
@@ -511,7 +535,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
                 tileScale=16
             )
 
-            out_c = ee.Number(out.get('offset')).divide(ee.Number(out.get('scale')))
+            out_c = ee.Number(out.get('offset')).divide(
+                ee.Number(out.get('scale')))
             # apply the SCSc correction
             SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
                 'image': img_plus_ic_mask.select([band, ]),
@@ -531,7 +556,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # Take care of dependencies between switches
         if coRegistration is False:
             # remove the bands from the co-registration
-            bandsWithoutTC = bandsWithoutTC.remove('reg_dx').remove('reg_dy').remove('reg_confidence')
+            bandsWithoutTC = bandsWithoutTC.remove(
+                'reg_dx').remove('reg_dy').remove('reg_confidence')
 
         if terrainShadowDetection is False:
             # remove the bands from the co-registration
@@ -539,13 +565,17 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
         if cloudMasking is False:
             # remove the bands from the co-registration
-            bandsWithoutTC = bandsWithoutTC.remove('cloudProbability').remove('cloudAndCloudShadowMask')
+            bandsWithoutTC = bandsWithoutTC.remove(
+                'cloudProbability').remove('cloudAndCloudShadowMask')
 
         bandsWithoutTC.getInfo()
         # add all bands and properties to the TC bands
-        img_SCSccorr = ee.ImageCollection.fromImages(bandList.map(apply_SCSccorr)).toBands().rename(bandList)
-        img_SCSccorr = img_SCSccorr.addBands(img_plus_ic.select(bandsWithoutTC))
-        img_SCSccorr = img_SCSccorr.copyProperties(img_plus_ic, img_plus_ic.propertyNames())
+        img_SCSccorr = ee.ImageCollection.fromImages(
+            bandList.map(apply_SCSccorr)).toBands().rename(bandList)
+        img_SCSccorr = img_SCSccorr.addBands(
+            img_plus_ic.select(bandsWithoutTC))
+        img_SCSccorr = img_SCSccorr.copyProperties(
+            img_plus_ic, img_plus_ic.propertyNames())
 
         # flatten both lists into one
         bandList_IC = ee.List([bandList, bandsWithoutTC]).flatten()
@@ -566,14 +596,16 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_toa.get('system:index').getInfo()[0:15]
     sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:8] \
-                        + '_' + sensing_date[8:11] + '-' + sensing_date[11:13] + '-' + sensing_date[13:15]
+        + '_' + sensing_date[8:11] + '-' + \
+        sensing_date[11:13] + '-' + sensing_date[13:15]
 
     # define the filenames
     fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
     fname_20m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-20m'
     fname_60m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-60m'
     fname_reg = 'S2-L1C_Mosaic_' + sensing_date_read + '_Registration-10m'
-    fname_masks = 'S2-L1C_Mosaic_' + sensing_date_read + '_Masks-10m';  # cloud mask + cloud shadow mask, terrain shadow mask
+    # cloud mask + cloud shadow mask, terrain shadow mask
+    fname_masks = 'S2-L1C_Mosaic_' + sensing_date_read + '_Masks-10m'
     fname_properties = 'S2-L1C_Mosaic_' + sensing_date_read + '_properties'
     fname_cloudP = 'S2_Mosaic_' + sensing_date_read + '_CloudProbability-10m'
 
