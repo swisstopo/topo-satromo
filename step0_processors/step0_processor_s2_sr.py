@@ -424,7 +424,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Extract relevant displacement parameters
         reg_dx = displacement.select('dx').rename('reg_dx')
+        reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
+        reg_dy = reg_dy.multiply(100).round().toInt16()
         reg_confidence = displacement.select(
             'confidence').rename('reg_confidence')
 
