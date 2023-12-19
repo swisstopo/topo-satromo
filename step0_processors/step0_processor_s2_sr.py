@@ -15,14 +15,6 @@ from .step0_utils import write_asset_as_empty
 #
 
 ##############################
-# Discussion points
-#
-# - export aoi on extended Switzerland (rectangle) instead of admin boundaries (cost effective)
-# - EECU seconds are not consistent for the same export at different times
-# - data availibility threshold ('percentData') at 2%
-#
-
-##############################
 # CONTENT
 # The switches enable / disable the execution of individual steps in this script
 
@@ -47,21 +39,16 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     terrainShadowDetection = True
     # options': True, False - defines if individual scenes get mosaiced to an image swath
     swathMosaic = True
-    # options': True, False - defines if a the image coregistration is applied
+    # options': True, False - defines if the coregistration is applied
     coRegistration = True
-    # options': True, False - defines if a topographic correction is applied to the image swath
-    # Sentinel-2 L2A surface reflectance (sr) is already topocorerrected does not make sense to apply it again
-    topoCorrection = False
 
     # Export switches
-    # options': True, False - defines if image with all bands is exported as an asset
-    exportAllToAsset = False
     # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
     export10mBands = True
     # options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
-    export20mBands = False
+    # export20mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
-    export60mBands = False
+    # export60mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
     exportRegLayers = True
     # options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask'
@@ -92,14 +79,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # source: https:#s2gri.csgroup.space
     # processing: GDAL merge and warp (reproject) to epsg32632
     S2_gri = ee.Image("users/wulf/SATROMO/S2_GRI_CH_epsg32632")
-    # Map.addLayer(S2_gri, {min: 0, max: 2000, bands:'b1'}, 'Sentinel-2 global reference image', False)
 
     # SwissALTI3d - very precise digital terrain model in a 10 m resolution
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
     # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
     DEM_sa3d = ee.Image("users/wulf/SATROMO/SwissALTI3d_20kmBuffer_epsg32632")
-    # Map.addLayer(DEM_sa3d, {min: 0, max: 4000}, 'swissALTI3d', False)
 
     ##############################
     # SATELLITE DATA
@@ -161,7 +146,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # Make a binary mask and clip to area of interest
     lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
-    # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
 
     # Rivers
     rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
@@ -174,12 +158,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # Make a binary mask and clip to area of interest
     rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_simplified)
-    # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
 
     # combine both water masks
     water_binary = rivers_binary.Or(lakes_binary)
-
-    # Map.addLayer(water_binary, {min:0, max:1}, 'water mask', False)
 
     ##############################
     # FUNCTIONS
@@ -444,9 +425,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     ##############################
     # EXPORT
 
-    # extract the image properties
-    img_exp_properties = ee.FeatureCollection([ee.Feature(S2_sr.select([]))])
-
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
     sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
@@ -484,8 +462,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         )
         task.start()
 
-    # SWITCH export
+    """"# SWITCH export
     if export20mBands is True:
+        fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-20m'
         # Export COG 20m bands
         task = ee.batch.Export.image.toDrive(
             image=S2_sr.select(['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']),
@@ -500,6 +479,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # SWITCH export
     if export60mBands is True:
+        fname_60m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-60m'
         task = ee.batch.Export.image.toDrive(
             image=S2_sr.select(['B1', 'B9', 'B10']),
             scale=60,
@@ -509,4 +489,4 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             maxPixels=1e10,
             assetId=fname_60m
         )
-        task.start()
+        task.start()"""
