@@ -460,20 +460,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
-    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:8] \
-        + '_' + sensing_date[8:11] + '-' + \
-        sensing_date[11:13] + '-' + sensing_date[13:15]
+    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
 
     # define the filenames
-    fname_10m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-10m'
-    fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-20m'
-    fname_60m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-60m'
-    fname_reg = 'S2-L2A_Mosaic_' + sensing_date_read + '_Registration-10m'
-    # cloud mask + cloud shadow mask, terrain shadow mask
-    fname_masks = 'S2-L2A_Mosaic_' + sensing_date_read + '_Masks-10m'
-
-    fname_properties = 'S2-L2A_Mosaic_' + sensing_date_read + '_properties'
-    fname_cloudP = 'S2_Mosaic_' + sensing_date_read + '_CloudProbability-10m'
+    fname_10m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-10m'
 
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed

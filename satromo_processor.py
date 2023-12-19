@@ -525,10 +525,6 @@ def process_NDVI_MAX(roi):
     if check_product_update(config.PRODUCT_NDVI_MAX['product_name'], sensor_stats[1]) is True:
         print("new imagery from: "+sensor_stats[1])
 
-        # Generate the filename
-        filename = config.PRODUCT_NDVI_MAX['prefix']+sensor_stats[0].replace(
-            "-", "")+"-"+sensor_stats[1].replace("-", "")+"_run"+current_date_str.replace("-", "")
-
         # Create NDVI and NDVI max
         sensor = sensor.map(lambda image: addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX['band_names'][0], index_name="NDVI"))
@@ -545,11 +541,16 @@ def process_NDVI_MAX(roi):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+        timestamp = timestamp.strftime('%Y%m%dT235959')
+
+        # Generate the filename
+        filename = config.PRODUCT_NDVI_MAX['prefix'] + '_' + timestamp + '_10m.tif'
+        print(filename)
 
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
         if sensor_stats[2] > 0:
             # Start the export
-            prepare_export(roi, timestamp.strftime('%Y%m%dT240000'), filename, config.PRODUCT_NDVI_MAX['product_name'],
+            prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
                            config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
                            sensor_stats, current_date_str)
 
@@ -588,22 +589,15 @@ def process_S2_LEVEL_2A(roi):
 
     # Check if there is new sensor data compared to the stored dataset
     if check_product_update(config.PRODUCT_S2_LEVEL_2A['product_name'], sensor_stats[1]) is True:
-
         # Get the list of images
         image_list = collection.toList(collection.size())
         print(str(image_list.size().getInfo()) + " new image(s) for: " +
               sensor_stats[1] + " to: "+current_date_str)
 
-        # Generate the mosaic name and snsing date by geeting EE asset ids from the first image
+        # Generate the mosaic name and sensing date by geeting EE asset ids from the first image
         mosaic_id = ee.Image(image_list.get(0))
         mosaic_id = mosaic_id.id().getInfo()
-        mosaic_sensing_timestamp = mosaic_id.split('_')[0]
-
-        # Split the string by underscores
-        parts = mosaic_id.split('_')
-
-        # Join the first two parts with an underscore to get the desired result
-        mosaic_id = '_'.join(parts[:2])
+        mosaic_sensing_timestamp = mosaic_id.split('_')[2]
 
         # Create a mosaic of the images for the specified date and time
         mosaic = collection.mosaic()
@@ -634,29 +628,21 @@ def process_S2_LEVEL_2A(roi):
         # Get the bounding box of clippedRoi
         clipped_image_bounding_box = clipped_roi.bounds()
 
-        # Generate the filename
-        filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + '_' + mosaic_id
-
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
-        multiband_export_name = filename + '_10M' + \
-            "_run"+current_date_str.replace("-", "")
+        multiband_export_name = mosaic_id
 
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
-        mask60_export_name = filename + "_mask60_run" + current_date_str.replace("-", "")
-        mask60_export = clipped_image.select(
-            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
-        mask60_export_name = filename + "_mask60_run" + \
-            current_date_str.replace("-", "")
-        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
+        masks_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        masks_export_name = mosaic_id.replace('_bands-10m', '_masks-10m')
+        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'],
-                       config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'],
-                       mask60_export, sensor_stats, current_date_str)
+                       config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_mask'],
+                       masks_export, sensor_stats, current_date_str)
 
 
 def process_S2_LEVEL_1C(roi):
@@ -700,13 +686,7 @@ def process_S2_LEVEL_1C(roi):
         # Generate the mosaic name and sensing date by geeting EE asset ids from the first image
         mosaic_id = ee.Image(image_list.get(0))
         mosaic_id = mosaic_id.id().getInfo()
-        mosaic_sensing_timestamp = mosaic_id.split('_')[0]
-
-        # Split the string by underscores
-        parts = mosaic_id.split('_')
-
-        # Join the first two parts with an underscore to get the desired result
-        mosaic_id = '_'.join(parts[:2])
+        mosaic_sensing_timestamp = mosaic_id.split('_')[2]
 
         # Create a mosaic of the images for the specified date and time
         mosaic = collection.mosaic()
@@ -737,28 +717,20 @@ def process_S2_LEVEL_1C(roi):
         # Get the bounding box of clippedRoi
         clipped_image_bounding_box = clipped_roi.bounds()
 
-        # Generate the filename
-        filename = config.PRODUCT_S2_LEVEL_1C['prefix'] + '_' + mosaic_id
-
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
-
-        multiband_export_name = filename + "_10M_run" + current_date_str.replace("-", "")
-        multiband_export_name = filename + "_10M_run" + \
-            current_date_str.replace("-", "")
-
+        multiband_export_name = mosaic_id
 
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
-        mask60_export_name = filename + "_mask60_run" + \
-            current_date_str.replace("-", "")
-        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
+        masks_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        masks_export_name = mosaic_id.replace('_bands-10m', '_masks-10m')
+        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'],
-                       config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask60'], mask60_export,
+                       config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask'], masks_export,
                        sensor_stats, current_date_str)
 
 def process_NDVI_MAX_TOA(roi):
@@ -790,11 +762,6 @@ def process_NDVI_MAX_TOA(roi):
     if check_product_update(config.PRODUCT_NDVI_MAX_TOA['product_name'], sensor_stats[1]) is True:
         print("new imagery from: "+sensor_stats[1])
 
-        # Generate the filename
-        filename = config.PRODUCT_NDVI_MAX_TOA['prefix']+sensor_stats[0].replace(
-            "-", "")+"-"+sensor_stats[1].replace("-", "")+"_run"+current_date_str.replace("-", "")
-        print(filename)
-
         # Create NDVI and NDVI max
         sensor = sensor.map(lambda image: addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX_TOA['band_names'][0], index_name="NDVI"))
@@ -811,9 +778,14 @@ def process_NDVI_MAX_TOA(roi):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+        timestamp = timestamp.strftime('%Y%m%dT235959')
+
+        # Generate the filename
+        filename = config.PRODUCT_NDVI_MAX_TOA['prefix'] + '_' + timestamp + '_10m.tif'
+        print(filename)
 
         # Start the export
-        prepare_export(roi, timestamp.strftime('%Y%m%dT240000'), filename, config.PRODUCT_NDVI_MAX['product_name'],
+        prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
                        config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
                        sensor_stats, current_date_str)
 

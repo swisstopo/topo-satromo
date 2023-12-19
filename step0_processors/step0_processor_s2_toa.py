@@ -597,9 +597,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_toa.get('system:index').getInfo()[0:15]
-    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:8] \
-        + '_' + sensing_date[8:11] + '-' + \
-        sensing_date[11:13] + '-' + sensing_date[13:15]
+    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
 
     # define the filenames
     fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
