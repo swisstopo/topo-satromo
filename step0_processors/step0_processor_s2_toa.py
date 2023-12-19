@@ -597,7 +597,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         print('Band list: {}'.format(band_list))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_toa.select(band_list),
+            image=S2_toa.select(band_list).clip(aoi_exp),
             scale=10,
             description=task_description,
             crs='EPSG:2056',
