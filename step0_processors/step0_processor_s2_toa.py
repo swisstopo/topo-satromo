@@ -235,17 +235,16 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         cloudAndCloudShadowMask = cloudShadow.Or(cloudMask)
 
         # mask spectral bands for clouds and cloudShadows
-        image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B10', 'B11', 'B12']) \
-            .updateMask(cloudAndCloudShadowMask.Not())
+        # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B10', 'B11', 'B12']) \
+        #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
-        image_out = image_out.addBands(clouds.rename(['cloudProbability'])) \
+        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
 
         return image_out
 
     # This function detects and adds terrain shadows
-
     def addTerrainShadow(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
