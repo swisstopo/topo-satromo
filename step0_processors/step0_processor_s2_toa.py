@@ -449,8 +449,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
         reg_dy = reg_dy.multiply(100).round().toInt16()
-        reg_confidence = displacement.select(
-            'confidence').rename('reg_confidence')
+        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_confidence = reg_confidence.multiply(100).round().toUint8()
 
 
         # Use the computed displacement to register all original bands.
