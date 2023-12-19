@@ -511,7 +511,6 @@ def process_NDVI_MAX(roi):
         advance(-int(config.PRODUCT_NDVI_MAX['temporal_coverage'])+1, 'day')
     end_date = ee.Date(current_date).advance(1, 'day')
 
-
     # Filter the sensor collection based on date and region
     sensor = (
         ee.ImageCollection(config.PRODUCT_NDVI_MAX['step0_collection'])
@@ -567,7 +566,9 @@ def process_S2_LEVEL_2A(roi):
     print("********* processing {} *********".format(product_name))
 
     # Filter the sensor collection based on date and region
-    start_date = ee.Date(current_date).advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage'])+1, 'day')
+
+    start_date = ee.Date(
+        current_date).advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage'])+1, 'day')
     end_date = ee.Date(current_date).advance(1, 'day')
 
     collection = (
@@ -638,7 +639,9 @@ def process_S2_LEVEL_2A(roi):
 
         # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
-        multiband_export_name = filename + '_10M' + "_run"+current_date_str.replace("-", "")
+        multiband_export_name = filename + '_10M' + \
+            "_run"+current_date_str.replace("-", "")
+
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'],
                        multiband_export, sensor_stats, current_date_str)
@@ -646,6 +649,10 @@ def process_S2_LEVEL_2A(roi):
         # Export QA60 band as a separate GeoTIFF with '_QA60'
         mask60_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
         mask60_export_name = filename + "_mask60_run" + current_date_str.replace("-", "")
+        mask60_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        mask60_export_name = filename + "_mask60_run" + \
+            current_date_str.replace("-", "")
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, mask60_export_name,
                        config.PRODUCT_S2_LEVEL_2A['product_name'],
                        config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'],
@@ -737,6 +744,9 @@ def process_S2_LEVEL_1C(roi):
         multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
 
         multiband_export_name = filename + "_10M_run" + current_date_str.replace("-", "")
+        multiband_export_name = filename + "_10M_run" + \
+            current_date_str.replace("-", "")
+
 
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],

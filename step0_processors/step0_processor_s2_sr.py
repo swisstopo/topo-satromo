@@ -50,7 +50,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # options': True, False - defines if a the image coregistration is applied
     coRegistration = True
     # options': True, False - defines if a topographic correction is applied to the image swath
-    topoCorrection = True
+    # Sentinel-2 L2A surface reflectance (sr) is already topocorerrected does not make sense to apply it again
+    topoCorrection = False
 
     # Export switches
     # options': True, False - defines if image with all bands is exported as an asset
@@ -80,7 +81,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Official swisstopo boundaries
     # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
     # processing: reprojected in QGIS to epsg32632
-    aoi_CH = ee.FeatureCollection("users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+    aoi_CH = ee.FeatureCollection(
+        "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+
 
     # Region (extended Switzerland) to simplify processing
     aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
@@ -89,7 +92,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     ##############################
     # VISUALISATION
     # not needed here, kept for debugging purposes
-    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [500, 500, 500], 'max': [4000, 5000, 3000]}
+    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [
+        500, 500, 500], 'max': [4000, 5000, 3000]}
 
     ##############################
     # REFERENCE DATA
@@ -130,12 +134,14 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         image_id = image.id().getInfo()
         image_sensing_timestamp = image_id.split('_')[0]
         # first numeric part represents the sensing date, needs to be used in publisher
-        print("generating json {} of {} ({})".format(i + 1, image_list_size, image_sensing_timestamp))
+        print("generating json {} of {} ({})".format(
+            i + 1, image_list_size, image_sensing_timestamp))
 
         # Generate the filename
         filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + '_' + image_id
         # Export Image Properties into a json file
-        file_name = filename + "_properties" + "_run" + day_to_process.replace("-", "") + ".json"
+        file_name = filename + "_properties" + "_run" + \
+            day_to_process.replace("-", "") + ".json"
         json_path = os.path.join(config.PROCESSING_DIR, file_name)
         with open(json_path, "w") as json_file:
             json.dump(image.getInfo(), json_file)
@@ -200,7 +206,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         isNotCloud = clouds.lt(50)
         cloudMask = isNotCloud.Not()
         # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
-        cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(100, 'circle', 'meters', 1, None)
+        cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(
+            100, 'circle', 'meters', 1, None)
 
         # Find dark pixels but exclude lakes and rivers (otherwise projected shadows would cover large parts of water bodies)
         darkPixels = image.select(['B8', 'B11', 'B12']).reduce(ee.Reducer.sum()).lt(2500).subtract(water_binary).clamp(
@@ -209,16 +216,20 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Project shadows from clouds. This step assumes we're working in a UTM projection.
         shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
         # shadow distance is tied to the solar zenith angle (minimum shadowDistance is 30 pixel)
-        shadowDistance = ee.Number(meanZenith).multiply(0.7).floor().int().max(30)
+        shadowDistance = ee.Number(meanZenith).multiply(
+            0.7).floor().int().max(30)
 
         # With the following algorithm, cloud shadows are projected.
-        isCloud = cloudMask.directionalDistanceTransform(shadowAzimuth, shadowDistance)
-        isCloud = isCloud.reproject(crs=image.select('B2').projection(), scale=100)
+        isCloud = cloudMask.directionalDistanceTransform(
+            shadowAzimuth, shadowDistance)
+        isCloud = isCloud.reproject(
+            crs=image.select('B2').projection(), scale=100)
 
         cloudShadow = isCloud.select('distance').mask()
 
         # combine projectedShadows & darkPixel and buffer the cloud shadow
-        cloudShadow = cloudShadow.And(darkPixels).focalMax(100, 'circle', 'meters', 1, None)
+        cloudShadow = cloudShadow.And(darkPixels).focalMax(
+            100, 'circle', 'meters', 1, None)
 
         # combined mask for clouds and cloud shadows
         cloudAndCloudShadowMask = cloudShadow.Or(cloudMask)
@@ -239,8 +250,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # Terrain shadow
-        terrainShadow = ee.Terrain.hillShadow(DEM_sa3d, meanAzimuth, meanZenith, 100, True)
-        terrainShadow = terrainShadow.Not().rename('terrainShadowMask');  # invert the binaries
+        terrainShadow = ee.Terrain.hillShadow(
+            DEM_sa3d, meanAzimuth, meanZenith, 100, True)
+        terrainShadow = terrainShadow.Not().rename(
+            'terrainShadowMask')  # invert the binaries
 
         # add the additonal terrainShadow band
         image = image.addBands(terrainShadow)
@@ -273,12 +286,14 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         allPixels = statsAll.getNumber('B2')
 
         # Calculate the percentages and add the properties
-        percData = (dataPixels.divide(allPixels)).multiply(1000).round().divide(10)
+        percData = (dataPixels.divide(allPixels)).multiply(
+            1000).round().divide(10)
         percMasked = ee.Number(100).subtract(percData)
 
         return image.set({
             'percentData': percData,  # percentage of unmasked pixel
-            'percentMasked': percMasked  # masked pixels include clouds, cloud shadows and QA pixels
+            # masked pixels include clouds, cloud shadows and QA pixels
+            'percentMasked': percMasked
         })
 
     # This function masks all bands to the same extent as the 20 m and 60 m bands
@@ -302,14 +317,16 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
         primary=S2_sr,
         secondary=S2_clouds,
-        condition=ee.Filter.equals(leftField='system:index', rightField='system:index')
+        condition=ee.Filter.equals(
+            leftField='system:index', rightField='system:index')
     )
 
     # SWITCH
     if cloudMasking is True:
         print('--- Cloud and cloud shadow masking applied ---')
         # apply the cloud mapping and masking functions
-        S2_sr = ee.ImageCollection(S2_srWithCloudMask).map(maskCloudsAndShadows)
+        S2_sr = ee.ImageCollection(
+            S2_srWithCloudMask).map(maskCloudsAndShadows)
 
     # SWITCH
     if terrainShadowDetection is True:
@@ -317,7 +334,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # apply the terrain shadow function
         S2_sr = S2_sr.map(addTerrainShadow)
 
-    ###########################/
     # MOSAIC
     # This step mosaics overlapping Sentinel-2 tiles acquired on the same day
 
@@ -372,7 +388,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     if swathMosaic is True:
         print('--- Image swath mosaicing applied ---')
         # apply the mosaicing function
-        S2_sr = ee.ImageCollection(joinCol_S2_sr.map(mosaic_collection)).map(addMaskedPixelCount)
+        S2_sr = ee.ImageCollection(joinCol_S2_sr.map(
+            mosaic_collection)).map(addMaskedPixelCount)
+
         # filter for data availability
         S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 2))
         length_without_clouds = S2_sr.size().getInfo()
@@ -407,8 +425,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Extract relevant displacement parameters
         reg_dx = displacement.select('dx').rename('reg_dx')
+        reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
-        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_dy = reg_dy.multiply(100).round().toInt16()
+        reg_confidence = displacement.select(
+            'confidence').rename('reg_confidence')
+
 
         # Compute image offset and direction.
         reg_offset = reg_dx.hypot(reg_dy).rename('reg_offset')
@@ -439,14 +461,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
     sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:8] \
-                        + '_' + sensing_date[8:11] + '-' + sensing_date[11:13] + '-' + sensing_date[13:15]
+        + '_' + sensing_date[8:11] + '-' + \
+        sensing_date[11:13] + '-' + sensing_date[13:15]
 
     # define the filenames
     fname_10m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-10m'
     fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-20m'
     fname_60m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-60m'
     fname_reg = 'S2-L2A_Mosaic_' + sensing_date_read + '_Registration-10m'
-    fname_masks = 'S2-L2A_Mosaic_' + sensing_date_read + '_Masks-10m';  # cloud mask + cloud shadow mask, terrain shadow mask
+    # cloud mask + cloud shadow mask, terrain shadow mask
+    fname_masks = 'S2-L2A_Mosaic_' + sensing_date_read + '_Masks-10m'
+
     fname_properties = 'S2-L2A_Mosaic_' + sensing_date_read + '_properties'
     fname_cloudP = 'S2_Mosaic_' + sensing_date_read + '_CloudProbability-10m'
 
