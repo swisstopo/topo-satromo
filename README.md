@@ -108,6 +108,9 @@ Edit [configuration/dev_config.py](configuration/dev_config.py) rename it to you
 #### Additional personal collections
 A personal collection contains a GEE collection `my_new_collection` which contains postprocessed sensor data. The postprocessing is done according to the ` <new_file>.<new_function_name>` . E.g. The product `ch.swisstopo-swisseo_vhi_v100` is based on the `COPERNICUS/S2_SR_HARMONIZED` collection which has been postprocessed with `step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date` and stored in the personal collection 'projects/username/assets/COL_S2_SR_HARMONIZED_SWISS'
 
+The personal collection needs to be created in advance in the GEE GUI via Assets -> new ->  Image collection
+**Note: if you wnat to ensure that other accounts can update/read the asset ( like satromo-int) you need to give them access via right click on asset which will then open https://console.cloud.google.com/iam-admin/iam?project=your-project and as well share "image collection" (like COL_S2_SR_HARMONIZED_SWISS)   **
+
 Adding a new collection in the tool require to adapt the configuration file. 
 
 A new function specifically designed for this new collections should also be added in the step0_processors folder.
@@ -123,6 +126,7 @@ step0: {
     }
 }
 ```
+
 
 #### Product definition based on personal collection
 Products are defined  with the following mandatory parameters. more can be added, based on needs for the product generation.Do mind that for all products based on the same sensor the same personal collection should be used
