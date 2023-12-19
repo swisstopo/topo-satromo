@@ -86,10 +86,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
         "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
-
-    # Region (extended Switzerland) to simplify processing
-    aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
-    # clipping on complex shapefiles costs more processing resources and can cause memory issues
+    aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # VISUALISATION
@@ -173,7 +170,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     )
 
     # Make a binary mask and clip to area of interest
-    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_rectangle)
+    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
     # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
 
     # Rivers
@@ -186,7 +183,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     )
 
     # Make a binary mask and clip to area of interest
-    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_rectangle)
+    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_simplified)
     # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
 
     # combine both water masks
@@ -292,7 +289,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # Count the number of all non-masked pixels
         statsMasked = image.select('B2').reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -303,7 +300,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # Remove the mask and count all pixels
         statsAll = image.select('B2').unmask().reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -614,7 +611,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     aoi_img = S2_toa.geometry()
     # therefore it is clipped with rectangle aoi of Switzerland to keep the geometry simple
     # the alternative clip with aoi_CH would be computationally heavier
-    aoi_exp = aoi_img.intersection(aoi_CH_rectangle)  # alternativ: aoi_CH
+    aoi_exp = aoi_img.intersection(aoi_CH_simplified)  # alternativ: aoi_CH
 
     # SWITCH export
     if exportAllToAsset is True:

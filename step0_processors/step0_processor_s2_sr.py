@@ -83,17 +83,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
         "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
-
-
-    # Region (extended Switzerland) to simplify processing
-    aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
-    # clipping on complex shapefiles costs more processing resources and can cause memory issues
-
-    ##############################
-    # VISUALISATION
-    # not needed here, kept for debugging purposes
-    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [
-        500, 500, 500], 'max': [4000, 5000, 3000]}
+    aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # REFERENCE DATA
@@ -170,7 +160,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     )
 
     # Make a binary mask and clip to area of interest
-    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_rectangle)
+    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
     # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
 
     # Rivers
@@ -183,7 +173,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     )
 
     # Make a binary mask and clip to area of interest
-    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_rectangle)
+    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_simplified)
     # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
 
     # combine both water masks
@@ -266,7 +256,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Count the number of all non-masked pixels
         statsMasked = image.select('B2').reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -277,7 +267,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Remove the mask and count all pixels
         statsAll = image.select('B2').unmask().reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -470,19 +460,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     aoi_img = S2_sr.geometry()
     # therefore it is clipped with rectangle to keep the geometry simple
     # the alternative clip with aoi_CH would be computationally heavier
-    aoi_exp = aoi_img.intersection(aoi_CH_rectangle)  # alternativ': aoi_CH
-    # SWITCH export
-    if exportAllToAsset is True:
-        task = ee.batch.Export.image.toAsset(
-            image=S2_sr,
-            scale=10,
-            description=fname_10m,
-            crs='EPSG:2056',
-            region=aoi_exp,
-            maxPixels=1e10,
-            assetId=fname_10m,
-        )
-        task.start()
+    aoi_exp = aoi_img.intersection(aoi_CH_simplified)  # alternativ': aoi_CH
 
     # SWITCH export
     if export10mBands is True:
