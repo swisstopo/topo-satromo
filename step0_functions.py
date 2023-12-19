@@ -44,7 +44,7 @@ def step0_check_collection(collection, temporal_coverage, current_date_str):
     while check_date <= end_date:
         asset_prepared = check_if_asset_prepared(collection, assets, check_date, tasks)
         if not asset_prepared:
-            print('Asset missing for date {}'.format(check_date))
+            print('Asset not yet available for date {}'.format(check_date))
             all_present = False
         check_date += timedelta(days=1)
 
