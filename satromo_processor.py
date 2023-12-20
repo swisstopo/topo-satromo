@@ -208,8 +208,10 @@ def get_collection_info(collection):
     last_image = sorted_collection.sort('system:time_start', False).first()
 
     # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    first_date = ee.Date(first_image.get('system:time_start')
+                         ).format('YYYY-MM-dd').getInfo()
+    last_date = ee.Date(last_image.get('system:time_start')
+                        ).format('YYYY-MM-dd').getInfo()
 
     # Get the count of images in the filtered collection
     image_count = collection.size()
@@ -1099,12 +1101,14 @@ def process_S2_LEVEL_1C(roi):
                        multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
-        masks_export = clipped_image.select(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        masks_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         masks_export_name = mosaic_id.replace('_bands-10m', '_masks-10m')
         prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                        config.PRODUCT_S2_LEVEL_1C['product_name'],
                        config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask'], masks_export,
                        sensor_stats, current_date_str)
+
 
 def process_NDVI_MAX_TOA(roi):
     """
@@ -1154,7 +1158,8 @@ def process_NDVI_MAX_TOA(roi):
         timestamp = timestamp.strftime('%Y%m%dT235959')
 
         # Generate the filename
-        filename = config.PRODUCT_NDVI_MAX_TOA['prefix'] + '_' + timestamp + '_10m.tif'
+        filename = config.PRODUCT_NDVI_MAX_TOA['prefix'] + \
+            '_' + timestamp + '_10m.tif'
         print(filename)
 
         # Start the export
@@ -1186,7 +1191,7 @@ if __name__ == "__main__":
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
     step0_product_dict = get_step0_dict()
     print(step0_product_dict)
-
+    
     collections_ready_for_processors = step0_main(
         step0_product_dict, current_date_str)
     print(collections_ready_for_processors)

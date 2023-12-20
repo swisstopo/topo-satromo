@@ -472,7 +472,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         )
         task.start()
 
-    """"# SWITCH export
+    # SWITCH export
     if export20mBands is True:
         print('Launching export for 20m bands')
         # define the filenames
