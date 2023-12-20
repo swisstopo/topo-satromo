@@ -52,7 +52,7 @@ NODATA = 9999  # No data values
 PRODUCT_NDVI_MAX = {
     "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",  # might be obsolete with step0?
-    "temporal_coverage": 8,  # Days
+    "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
@@ -64,7 +64,7 @@ PRODUCT_S2_LEVEL_2A = {
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",  # might be obsolete with step0?
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_qa60": 60,  # Meters
+    "spatial_scale_export_mask": 10,  # Meters
     "product_name": "S2_LEVEL_2A",
     "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
@@ -74,7 +74,7 @@ PRODUCT_S2_LEVEL_1C = {
     "image_collection": "COPERNICUS/S2_HARMONIZED",  # might be obsolete with step0?
     "temporal_coverage": 30,  # Days
     "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_mask60": 60,
+    "spatial_scale_export_mask": 60,
     "product_name": "S2_LEVEL_1C",
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
