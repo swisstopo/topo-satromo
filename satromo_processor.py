@@ -547,7 +547,7 @@ def process_NDVI_MAX(roi):
 
         # Generate the filename
         filename = config.PRODUCT_NDVI_MAX['prefix'] + \
-            '_' + timestamp + '_10m.tif'
+            '_' + timestamp + '_10m'
         print(filename)
 
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
@@ -808,7 +808,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-11-01"
+    current_date_str = "2023-10-31"
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
     print("*****************************\n")
@@ -818,7 +818,7 @@ if __name__ == "__main__":
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
     step0_product_dict = get_step0_dict()
     print(step0_product_dict)
-    
+
     collections_ready_for_processors = step0_main(
         step0_product_dict, current_date_str)
     print(collections_ready_for_processors)
