@@ -45,8 +45,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Export switches
     # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
     export10mBands = True
-    # options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
-    # export20mBands = False  # NOTEJS: ununsed, export function commented in the script below
+    # options': True, 'False - defines if 20-m-bands are exported':  select from 'B5','B6','B7','B8A','B11','B12'below
+    export20mBands = True
     # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
     # export60mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
@@ -70,7 +70,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
         "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
-    aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+    aoi_CH_simplified = ee.FeatureCollection(
+        "users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # REFERENCE DATA
@@ -399,7 +400,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
         reg_dy = reg_dy.multiply(100).round().toInt16()
-        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_confidence = displacement.select(
+            'confidence').rename('reg_confidence')
         reg_confidence = reg_confidence.multiply(100).round().toUint8()
 
         # Compute image offset and direction.
@@ -427,10 +429,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
-    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
-
-    # define the filenames
-    fname_10m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-10m'
+    sensing_date_read = sensing_date[0:4] + '-' + \
+        sensing_date[4:6] + '-' + sensing_date[6:15]
 
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
@@ -442,6 +442,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # SWITCH export
     if export10mBands is True:
         print('Launching export for 10m bands')
+        # define the filenames
+        fname_10m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-10m'
         band_list = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
             band_list.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
@@ -462,22 +464,24 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         )
         task.start()
 
-    """"# SWITCH export
+    # SWITCH export
     if export20mBands is True:
-        fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-20m'
+        print('Launching export for 20m bands')
+        # define the filenames
+        fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_bands-20m'
         # Export COG 20m bands
-        task = ee.batch.Export.image.toDrive(
-            image=S2_sr.select(['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']),
+        task = ee.batch.Export.image.toAsset(
+            image=S2_sr.select(['B8A', 'B11']).clip(aoi_exp),
             scale=20,
-            description=fname_20m,
+            description=task_description,
             crs='EPSG:2056',
             region=aoi_exp,
             maxPixels=1e10,
-            assetId=fname_20m
+            assetId=collection + '/' + fname_20m
         )
         task.start()
 
-    # SWITCH export
+    """"# SWITCH export
     if export60mBands is True:
         fname_60m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-60m'
         task = ee.batch.Export.image.toDrive(
