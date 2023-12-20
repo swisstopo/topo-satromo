@@ -381,8 +381,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Use bicubic resampling during registration.
         imageOrig = image.resample('bicubic')
 
-        # extract the mosaic geometry
-        aoi_image = imageOrig.geometry()
 
         # Choose to register using only the 'R' band.
         imageRedBand = imageOrig.select('B4')
