@@ -1191,7 +1191,7 @@ if __name__ == "__main__":
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
     step0_product_dict = get_step0_dict()
     print(step0_product_dict)
-    
+
     collections_ready_for_processors = step0_main(
         step0_product_dict, current_date_str)
     print(collections_ready_for_processors)
