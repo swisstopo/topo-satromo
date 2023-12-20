@@ -234,7 +234,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         return image_out
 
     # This function detects and adds terrain shadows
-
     def addTerrainShadow(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
@@ -272,7 +271,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         return image
 
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
-
     def addMaskedPixelCount(image):
         # counter the umber of pixel that are masked by cloud or shadows
         image_mask = image.select('cloudAndCloudShadowMask').gt(0).Or(image.select('terrainShadowMask').gt(0))
@@ -505,7 +503,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         return img_plus_ic
 
     # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
-
     def topoCorr_SCSc_S2(img):
         img_plus_ic = img
 
