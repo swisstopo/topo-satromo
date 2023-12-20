@@ -57,14 +57,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     topoCorrection = True
 
     # Export switches
-    # options': True, False - defines if image with all bands is exported as an asset
-    exportAllToAsset = False
     # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
     export10mBands = True
     # options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
-    export20mBands = False
+    # export20mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
-    export60mBands = False
+    # export60mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
     exportRegLayers = True
     # options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask'
@@ -86,16 +84,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
         "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
-
-    # Region (extended Switzerland) to simplify processing
-    aoi_CH_rectangle = ee.Geometry.Rectangle(5.9, 45.7, 10.6, 47.9)
-    # clipping on complex shapefiles costs more processing resources and can cause memory issues
-
-    ##############################
-    # VISUALISATION
-    # not needed here, kept for debugging purposes
-    vis_nfci = {'bands': ['B12', 'B8', 'B4'], 'min': [
-        500, 500, 500], 'max': [4000, 5000, 3000]}
+    aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # REFERENCE DATA
@@ -104,14 +93,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # source: https:#s2gri.csgroup.space
     # processing: GDAL merge and warp (reproject) to epsg32632
     S2_gri = ee.Image("users/wulf/SATROMO/S2_GRI_CH_epsg32632")
-    # Map.addLayer(S2_gri, {min: 0, max: 2000, bands:'b1'}, 'Sentinel-2 global reference image', False)
 
     # SwissALTI3d - very precise digital terrain model in a 10 m resolution
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
     # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
     DEM_sa3d = ee.Image("users/wulf/SATROMO/SwissALTI3d_20kmBuffer_epsg32632")
-    # Map.addLayer(DEM_sa3d, {min: 0, max: 4000}, 'swissALTI3d', False)
 
     ##############################
     # SATELLITE DATA
@@ -172,8 +159,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     )
 
     # Make a binary mask and clip to area of interest
-    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_rectangle)
-    # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
+    lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
 
     # Rivers
     rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
@@ -185,13 +171,10 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     )
 
     # Make a binary mask and clip to area of interest
-    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_rectangle)
-    # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
+    rivers_binary = rivers_img.gt(0).unmask().clip(aoi_CH_simplified)
 
     # combine both water masks
     water_binary = rivers_binary.Or(lakes_binary)
-
-    # Map.addLayer(water_binary, {min:0, max:1}, 'water mask', False)
 
     ##############################
     # FUNCTIONS
@@ -237,17 +220,16 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         cloudAndCloudShadowMask = cloudShadow.Or(cloudMask)
 
         # mask spectral bands for clouds and cloudShadows
-        image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B10', 'B11', 'B12']) \
-            .updateMask(cloudAndCloudShadowMask.Not())
+        # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B10', 'B11', 'B12']) \
+        #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
-        image_out = image_out.addBands(clouds.rename(['cloudProbability'])) \
+        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
 
         return image_out
 
     # This function detects and adds terrain shadows
-
     def addTerrainShadow(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
@@ -286,12 +268,11 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         return image
 
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
-
     def addMaskedPixelCount(image):
         # Count the number of all non-masked pixels
         statsMasked = image.select('B2').reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -302,7 +283,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # Remove the mask and count all pixels
         statsAll = image.select('B2').unmask().reduceRegion(
             reducer=ee.Reducer.count(),
-            geometry=image.geometry(),
+            geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
@@ -336,9 +317,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     ##############################
     # PROCESSING
 
-    # Map the date and edges functions
-    S2_toa = S2_toa.map(maskEdges) \
-        .map(set_date)
+    # Mapping of the date on the edges function
+    S2_toa = S2_toa.map(maskEdges).map(set_date)
 
     # Join S2 toa with cloud probability dataset to add cloud mask.
     S2_toaWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
@@ -452,8 +432,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
         reg_dy = reg_dy.multiply(100).round().toInt16()
-        reg_confidence = displacement.select(
-            'confidence').rename('reg_confidence')
+        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_confidence = reg_confidence.multiply(100).round().toUint8()
 
         # Use the computed displacement to register all original bands.
         registered = image.displace(displacement) \
@@ -508,7 +488,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         return img_plus_ic
 
     # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
-
     def topoCorr_SCSc_S2(img):
         img_plus_ic = img
 
@@ -595,42 +574,18 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_toa.get('system:index').getInfo()[0:15]
-    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:8] \
-        + '_' + sensing_date[8:11] + '-' + \
-        sensing_date[11:13] + '-' + sensing_date[13:15]
-
-    # define the filenames
-    fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
-    fname_20m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-20m'
-    fname_60m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-60m'
-    fname_reg = 'S2-L1C_Mosaic_' + sensing_date_read + '_Registration-10m'
-    # cloud mask + cloud shadow mask, terrain shadow mask
-    fname_masks = 'S2-L1C_Mosaic_' + sensing_date_read + '_Masks-10m'
-    fname_properties = 'S2-L1C_Mosaic_' + sensing_date_read + '_properties'
-    fname_cloudP = 'S2_Mosaic_' + sensing_date_read + '_CloudProbability-10m'
+    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
 
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = S2_toa.geometry()
     # therefore it is clipped with rectangle aoi of Switzerland to keep the geometry simple
     # the alternative clip with aoi_CH would be computationally heavier
-    aoi_exp = aoi_img.intersection(aoi_CH_rectangle)  # alternativ: aoi_CH
-
-    # SWITCH export
-    if exportAllToAsset is True:
-        task = ee.batch.Export.image.toAsset(
-            image=S2_toa,
-            scale=10,
-            description=fname_10m,
-            crs='EPSG:2056',
-            region=aoi_exp,
-            maxPixels=1e10,
-            assetId=fname_10m,
-        )
-        task.start()
+    aoi_exp = aoi_img.intersection(aoi_CH_simplified)  # alternativ: aoi_CH
 
     # SWITCH export
     if export10mBands is True:
+        fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
         print('Launching export for 10m bands')
         band_list = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
@@ -642,7 +597,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         print('Band list: {}'.format(band_list))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_toa.select(band_list),
+            image=S2_toa.select(band_list).clip(aoi_exp),
             scale=10,
             description=task_description,
             crs='EPSG:2056',
@@ -652,8 +607,10 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         )
         task.start()
 
+    """
     # SWITCH export
     if export20mBands is True:
+        fname_20m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-20m'
         # Export COG 20m bands
         task = ee.batch.Export.image.toDrive(
             image=S2_toa.select(['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']),
@@ -668,6 +625,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # SWITCH export
     if export60mBands is True:
+        fname_60m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-60m'
         task = ee.batch.Export.image.toDrive(
             image=S2_toa.select(['B1', 'B9', 'B10']),
             scale=60,
@@ -677,4 +635,4 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             maxPixels=1e10,
             assetId=fname_60m
         )
-        task.start()
+        task.start()"""

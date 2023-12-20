@@ -47,9 +47,18 @@ NODATA = 9999  # No data values
 
 ## PRODUCTS and INDICES ###
 
-# NDVI product parameters
+PRODUCT_S2_LEVEL_2A = {
+    "prefix": "S2_L2A_mosaic",
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask": 10,  # Meters
+    "product_name": "S2_LEVEL_2A",
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
+}
+
 PRODUCT_NDVI_MAX = {
-    "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
+    "prefix": "MAX_SR_CloudFree_crop_mosaic",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "temporal_coverage": 30,  # Days
     "spatial_scale_export": 10,  # Meters
@@ -58,31 +67,21 @@ PRODUCT_NDVI_MAX = {
     "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
 }
 
-PRODUCT_S2_LEVEL_2A = {
-    "prefix": "S2_L2A_SR",
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_qa60": 60,  # Meters
-    "product_name": "S2_LEVEL_2A",
-    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
-}
-
 PRODUCT_S2_LEVEL_1C = {
     "prefix": "S2_L1C_TOA",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 30,  # Days
+    "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_mask60": 60,
+    "spatial_scale_export_mask": 10,  # Meters
     "product_name": "S2_LEVEL_1C",
     "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
 }
 
 PRODUCT_NDVI_MAX_TOA = {
-    "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
+    "prefix": "SMAX_TOA_CloudFree_crop_mosaic",
     "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 1,  # Meters
+    "temporal_coverage": 30,  # Days
+    "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX_TOA",
     "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
