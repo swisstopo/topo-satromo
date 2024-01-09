@@ -225,7 +225,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
         image_out = image.addBands(clouds.rename(['cloudProbability'])) \
-            .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
+            .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask'])) \
+            .addBands(darkPixels.rename(['darkPixels']))
 
         return image_out
 
@@ -235,9 +236,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
-        # Find dark pixels but exclude lakes
-        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(
-            ee.Reducer.sum()).lt(2500)
+        # Reuse dark pixels
+        darkPixels = image.select(['darkPixels'])
 
         # Terrain shadow
         terrainShadow = ee.Terrain.hillShadow(
