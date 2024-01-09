@@ -56,7 +56,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_HARMONIZED_SWISS"
 }
 
 PRODUCT_S2_LEVEL_2A = {
@@ -66,7 +66,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_mask": 10,  # Meters
     "product_name": "S2_LEVEL_2A",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 PRODUCT_S2_LEVEL_1C = {
@@ -98,7 +98,7 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+    'projects/satromo-int/assets/COL_S2_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
