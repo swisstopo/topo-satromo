@@ -148,7 +148,7 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+    'projects/satromo-int/assets/COL_S2_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
