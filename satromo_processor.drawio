@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2024-01-10T13:33:55.853Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="qUKXSSYDxDw2yFaY6Rlu" version="22.1.17" type="github">
+<mxfile host="app.diagrams.net" modified="2024-01-10T13:51:54.921Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="oBzCqGSouXuFvyciHW_f" version="22.1.17" type="github">
   <diagram id="prtHgNgQTEPvFCAcTncT" name="Page-1">
-    <mxGraphModel dx="1240" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2336" pageHeight="1654" math="0" shadow="0">
+    <mxGraphModel dx="1161" dy="646" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2336" pageHeight="1654" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -421,17 +421,18 @@
         <mxCell id="dyGAlXozFLKTP85Kv3v4-142" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center;&quot;&gt;&lt;b&gt;EXPORT ASSET&lt;/b&gt;&lt;br&gt;&lt;/p&gt;&lt;hr style=&quot;font-size: 6px;&quot;&gt;&lt;div style=&quot;height: 2px; font-size: 6px;&quot;&gt;&lt;/div&gt;-&amp;nbsp;ee.batch.Export.image.toAsset&lt;br&gt;&lt;br&gt;crs=&#39;EPSG:2056&#39;,&lt;br&gt;&#39;S2-L2A_mosaic_&#39; + sensing_date_read + &#39;_bands-10m&#39;&lt;br&gt;bands:&amp;nbsp;[&#39;B2&#39;, &#39;B3&#39;, &#39;B4&#39;, &#39;B8&#39;]&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; [&#39;terrainShadowMask&#39;, &#39;cloudAndCloudShadowMask&#39;]&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; [&#39;reg_dx&#39;, &#39;reg_dy&#39;, &#39;reg_confidence&#39;]&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp;&amp;nbsp;[&#39;cloudProbability&#39;]&lt;br&gt;&#39;S2-L2A_Mosaic_&#39; + sensing_date_read + &#39;_bands-20m&#39;&lt;br&gt;bands: [&#39;B8A&#39;,&#39;B11&#39;]" style="verticalAlign=top;align=left;overflow=fill;fontSize=6;fontFamily=Helvetica;html=1;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="1669" y="902.5" width="155.5" height="95" as="geometry" />
         </mxCell>
-        <mxCell id="dyGAlXozFLKTP85Kv3v4-211" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="dyGAlXozFLKTP85Kv3v4-206" target="dyGAlXozFLKTP85Kv3v4-14">
+        <mxCell id="dyGAlXozFLKTP85Kv3v4-211" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="dyGAlXozFLKTP85Kv3v4-206" target="dyGAlXozFLKTP85Kv3v4-14">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1048" y="1040" />
-              <mxPoint x="1048" y="1037" />
-              <mxPoint x="360" y="1037" />
-              <mxPoint x="360" y="1077" />
+              <mxPoint x="1048" y="1100" />
+              <mxPoint x="400" y="1100" />
+              <mxPoint x="400" y="1077" />
+              <mxPoint x="396" y="1077" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="dyGAlXozFLKTP85Kv3v4-206" value="&lt;font style=&quot;font-size: 8px;&quot;&gt;aassets_10m.gee&lt;br&gt;assetts_20m_gee&lt;br&gt;&lt;br&gt;&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=13;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;" vertex="1" parent="1">
+        <mxCell id="dyGAlXozFLKTP85Kv3v4-206" value="&lt;font style=&quot;font-size: 8px;&quot;&gt;aassets_10m.gee&lt;br&gt;assetts_20m.gee&lt;br&gt;&lt;br&gt;&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=13;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;" vertex="1" parent="1">
           <mxGeometry x="1689.75" y="1030" width="30" height="35" as="geometry" />
         </mxCell>
         <mxCell id="dyGAlXozFLKTP85Kv3v4-208" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=30.000000000000004;entryDy=24;entryPerimeter=0;" edge="1" parent="1" source="dyGAlXozFLKTP85Kv3v4-142" target="dyGAlXozFLKTP85Kv3v4-206">
