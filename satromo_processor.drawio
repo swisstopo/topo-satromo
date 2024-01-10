@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2024-01-10T16:39:31.860Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="DZTHc1Tm4e3Um8G_Jrki" version="22.1.17" type="github">
+<mxfile host="app.diagrams.net" modified="2024-01-10T16:43:19.581Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0" etag="Vm3S5LxoLubhgZtbDQcX" version="22.1.17" type="github">
   <diagram id="prtHgNgQTEPvFCAcTncT" name="Page-1">
     <mxGraphModel dx="1168" dy="787" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
@@ -95,7 +95,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="dyGAlXozFLKTP85Kv3v4-111" value="&lt;font style=&quot;font-size: 8px;&quot;&gt;step0_empty_assets.csv&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=13;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;" vertex="1" parent="dyGAlXozFLKTP85Kv3v4-214">
-          <mxGeometry x="260" y="223" width="30" height="35" as="geometry" />
+          <mxGeometry x="260" y="225" width="30" height="35" as="geometry" />
         </mxCell>
         <mxCell id="dyGAlXozFLKTP85Kv3v4-113" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center;&quot;&gt;&lt;b&gt;WRITE TILES METADATA&lt;/b&gt;&lt;br&gt;&lt;/p&gt;&lt;hr style=&quot;font-size: 6px;&quot;&gt;&lt;div style=&quot;height: 2px; font-size: 6px;&quot;&gt;&lt;/div&gt;- def generate_&amp;lt;sensor&amp;gt;_&amp;lt;prod&amp;gt;_mosaic_for_single_date&lt;br&gt;write tile json" style="verticalAlign=top;align=left;overflow=fill;fontSize=6;fontFamily=Helvetica;html=1;whiteSpace=wrap;" vertex="1" parent="dyGAlXozFLKTP85Kv3v4-214">
           <mxGeometry x="466.5" y="61" width="155.5" height="95" as="geometry" />
@@ -103,7 +103,7 @@
         <mxCell id="dyGAlXozFLKTP85Kv3v4-122" value="YES" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="dyGAlXozFLKTP85Kv3v4-214" source="dyGAlXozFLKTP85Kv3v4-106" target="dyGAlXozFLKTP85Kv3v4-113">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="dyGAlXozFLKTP85Kv3v4-124" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=30;entryDy=24;entryPerimeter=0;" edge="1" parent="dyGAlXozFLKTP85Kv3v4-214" source="dyGAlXozFLKTP85Kv3v4-108" target="dyGAlXozFLKTP85Kv3v4-111">
+        <mxCell id="dyGAlXozFLKTP85Kv3v4-124" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=30.000000000000004;entryDy=13;entryPerimeter=0;exitX=0;exitY=0.25;exitDx=0;exitDy=0;" edge="1" parent="dyGAlXozFLKTP85Kv3v4-214" source="dyGAlXozFLKTP85Kv3v4-108" target="dyGAlXozFLKTP85Kv3v4-111">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="dyGAlXozFLKTP85Kv3v4-131" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center;&quot;&gt;&lt;b&gt;CLOUD &amp;amp; CLOUD SHADOW&lt;/b&gt;&lt;br&gt;&lt;/p&gt;&lt;hr style=&quot;font-size: 6px;&quot;&gt;&lt;div style=&quot;height: 2px; font-size: 6px;&quot;&gt;&lt;/div&gt;- def&amp;nbsp;maskCloudsAndShadow&lt;br&gt;&lt;font style=&quot;border-color: var(--border-color); text-align: center;&quot;&gt;&amp;nbsp;isNotCloud = clouds.lt(50)&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;&lt;/font&gt;&lt;font style=&quot;border-color: var(--border-color); text-align: center;&quot;&gt;&amp;nbsp;minimum shadow distance 30 pixel&lt;br&gt;&lt;br&gt;capture semi-transparent cloud edges&lt;br&gt;Find dark pixels but exclude lakes and rivers&lt;br&gt;Project shadows from clouds&lt;br&gt;combined mask for clouds and cloud shadows&lt;br&gt;&lt;/font&gt;" style="verticalAlign=top;align=left;overflow=fill;fontSize=6;fontFamily=Helvetica;html=1;whiteSpace=wrap;" vertex="1" parent="dyGAlXozFLKTP85Kv3v4-214">
@@ -441,6 +441,15 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1314" y="585" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dyGAlXozFLKTP85Kv3v4-227" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="dNxyNK7c78bLwvsdeMH5-19" source="dyGAlXozFLKTP85Kv3v4-111" target="dyGAlXozFLKTP85Kv3v4-11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="100" y="360" />
+              <mxPoint x="100" y="100" />
+              <mxPoint x="261" y="100" />
             </Array>
           </mxGeometry>
         </mxCell>
