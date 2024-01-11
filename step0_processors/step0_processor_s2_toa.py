@@ -404,6 +404,9 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
+        # This is the If condition the return just the line after the end the step0 script ends the process if 'percentData' is greater.
+        #It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
+        # we decide together for the whole swath if we want to process it or not.
 
         S2_toa = S2_toa.first()
 
