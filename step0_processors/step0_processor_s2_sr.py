@@ -363,8 +363,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         S2_sr = ee.ImageCollection(joinCol_S2_sr.map(
             mosaic_collection)).map(addMaskedPixelCount)
 
-        # filter for data availability
-        S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 2))
+        # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 20% cloudfree.
+        S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 20))
         length_without_clouds = S2_sr.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
@@ -380,7 +380,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Use bicubic resampling during registration.
         imageOrig = image.resample('bicubic')
-
 
         # Choose to register using only the 'R' band.
         imageRedBand = imageOrig.select('B4')

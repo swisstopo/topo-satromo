@@ -84,7 +84,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
         "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
-    aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+    aoi_CH_simplified = ee.FeatureCollection(
+        "users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # REFERENCE DATA
@@ -396,8 +397,9 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # apply the mosaicing and maskPixelCount function
         S2_toa = ee.ImageCollection(joinCol_S2_toa.map(
             mosaic_collection)).map(addMaskedPixelCount)
-        # filter for data availability
-        S2_toa = S2_toa.filter(ee.Filter.gte('percentData', 2))
+
+        # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 20% cloudfree.
+        S2_toa = S2_toa.filter(ee.Filter.gte('percentData', 20))
         length_without_clouds = S2_toa.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
@@ -432,7 +434,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         reg_dx = reg_dx.multiply(100).round().toInt16()
         reg_dy = displacement.select('dy').rename('reg_dy')
         reg_dy = reg_dy.multiply(100).round().toInt16()
-        reg_confidence = displacement.select('confidence').rename('reg_confidence')
+        reg_confidence = displacement.select(
+            'confidence').rename('reg_confidence')
         reg_confidence = reg_confidence.multiply(100).round().toUint8()
 
         # Use the computed displacement to register all original bands.
@@ -574,7 +577,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_toa.get('system:index').getInfo()[0:15]
-    sensing_date_read = sensing_date[0:4] + '-' + sensing_date[4:6] + '-' + sensing_date[6:15]
+    sensing_date_read = sensing_date[0:4] + '-' + \
+        sensing_date[4:6] + '-' + sensing_date[6:15]
 
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
