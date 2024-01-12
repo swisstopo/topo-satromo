@@ -62,18 +62,20 @@ NODATA = 9999
 # ---------------------------
 # See https://github.com/swisstopo/topo-satromo/tree/main?tab=readme-ov-file#configuration-in-_configpy for details
 # TL;DR : First define in A) PRODUCTS, INDICES: for step0 (cloud, shadow, co-register, mosaic) the TOA SR data  custom  "step0_collection" to be generated / used
-# then 
+# then
 
-## A) PRODUCTS, INDICES
-## ********************
+# A) PRODUCTS, INDICES
+# ********************
 
 # ch.swisstopo.swisseo_s2-sr
 PRODUCT_S2_LEVEL_2A = {
     "prefix": "S2_L2A_SR",
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED", # TODO: check if needed in context with step0
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_mask": 10,  # Meters # TODO: check if needed in context with step0
+    "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "spatial_scale_export_mask": 10,
     "product_name": "S2_LEVEL_2A",
     "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
@@ -88,7 +90,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST S2 -TOA: TEST
@@ -114,16 +116,16 @@ PRODUCT_NDVI_MAX_TOA = {
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
 
-## B custom COLLECTION
-## ********************
+# B custom COLLECTION
+# ********************
 # Contains dictionary used to manage custom collection (asset) in GEE,
 # for example to clear old images not used anymore.
 
 # Configure the dict containing
-#-  the name of the custom collection (asset) in GEE, (eg: projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS )
-#-  the function to process the raw data for teh collection (eg:step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date )
+# -  the name of the custom collection (asset) in GEE, (eg: projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS )
+# -  the function to process the raw data for teh collection (eg:step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date )
 
-#Make sure that the products above use the corresponding custom collection (assets)
+# Make sure that the products above use the corresponding custom collection (assets)
 
 step0 = {
     # 'projects/satromo-exolabs/assets/col_s2_toa': {
