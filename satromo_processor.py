@@ -793,7 +793,7 @@ def process_S2_LEVEL_2A(roi):
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_cloudprobability-10m')
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                               "S2",
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
                                masks_export, sensor_stats, current_date_str)
 
