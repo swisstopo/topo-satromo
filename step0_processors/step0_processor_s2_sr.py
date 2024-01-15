@@ -370,7 +370,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
         # This is the If condition the return just the line after the end the step0 script ends the process if 'percentData' is greater.
-        #It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
+        # It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
         S2_sr = S2_sr.first()
@@ -468,7 +468,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     if export20mBands is True:
         print('Launching export for 20m bands')
         # define the filenames
-        fname_20m = 'S2-L2A_Mosaic_' + sensing_date_read + '_bands-20m'
+        fname_20m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-20m'
         # Export COG 20m bands
         task = ee.batch.Export.image.toAsset(
             image=S2_sr.select(['B8A', 'B11']).clip(aoi_exp),
