@@ -779,7 +779,7 @@ def process_S2_LEVEL_2A(roi):
 
                 # Export Registration
                 masks_export = clipped_image.select(
-                    ['reg_dx', 'reg_dy', 'reg_confidence'])
+                    ['reg_dx', 'reg_dy'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_registration-10m')
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
