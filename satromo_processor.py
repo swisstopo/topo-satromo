@@ -457,12 +457,33 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     # Update the product status file
     update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
 
-    # Write the product description to a CSV file
+    # Update the product  file
     header = ["Product", "Item", "Asset", "DateFirstScene", "DateLastScene",
               "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion"]
     data = [productname, productitem, productasset, str(sensor_stats[0]), str(
         sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"]]
 
+    # Create swisstopo_data dictionary
+    swisstopo_data = {"header": header, "data": data}
+
+    # Create swisstopo_data dictionary with uppercase keys
+    swisstopo_data = {key.upper(): value for key, value in zip(header, data)}
+
+    # Adding extracting image info
+    image_info = ee.Image(image).getInfo()
+
+    # Convert keys to uppercase and add prefix
+    image_info_gee = {"GEE_" + key.upper(): value for key,
+                      value in image_info.items()}
+
+    # Add swisstopo_data to image_info_gee
+    image_info_gee["SWISSTOPO"] = swisstopo_data
+
+    # Export the dictionary as JSON
+    with open(os.path.join(config.PROCESSING_DIR, productasset + "_metadata.json"), 'w') as json_file:
+        json.dump(image_info_gee, json_file)
+
+    # Write the product description to a CSV file
     with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(header)
@@ -667,7 +688,7 @@ def process_S2_LEVEL_2A(roi):
 
                 # Export terrain & shadow Mask
                 masks_export = clipped_image.select(
-                    ['terrainShadowMask', 'cloudAndCloudShadowMask','reg_confidence'])
+                    ['terrainShadowMask', 'cloudAndCloudShadowMask', 'reg_confidence'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_masks-10m')
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
@@ -691,7 +712,7 @@ def process_S2_LEVEL_2A(roi):
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_cloudprobability-10m')
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                               "S2",
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
                                masks_export, sensor_stats, current_date_str)
 
