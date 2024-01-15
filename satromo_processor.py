@@ -777,6 +777,26 @@ def process_S2_LEVEL_2A(roi):
                                10,
                                masks_export, sensor_stats, processing_date)
 
+                # Export Registration
+                masks_export = clipped_image.select(
+                    ['reg_dx', 'reg_dy', 'reg_confidence'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_registration-10m')
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, current_date_str)
+
+                # Export Cloudprobability
+                masks_export = clipped_image.select(
+                    ['cloudProbability'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_cloudprobability-10m')
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               "S2",
+                               10,
+                               masks_export, sensor_stats, current_date_str)
+
             # Check if mosaic_id ends with "-20m"
             elif mosaic_id.endswith("-20m"):
                 # Export selected bands ('B8A', 'B11', 'B5') as a single GeoTIFF with '_20M'
