@@ -206,7 +206,7 @@ def get_quadrants(roi):
     bounds = roi.bounds()
 
     # Get the coordinates of the bounding box
-    
+
     bbox = bounds.coordinates().getInfo()[0]
 
     # Extract the coordinates
@@ -619,7 +619,10 @@ def process_S2_LEVEL_2A(roi):
 
             # Clip Image to ROI
             # might add .unmask(config.NODATA)
-            # clipped_image = mosaic.clip(roi) # No need to clip since with step0 it is already clipped
+            # Can be removed when on prod
+            # No need to clip since with step0 it is already clipped
+            clip_temp = clipped_image.clip(roi)
+            clipped_image = clip_temp
 
             # Intersect ROI and clipped mosaic
             # Create an empty list to hold the footprints
@@ -652,6 +655,7 @@ def process_S2_LEVEL_2A(roi):
 
             # Check if mosaic_id ends with "-10m"
             if mosaic_id.endswith("-10m"):
+
                 # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
                 multiband_export = clipped_image.select(
                     ['B4', 'B3', 'B2', 'B8'])
@@ -661,13 +665,33 @@ def process_S2_LEVEL_2A(roi):
                                config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
                                multiband_export, sensor_stats, current_date_str)
 
-                # Export QA60 band as a separate GeoTIFF with '_QA60'
+                # Export terrain & shadow Mask
                 masks_export = clipped_image.select(
                     ['terrainShadowMask', 'cloudAndCloudShadowMask'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_masks-10m')
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, current_date_str)
+
+                # Export Registration
+                masks_export = clipped_image.select(
+                    ['reg_dx', 'reg_dy', 'reg_confidence'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_registration-10m')
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, current_date_str)
+
+                # Export Cloudprobability
+                masks_export = clipped_image.select(
+                    ['cloudProbability'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_cloudprobability-10m')
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               "S2",
                                10,
                                masks_export, sensor_stats, current_date_str)
 
@@ -841,7 +865,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-10-31"
+    current_date_str = "2023-10-08"
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
     print("*****************************\n")
@@ -865,10 +889,13 @@ if __name__ == "__main__":
                 result = process_NDVI_MAX(roi)
 
             elif product_to_be_processed == 'PRODUCT_S2_LEVEL_2A':
-                border = ee.FeatureCollection(
-                    "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
-                roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+                # ROI is only taking effect when testing. On prod we will use the clipping as defined in step0_processor_s2_sr
+                # border = ee.FeatureCollection(
+                #     "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                # roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
                 # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+                roi = ee.Geometry.Rectangle(
+                    [9.46097, 47.18192, 9.6619, 47.29495,])  # lichtenstein
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
