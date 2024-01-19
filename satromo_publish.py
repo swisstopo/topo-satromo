@@ -119,7 +119,7 @@ def initialize_gee_and_drive():
         # GDRIVE Mount
         command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
-       
+
         print(command)
         subprocess.Popen(command)
 
@@ -228,8 +228,8 @@ def merge_files_with_gdal_warp(source):
                "--config", "GDAL_CACHEMAX", "9999",
                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               #"-vrtnodata", str(config.NODATA),
-               #"-srcnodata", str(config.NODATA),
+               # "-vrtnodata", str(config.NODATA),
+               # "-srcnodata", str(config.NODATA),
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -243,17 +243,17 @@ def merge_files_with_gdal_warp(source):
                "-of", "COG",
                "-cutline", config.BUFFER,
                "-dstnodata",  str(config.NODATA),
-               #"-srcnodata", str(config.NODATA),
-               #"-co", "NUM_THREADS=ALL_CPUS",
+               # "-srcnodata", str(config.NODATA),
+               # "-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
-               #"--config", "GDAL_CACHEMAX", "9999",
-               #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+               # "--config", "GDAL_CACHEMAX", "9999",
+               # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
                # otherwise use compress=LZW
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                "-co", "COMPRESS=DEFLATE",
                "-co", "PREDICTOR=2",
-               #"-r", "near", #enforce nearest with cutline
+               # "-r", "near", #enforce nearest with cutline
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -298,9 +298,13 @@ def clean_up_gdrive(filename):
         None
     """
     #  Find the file in Google Drive by its name
-    file_list = drive.ListFile({
-        "q": "title contains '"+filename+"' and trashed=false"
-    }).GetList()
+    # file_list = drive.ListFile({
+    #     "q": "title contains '"+filename+"' and trashed=false"
+    # }).GetList()
+    # The  approach above does not work if there are a lot of files
+
+    filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
+    file_list = [file for file in filtered_files if filename in file['title']]
 
     # Check if the file is found
     if len(file_list) > 0:
@@ -338,11 +342,39 @@ def clean_up_gdrive(filename):
         metadata = read_file_meta(os.path.join(
             config.PROCESSING_DIR, filename+".csv"))
 
-        # Move Description of item to destination DIR
+        # Assuming you have the existing JSON file path and the file_task_status dictionary
+        file_path = os.path.join(
+            config.PROCESSING_DIR, metadata['Asset'] + "_metadata.json")
+
+        # Load the existing JSON file
+        with open(file_path, 'r') as json_file:
+            existing_data = json.load(json_file)
+
+        # Add prefix and convert keys to uppercase
+        file_task_status = {
+            f"POSTPROCESSING_{key.upper()}": value for key, value in file_task_status.items()}
+
+        # Add file_task_status to the "SWISSTOPO" list
+        existing_data["SWISSTOPO"].update(file_task_status)
+
+        # Write the updated data back to the JSON file
+        with open(file_path, 'w') as json_file:
+            json.dump(existing_data, json_file)
+
+        # Move/ Delete CSV Description of item to destination DIR
+        # move_files_with_rclone(os.path.join(
+        #     config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
+        if os.path.exists(os.path.join(config.PROCESSING_DIR, item+".csv")):
+            os.remove(os.path.join(config.PROCESSING_DIR, item+".csv"))
+        else:
+            print(f"File {item}.csv does not exist. not deleted. continuing...")
+
+        # Move JSON Description of item to destination DIR
         move_files_with_rclone(os.path.join(
-            config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
+            config.PROCESSING_DIR, item+"_metadata.json"), os.path.join(S3_DESTINATION, product, metadata['Item']))
 
         # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
+        # TODO this is obsolete with step0 we do not need the prperteis json anymore
         pattern = f"*{metadata['Item']}*_properties_*.json"
         files_matching_pattern = glob.glob(
             os.path.join(config.PROCESSING_DIR, pattern))
@@ -369,7 +401,9 @@ def clean_up_gdrive(filename):
         list_files = glob.glob(list_txt_pattern)
         [os.remove(file_path)
          for file_path in list_files if os.path.exists(file_path)]
-
+    else:
+        # No files found
+        print("No files found in GDRIVE to delete and move for "+filename)
     return
 
 

@@ -1,5 +1,6 @@
 affine==2.4.0
 attrs==23.1.0
+base58==2.1.1
 boto3==1.28.48
 botocore==1.31.48
 cachetools==5.3.1
@@ -22,10 +23,12 @@ googleapis-common-protos==1.59.0
 httplib2==0.22.0
 idna==3.4
 jmespath==1.0.1
+morphys==1.0
 numpy==1.25.2
 oauth2client==4.1.3
 pandas==2.1.3
 protobuf==4.23.2
+py-multihash==2.0.1
 pyasn1==0.5.0
 pyasn1-modules==0.3.0
 PyDrive==1.3.1
@@ -33,6 +36,7 @@ pyparsing==3.0.9
 pyproj==3.6.0
 pystac==1.8.3
 python-dateutil==2.8.2
+pytz==2023.3.post1
 PyYAML==6.0
 rasterio==1.3.8
 requests==2.31.0
@@ -41,5 +45,7 @@ s3transfer==0.6.2
 shapely==2.0.1
 six==1.16.0
 snuggs==1.4.7
+tzdata==2023.3
 uritemplate==4.1.1
 urllib3==1.26.16
+varint==1.0.2
