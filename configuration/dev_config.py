@@ -8,9 +8,10 @@ import os
 GITHUB_OWNER = "swisstopo"
 GITHUB_REPO = "topo-satromo"
 
-# Google Drive secrets
+# Secrets
 GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
+FSDI_SECRETS = os.path.join("secrets", "stac_fsdi.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -72,6 +73,7 @@ PRODUCT_S2_LEVEL_2A = {
     "prefix": "S2_L2A_SR",
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id":"7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
@@ -154,6 +156,8 @@ GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
 STAC_DESTINATION_INT = "s3INT:satromoint"
 
-# STAC Production
+# STAC FSDI
 # ---------------
-# TODO: implemntation
+STAC_FSDI_SCHEME = 'https'
+STAC_FSDI_HOSTNAME = 'sys-data.int.bgdi.ch'
+STAC_FSDI_API = '/api/stac/v0.9/'
