@@ -62,7 +62,7 @@ def check_if_asset_prepared(collection, assets, check_date, tasks):
     collection_basename = os.path.basename(collection)
     task_description = collection_basename + '_' + check_date_str
     for task in tasks:
-        if task['metadata']['description'] != task_description:
+        if task_description in task['metadata']['description']:
             continue
         if task['metadata']['state'] in ['PENDING', 'RUNNING']:
             print('task {} still running, skipping asset creation'.format(task_description))
@@ -70,7 +70,6 @@ def check_if_asset_prepared(collection, assets, check_date, tasks):
         if task['metadata']['state'] in ['COMPLETE', 'SUCCEEDED']:
             write_task_metadata_if_needed(task)
             # we don't return here. Maybe the asset was deleted and need to be restored.
-            break
 
     # 1. check if in asset list
     for asset in assets:
