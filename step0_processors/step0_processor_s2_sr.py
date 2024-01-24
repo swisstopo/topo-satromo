@@ -234,33 +234,34 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
     def addMaskedPixelCount(image):
-
-        # Count the number of all non-masked pixels
-        statsMasked = image.select('B2').reduceRegion(
-            reducer=ee.Reducer.count(),
+        # counter the umber of pixel that are masked by cloud or shadows
+        image_mask = image.select('cloudAndCloudShadowMask').gt(0).Or(image.select('terrainShadowMask').gt(0))
+        statsMasked = image_mask.reduceRegion(
+            reducer=ee.Reducer.sum(),
             geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
             tileScale=4
         )
-        dataPixels = statsMasked.getNumber('B2')
+        dataPixels = statsMasked.getNumber('cloudAndCloudShadowMask')
 
-        # Remove the mask and count all pixels
-        statsAll = image.select('B2').unmask().reduceRegion(
-            reducer=ee.Reducer.count(),
+        # get the total number of valid pixel
+        image_mask = image.select('cloudAndCloudShadowMask').gte(0)
+        statsAll = image_mask.unmask().reduceRegion(
+            reducer=ee.Reducer.sum(),
             geometry=image.geometry().intersection(aoi_CH_simplified),
             scale=100,
             bestEffort=True,
             maxPixels=1e10,
             tileScale=4
         )
-        allPixels = statsAll.getNumber('B2')
+        allPixels = statsAll.getNumber('cloudAndCloudShadowMask')
 
         # Calculate the percentages and add the properties
-        percData = (dataPixels.divide(allPixels)).multiply(
+        percMasked = (dataPixels.divide(allPixels)).multiply(
             1000).round().divide(10)
-        percMasked = ee.Number(100).subtract(percData)
+        percData = ee.Number(100).subtract(percMasked)
 
         return image.set({
             'percentData': percData,  # percentage of unmasked pixel
