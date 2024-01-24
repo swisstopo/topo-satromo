@@ -11,6 +11,7 @@ from collections import OrderedDict
 import subprocess
 import glob
 import platform
+from satromo_publish_stac_fsdi import publish_to_stac
 
 # Set the CPL_DEBUG environment variable to enable verbose output
 # os.environ["CPL_DEBUG"] = "ON"
@@ -617,7 +618,12 @@ if __name__ == "__main__":
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
 
-            # move file to Destination: in case reproejction is done here: move file_reprojected
+            # upload file to FSDI STAC
+            #TODO Geocat and collection from config                        
+            geocat_id = config.PRODUCT_S2_LEVEL_2A['geocat_id']
+            publish_to_stac(file_merged, metadata['Item'], "ch.swisstopo.swisseo_s2-sr_v100",geocat_id)
+
+            # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, product, metadata['Item']))
 

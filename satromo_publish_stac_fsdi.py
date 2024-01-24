@@ -32,37 +32,9 @@ import configuration as config
 #    thsi woudl also mean to pass the json as paramter
 # -  add eo:parameter (seems to work  for gsd, test first with sensor)
 
-
-# Paramters to pass
-raw_item = "2023-10-08T101829"
-# is  config.PRODUCT_S2_LEVEL_2A['product_name'] once we fixed that to ch.swisstopo.swisseo_s2-sr
-collection = 'ch.swisstopo.swisseo_s2-sr_v100'
-raw_asset = 'S2-L2A_mosaic_2023-10-08T101829_bands-20m.tif'
-raw_asset = 'S2-L2A_mosaic_2023-10-08T101829_bands-10m_metadata.json'
-raw_asset = 'S2-L2A_mosaic_2023-10-08T101829_cloudprobability-10m.tif'
-raw_asset = 'S2-L2A_mosaic_2023-10-08T101829_cloudprobability-10m_metadata.json'
-geocat_id = config.PRODUCT_S2_LEVEL_2A['geocat_id']
-
-
-# variables
-
-item = raw_item.lower()  # STAC only allows lower case item
-asset = raw_asset.lower()  # STAC only allows lower case item
-item_title = collection.replace('ch.swisstopo.', '')+"_" + item
-scheme = config.STAC_FSDI_SCHEME
-hostname = config.STAC_FSDI_HOSTNAME
-item_path = f'collections/{collection}/items/{item}'
-# STAC only allows lower case item
-asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
-stac_path = f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}{config.STAC_FSDI_API}"
-
-
 # Multipart upload
 part_size_mb = 5
 attempts = 5
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-}
 
 # Define the LV95 and WGS84 coordinate systems
 lv95 = pyproj.CRS.from_epsg(2056)  # LV95 EPSG code
@@ -90,7 +62,7 @@ def determine_run_type():
 
     if os.path.exists(config.FSDI_SECRETS):
         run_type = 2
-        print("\nType 2 run PUBLISHER: We are on DEV")
+        # print("\nType 2 run PUBLISHER: We are on DEV")
 
     else:
         run_type = 1
@@ -122,7 +94,7 @@ def initialize_fsdi():
             'STAC_PASSWORD', config_data["FSDI"]["password"])
 
     else:
-        # Initialize FSDI using GitHub secrets
+        # TODO Initialize FSDI using GitHub secrets
 
         # Authenticate using the provided secrets from GitHub Actions
         print("\nType 1 run PUBLISHER: We are on INT:add GEE SECRETS")
@@ -369,7 +341,7 @@ def upload_asset(stac_asset_filename, stac_asset_url):
         return False
 
 
-if __name__ == "__main__":
+def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
 
     # Test if we are on Local DEV Run or if we are on PROD
     determine_run_type()
@@ -377,12 +349,22 @@ if __name__ == "__main__":
     # Get FSDI credentials
     initialize_fsdi()
 
+    item = raw_item.lower()  # STAC only allows lower case item
+    asset = raw_asset.lower()  # STAC only allows lower case item
+    item_title = collection.replace('ch.swisstopo.', '')+"_" + item
+    scheme = config.STAC_FSDI_SCHEME
+    hostname = config.STAC_FSDI_HOSTNAME
+    item_path = f'collections/{collection}/items/{item}'
+    # STAC only allows lower case item
+    asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
+    stac_path = f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}{config.STAC_FSDI_API}"
+
     # ITEM
     #############
 
     # Check if ITEM exists, if not create it first
     if is_existing(stac_path+item_path):
-        print(f"ITEM object {item}: exists")
+        print(f"ITEM object {stac_path+item_path}: exists")
     else:
         print(f"ITEM object {item}: creating")
         # Create payload
@@ -425,41 +407,42 @@ if __name__ == "__main__":
     # Check if ASSET exists, if not upload it
 
     if is_existing(f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}"):
-        print(f"ASSET object {asset}: exists")
+        print(f"ASSET object {asset}: exists ... overwriting")
     else:
-        print(f"ASSET object {asset}: preparing...")
+        print(f"ASSET object {asset}: does not exist preparing...")
 
-        # Get the file extension
-        extension = asset.split('.')[-1]
+    # Get the file extension
+    extension = asset.split('.')[-1]
 
-        # Assign different values based on the extension
-        if extension.lower() == 'csv':
-            asset_type = 'CSV'
-        elif extension.lower() == 'json':
-            asset_type = 'JSON'
+    # Assign different values based on the extension
+    if extension.lower() == 'csv':
+        asset_type = 'CSV'
+    elif extension.lower() == 'json':
+        asset_type = 'JSON'
+    else:
+        asset_type = 'TIF'
+
+    # create asset payload
+    payload = asset_create_json_payload(asset, asset_type)
+
+    # Create Asset
+    if create_asset(stac_path+asset_path, payload):
+        print(f"ASSET object {asset}: successfully created")
+    else:
+        print(f"ASSET object {asset}: creation FAILED")
+
+    # Upload ASSET
+    if asset_type == 'TIF':
+        print("TIF asset - Multipart upload")
+        if upload_asset_multipart(asset, stac_path+asset_path):
+            print(f"ASSET object {asset}: succesfully uploaded")
         else:
-            asset_type = 'TIF'
-
-        # create asset payload
-        payload = asset_create_json_payload(asset, asset_type)
-
-        # Create Asset
-        if create_asset(stac_path+asset_path, payload):
-            print(f"ASSET object {asset}: successfully created")
+            print(f"ASSET object {asset}: upload FAILED")
+    else:
+        print(asset_type+" single part upload")
+        if upload_asset(asset, stac_path+asset_path):
+            print(f"ASSET object {asset}: succesfully uploaded")
         else:
-            print(f"ASSET object {asset}: creation FAILED")
-
-        # Upload ASSET
-        if asset_type == 'TIF':
-            print("TIF asset - Multipart upload")
-            if upload_asset_multipart(asset, stac_path+asset_path):
-                print(f"ASSET object {asset}: succesfully uploaded")
-            else:
-                print(f"ASSET object {asset}: upload FAILED")
-        else:
-            print(asset_type+" single part upload")
-            if upload_asset(asset, stac_path+asset_path):
-                print(f"ASSET object {asset}: succesfully uploaded")
-            else:
-                print(f"ASSET object {asset}: upload FAILED")
-    print("FSDI update completed")
+            print(f"ASSET object {asset}: upload FAILED")
+    print("FSDI update completed: " +
+          f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}")
