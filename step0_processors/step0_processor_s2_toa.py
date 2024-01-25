@@ -5,6 +5,7 @@ import json
 import ee
 import configuration as config
 from .step0_utils import write_asset_as_empty
+import requests
 
 
 # Pre-processing pipeline for daily Sentinel-2 L1C top-of-atmosphere (toa) mosaics over Switzerland
@@ -114,27 +115,28 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         write_asset_as_empty(collection, day_to_process, 'No candidate scene')
         return
 
-    image_list = S2_toa.toList(S2_toa.size())
-    for i in range(image_list_size):
-        image = ee.Image(image_list.get(i))
+    # JSON EXPORT for each tile
+    # image_list = S2_toa.toList(S2_toa.size())
+    # for i in range(image_list_size):
+    #     image = ee.Image(image_list.get(i))
 
-        # EE asset ids for Sentinel-2 L2 assets have the following format: 20151128T002653_20151128T102149_T56MNN.
-        #  Here the first numeric part represents the sensing date and time, the second numeric part represents the product generation date and time,
-        #  and the final 6-character string is a unique granule identifier indicating its UTM grid reference
-        image_id = image.id().getInfo()
-        image_sensing_timestamp = image_id.split('_')[0]
-        # first numeric part represents the sensing date, needs to be used in publisher
-        print("generating json {} of {} ({})".format(
-            i+1, image_list_size, image_sensing_timestamp))
+    #     # EE asset ids for Sentinel-2 L2 assets have the following format: 20151128T002653_20151128T102149_T56MNN.
+    #     #  Here the first numeric part represents the sensing date and time, the second numeric part represents the product generation date and time,
+    #     #  and the final 6-character string is a unique granule identifier indicating its UTM grid reference
+    #     image_id = image.id().getInfo()
+    #     image_sensing_timestamp = image_id.split('_')[0]
+    #     # first numeric part represents the sensing date, needs to be used in publisher
+    #     print("generating json {} of {} ({})".format(
+    #         i+1, image_list_size, image_sensing_timestamp))
 
-        # Generate the filename
-        filename = config.PRODUCT_S2_LEVEL_1C['prefix'] + '_' + image_id
-        # Export Image Properties into a json file
-        file_name = filename + "_properties" + "_run" + \
-            day_to_process.replace("-", "") + ".json"
-        json_path = os.path.join(config.PROCESSING_DIR, file_name)
-        with open(json_path, "w") as json_file:
-            json.dump(image.getInfo(), json_file)
+    #     # Generate the filename
+    #     filename = config.PRODUCT_S2_LEVEL_1C['product_name'] + '_' + image_id
+    #     # Export Image Properties into a json file
+    #     file_name = filename + "_properties" + "_run" + \
+    #         day_to_process.replace("-", "") + ".json"
+    #     json_path = os.path.join(config.PROCESSING_DIR, file_name)
+    #     with open(json_path, "w") as json_file:
+    #         json.dump(image.getInfo(), json_file)
 
     # S2cloudless
     S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
@@ -383,11 +385,16 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
                                                                  "SPACECRAFT_NAME", "MEAN_SOLAR_ZENITH_ANGLE",
                                                                  "MEAN_SOLAR_AZIMUTH_ANGLE"])
 
+        # Getting swisstopo Processor Version
+        processor_version = get_github_info()
+
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
             .set('system:time_end', time_end) \
             .set('index_list', index_list) \
-            .set('scene_count', scene_count)
+            .set('scene_count', scene_count) \
+            .set('SWISSTOPO_PROCESSOR', processor_version['GithubLink']) \
+            .set('SWISSTOPO_RELEASEVERSION', processor_version['ReleaseVersion'])
 
         # reset the projection to epsg:32632 as mosaic changes it to epsg:4326 (otherwise the registration fails)
         mosaic = ee.Image(mosaic).setDefaultProjection('epsg:32632', None, 10)
@@ -645,3 +652,45 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             assetId=fname_60m
         )
         task.start()"""
+
+def get_github_info():
+    """
+    Retrieves GitHub repository information and generates a GitHub link based on the latest commit.
+
+    Returns:
+        A dictionary containing the GitHub link. If the request fails or no commit hash is available, the link will be None.
+    """
+    # Enter your GitHub repository information
+    owner = config.GITHUB_OWNER
+    repo = config.GITHUB_REPO
+
+    # Make a GET request to the GitHub API to retrieve information about the repository
+    response = requests.get(
+        f"https://api.github.com/repos/{owner}/{repo}/commits/main")
+
+    github_info = {}
+
+    if response.status_code == 200:
+        # Extract the commit hash from the response
+        commit_hash = response.json()["sha"]
+
+        # Generate the GitHub link
+        github_link = f"https://github.com/{owner}/{repo}/commit/{commit_hash}"
+        github_info["GithubLink"] = github_link
+
+    else:
+        github_info["GithubLink"] = None
+
+    # Make a GET request to the GitHub API to retrieve information about the repository releases
+    response = requests.get(
+        f"https://api.github.com/repos/{owner}/{repo}/releases/latest")
+
+    if response.status_code == 200:
+        # Extract the release version from the response
+        release_version = response.json()["tag_name"]
+    else:
+        release_version = "0.0.0"
+
+    github_info["ReleaseVersion"] = release_version
+
+    return github_info
