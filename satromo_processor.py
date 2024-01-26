@@ -138,6 +138,37 @@ def initialize_gee_and_drive():
         print("GEE initialization FAILED")
 
 
+def get_product_from_techname(techname):
+    """
+    This function searches for a dictionary in the 'config' module that contains 
+    'product_name' with a specified value and returns it.
+
+    Parameters:
+    techname (str): The value of 'product_name' to search for. 
+                    For example, 'ch.swisstopo.swisseo_s2-sr_v100'.
+
+    Returns:
+    dict: The dictionary that contains 'product_name' with the value of 'techname'. 
+          If no such dictionary is found, it returns None.
+    """
+
+    # Initialize the variable to None
+    var = None
+
+    # Iterate over all attributes in the config module
+    for attr_name in dir(config):
+        attr_value = getattr(config, attr_name)
+
+        # Check if the attribute is a dictionary
+        if isinstance(attr_value, dict):
+            # Check if the dictionary contains 'product_name' with the desired value
+            if attr_value.get('product_name') == techname:
+                var = attr_value
+                break  # Exit the loop once the dictionary is found
+
+    return var
+
+
 def maskOutside(image, aoi):
     """
     Masks the areas outside the specified region of interest (AOI) in an image.
@@ -443,8 +474,10 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         filename_q = productasset + quadrant_name
         # Start the export for each quadrant
 
+        # start_export(image, int(scale),
+        #              "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
         start_export(image, int(scale),
-                     "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
+                     productasset, quadrant, filename_q, config.OUTPUT_CRS)
 
     # Generate product status information
     product_status = {
@@ -457,11 +490,14 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     # Update the product status file
     update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
 
+    # Get Product info from config
+    product = get_product_from_techname(productname)
+
     # Update the product  file
     header = ["Product", "Item", "Asset", "DateFirstScene", "DateLastScene",
-              "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion"]
+              "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion", "GeocatID"]
     data = [productname, productitem, productasset, str(sensor_stats[0]), str(
-        sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"]]
+        sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"], product['geocat_id']]
 
     # Create swisstopo_data dictionary
     swisstopo_data = {"header": header, "data": data}
@@ -484,10 +520,10 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         json.dump(image_info_gee, json_file)
 
     # Write the product description to a CSV file
-    with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-        writer.writerow(data)
+    # with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(header)
+    #     writer.writerow(data)
 
     # Return None
     return None
@@ -674,57 +710,86 @@ def process_S2_LEVEL_2A(roi):
             # # Get the bounding box of clippedRoi
             clipped_image_bounding_box = clipped_image.geometry()
 
+            # Get processing date
+            # Get the current date and time
+            now = datetime.datetime.now()
+
+            # Convert it to a string in ISO 8601 format and remove the seconds
+            processing_date = now.strftime("%Y-%m-%dT%H:%M")
+
             # Check if mosaic_id ends with "-10m"
             if mosaic_id.endswith("-10m"):
 
                 # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
                 multiband_export = clipped_image.select(
                     ['B4', 'B3', 'B2', 'B8'])
-                multiband_export_name = mosaic_id
+
+                # Replacing the collection Name  with the actual product name
+                # multiband_export_name = mosaic_id
+                multiband_export_name = mosaic_id.replace(
+                    "S2-L2A", product_name)
 
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
-                               multiband_export, sensor_stats, current_date_str)
+                               multiband_export, sensor_stats, processing_date)
 
                 # Export terrain & shadow Mask
                 masks_export = clipped_image.select(
                     ['terrainShadowMask', 'cloudAndCloudShadowMask', 'reg_confidence'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_masks-10m')
+
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
-                               masks_export, sensor_stats, current_date_str)
+                               masks_export, sensor_stats, processing_date)
 
                 # Export Registration
                 masks_export = clipped_image.select(
                     ['reg_dx', 'reg_dy'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_registration-10m')
+
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
-                               masks_export, sensor_stats, current_date_str)
+                               masks_export, sensor_stats, processing_date)
 
                 # Export Cloudprobability
                 masks_export = clipped_image.select(
                     ['cloudProbability'])
                 masks_export_name = mosaic_id.replace(
                     '_bands-10m', '_cloudprobability-10m')
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
-                               masks_export, sensor_stats, current_date_str)
+                               masks_export, sensor_stats, processing_date)
 
             # Check if mosaic_id ends with "-20m"
             elif mosaic_id.endswith("-20m"):
-                # Export selected bands ('B8A', 'B11') as a single GeoTIFF with '_20M'
-                multiband_export = clipped_image.select(['B8A', 'B11'])
-                multiband_export_name = mosaic_id
+                # Export selected bands ('B8A', 'B11', 'B5') as a single GeoTIFF with '_20M'
+                multiband_export = clipped_image.select(['B8A', 'B11', 'B5'])
+
+                # Replacing the collection Name  with the actual product name
+                # multiband_export_name = mosaic_id
+                multiband_export_name = mosaic_id.replace(
+                    "S2-L2A", product_name)
 
                 prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'], 20,
-                               multiband_export, sensor_stats, current_date_str)
+                               multiband_export, sensor_stats, processing_date)
 
 
 def process_S2_LEVEL_1C(roi):
@@ -886,7 +951,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-10-08"
+    current_date_str = "2023-10-31"
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
     print("*****************************\n")

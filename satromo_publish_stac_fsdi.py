@@ -25,12 +25,7 @@ import configuration as config
 # ASSET JSON see as well lubis
 
 # TODO:
-# -  startdate enddate instead of date:
-#    for mosaic: extract hours as well from corresponing custom_collection, stored DATEFIRSTSCENE etc in json and pass json here
-#    for products: get from first and last date of the scenes?
-# -  ensure first to upload the rasterdata, so we get bounding box from raster. alternative: we already have in the json the boudning box in the spe before, probably would make more sense
-#    thsi woudl also mean to pass the json as paramter
-# -  add eo:parameter (seems to work  for gsd, test first with sensor)
+# if_exists throws once in a while a 403 even if the path does exist
 
 # Multipart upload
 part_size_mb = 5
@@ -101,6 +96,7 @@ def initialize_fsdi():
 
 
 def is_existing(stac_item_path):
+
     response = requests.get(
         url=stac_item_path,
         # proxies={"https": proxy.guess_proxy()},
@@ -109,6 +105,7 @@ def is_existing(stac_item_path):
         # headers=headers,
     )
     if response.status_code // 200 == 1:
+        # if 200 <= response.status_code < 300 or response.status_code == 403:  # since it might exist but no acces
         return True
     else:
         return False
@@ -352,8 +349,6 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     item = raw_item.lower()  # STAC only allows lower case item
     asset = raw_asset.lower()  # STAC only allows lower case item
     item_title = collection.replace('ch.swisstopo.', '')+"_" + item
-    scheme = config.STAC_FSDI_SCHEME
-    hostname = config.STAC_FSDI_HOSTNAME
     item_path = f'collections/{collection}/items/{item}'
     # STAC only allows lower case item
     asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
@@ -363,6 +358,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     #############
 
     # Check if ITEM exists, if not create it first
+
     if is_existing(stac_path+item_path):
         print(f"ITEM object {stac_path+item_path}: exists")
     else:
@@ -387,7 +383,6 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
             *coord) for coord in coordinates_lv95]
 
         # Date: Convert the string to a datetime object
-        # TODO: use startdate enddate
         dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
 
         # Convert the datetime object back to a string in the desired format
