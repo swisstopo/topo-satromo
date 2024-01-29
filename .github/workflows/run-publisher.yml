@@ -68,13 +68,15 @@ jobs:
       env: # Set the secrets as env var
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
+        FSDI_STAC_USER: ${{ secrets.FSDI_STAC_USER}}
+        FSDI_STAC_PASSWORD: ${{ secrets.FSDI_PASSWORD}}
 
-    - name: Run Python script PUBLISH STAC
-      run: |
-        python satromo_publish_stac.py
-      env: # Set the secrets as env var
-        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
+    #- name: Run Python script PUBLISH STAC
+    #  run: |
+    #    python satromo_publish_stac.py
+    #  env: # Set the secrets as env var
+    #    GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+    #    RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
       
     - name: Push tools files to repo
       uses: github-actions-x/commit@v2.9
@@ -94,14 +96,14 @@ jobs:
         files: processing/
         name: autoupdate
 
-    - name: Invalidate CloudFront of satromoint
-      uses: chetan/invalidate-cloudfront-action@v2
-      env:
-        DISTRIBUTION: ${{ secrets.DISTRIBUTION }}
-        PATHS: "/stac-collection/*"
-        AWS_REGION: "eu-central-2"
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} 
+    #- name: Invalidate CloudFront of satromoint
+    #  uses: chetan/invalidate-cloudfront-action@v2
+    #  env:
+    #    DISTRIBUTION: ${{ secrets.DISTRIBUTION }}
+    #    PATHS: "/stac-collection/*"
+    #    AWS_REGION: "eu-central-2"
+    #    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} 
 
  
         
