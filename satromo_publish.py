@@ -11,6 +11,8 @@ from collections import OrderedDict
 import subprocess
 import glob
 import platform
+import re
+from satromo_publish_stac_fsdi import publish_to_stac
 
 # Set the CPL_DEBUG environment variable to enable verbose output
 # os.environ["CPL_DEBUG"] = "ON"
@@ -119,7 +121,7 @@ def initialize_gee_and_drive():
         # GDRIVE Mount
         command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
-       
+
         print(command)
         subprocess.Popen(command)
 
@@ -162,7 +164,7 @@ def download_and_delete_file(file):
     print(f"File {file['title']} DELETED on Google Drive.")
 
 
-def move_files_with_rclone(source, destination):
+def move_files_with_rclone(source, destination, move=True):
     """
     Move files using the rclone command.
 
@@ -182,11 +184,18 @@ def move_files_with_rclone(source, destination):
     else:
         rclone = "rclone"
         rclone_conf = "rclone.conf"
-    command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
-               source, destination]
+    if move == True:
+        command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
+                   source, destination]
+    else:
+        command = [rclone, "copy", "--config", rclone_conf, "--s3-no-check-bucket",
+                   source, destination]
     subprocess.run(command, check=True)
 
-    print("SUCCESS: moved " + source + " to " + destination)
+    if move == True:
+        print("SUCCESS: moved " + source + " to " + destination)
+    else:
+        print("SUCCESS: copied " + source + " to " + destination)
 
 
 def merge_files_with_gdal_warp(source):
@@ -228,8 +237,8 @@ def merge_files_with_gdal_warp(source):
                "--config", "GDAL_CACHEMAX", "9999",
                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               #"-vrtnodata", str(config.NODATA),
-               #"-srcnodata", str(config.NODATA),
+               # "-vrtnodata", str(config.NODATA),
+               # "-srcnodata", str(config.NODATA),
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -243,17 +252,17 @@ def merge_files_with_gdal_warp(source):
                "-of", "COG",
                "-cutline", config.BUFFER,
                "-dstnodata",  str(config.NODATA),
-               #"-srcnodata", str(config.NODATA),
-               #"-co", "NUM_THREADS=ALL_CPUS",
+               # "-srcnodata", str(config.NODATA),
+               # "-co", "NUM_THREADS=ALL_CPUS",
                "-co", "BIGTIFF=YES",
-               #"--config", "GDAL_CACHEMAX", "9999",
-               #"--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+               # "--config", "GDAL_CACHEMAX", "9999",
+               # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
                # otherwise use compress=LZW
                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
                "-co", "COMPRESS=DEFLATE",
                "-co", "PREDICTOR=2",
-               #"-r", "near", #enforce nearest with cutline
+               # "-r", "near", #enforce nearest with cutline
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -287,6 +296,49 @@ def extract_value_from_csv(filename, search_string, search_col, col_result):
     return None
 
 
+def write_update_metadata(filename, filemeta):
+    # Use a regular expression pattern to find everything after the date
+    match = re.search(r"(.*?\d{4}-\d{2}-\d{2}T\d{6})_(.*)", filename)
+
+    if match:
+        # Everything before and including the date
+        file_prefix = match.group(1)
+
+        # Everything after the date
+        band_name = match.group(2)
+        band_name = band_name.upper()
+
+    # Construct the file path
+    file_path = os.path.join(file_prefix + "_metadata.json")
+
+    # Initialize metadata as an empty dictionary
+    metadata = {}
+
+    # Check if the file exists
+    if os.path.exists(file_path):
+        # If the file exists, open it and load the JSON data
+        with open(file_path, 'r') as f:
+            metadata = json.load(f)
+
+    # Check if 'm-10' is in metadata
+    if band_name not in metadata:
+        metadata[band_name] = {}
+        # Copy the data
+        metadata[band_name]['BANDS'] = filemeta['GEE_BANDS']
+        metadata[band_name]['PROPERTIES'] = filemeta['SWISSTOPO']
+        metadata[band_name]['SOURCE_COLLECTION'] = filemeta['GEE_ID']
+        metadata[band_name]['SOURCE_COLLECTION_PROPERTIES'] = filemeta['GEE_PROPERTIES']
+        metadata[band_name]['GEE_VERSION'] = filemeta['GEE_VERSION']
+
+        # Write the updated data back to the JSON file
+        with open(file_path, 'w') as json_file:
+            json.dump(metadata, json_file)
+
+        # upload consolidated META JSON file to FSDI STAC
+        publish_to_stac(
+            file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
+
+
 def clean_up_gdrive(filename):
     """
     Deletes files in Google Drive that match the given filename.Writes Metadata of processing results
@@ -298,9 +350,13 @@ def clean_up_gdrive(filename):
         None
     """
     #  Find the file in Google Drive by its name
-    file_list = drive.ListFile({
-        "q": "title contains '"+filename+"' and trashed=false"
-    }).GetList()
+    # file_list = drive.ListFile({
+    #     "q": "title contains '"+filename+"' and trashed=false"
+    # }).GetList()
+    # The  approach above does not work if there are a lot of files
+
+    filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
+    file_list = [file for file in filtered_files if filename in file['title']]
 
     # Check if the file is found
     if len(file_list) > 0:
@@ -330,27 +386,73 @@ def clean_up_gdrive(filename):
             # Remove the line from the RUNNING tasks file
             delete_line_in_file(config.GEE_RUNNING_TASKS, file_task_id)
 
-        # Add DATA GEE PROCESSING info to Metadata of item,
-        write_file_meta(file_task_status, os.path.join(
-            config.PROCESSING_DIR, item+".csv"))
+        # Obsolete from here
+        # # Add DATA GEE PROCESSING info to Metadata of item,
+        # write_file_meta(file_task_status, os.path.join(
+        #     config.PROCESSING_DIR, item+".csv"))
 
-        # Get the filename metadata
-        metadata = read_file_meta(os.path.join(
-            config.PROCESSING_DIR, filename+".csv"))
+        # # Get the filename metadata
+        # metadata = read_file_meta(os.path.join(
+        #     config.PROCESSING_DIR, filename+".csv"))
 
-        # Move Description of item to destination DIR
+        # # Assuming you have the existing JSON file path and the file_task_status dictionary
+        # file_path = os.path.join(
+        #     config.PROCESSING_DIR, metadata['Asset'] + "_metadata.json")
+
+        # # Load the existing JSON file
+        # with open(file_path, 'r') as json_file:
+        #     existing_data = json.load(json_file)
+
+        # Obsolete til here
+        # read metadata from json
+        with open(os.path.join(
+                config.PROCESSING_DIR, filename + "_metadata.json"), 'r') as f:
+            existing_data = json.load(f)
+
+        # Add prefix and convert keys to uppercase
+        file_task_status = {
+            f"POSTPROCESSING_{key.upper()}": value for key, value in file_task_status.items()}
+
+        # Add file_task_status to the "SWISSTOPO" list
+        existing_data["SWISSTOPO"].update(file_task_status)
+
+        # Write the updated data back to the JSON file
+        with open(os.path.join(
+                config.PROCESSING_DIR, filename + "_metadata.json"), 'w') as json_file:
+            json.dump(existing_data, json_file)
+
+        # Write and upload consolidated META JSON file to FSDI STAC
+        write_update_metadata(filename, existing_data)
+
+        # Move/ Delete CSV Description of item to destination DIR
+        # move_files_with_rclone(os.path.join(
+        #     config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
+        # if os.path.exists(os.path.join(config.PROCESSING_DIR, filename+".csv")):
+        #     os.remove(os.path.join(config.PROCESSING_DIR, filename+".csv"))
+        # else:
+        #     print(f"File {filename}.csv does not exist. not deleted. continuing...")
+
+       # Copy  consolidated META JSON file to SATROMO INT
         move_files_with_rclone(os.path.join(
-            config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
+            existing_data['SWISSTOPO']['PRODUCT']+"_mosaic_"+existing_data['SWISSTOPO']['ITEM']+"_metadata.json"), os.path.join(S3_DESTINATION, file_product, existing_data['SWISSTOPO']['ITEM']), move=False)
+
+     # delete JSON Description of asset
+
+        if os.path.exists(os.path.join(
+                config.PROCESSING_DIR, filename+"_metadata.json")):
+            os.remove(os.path.join(config.PROCESSING_DIR,
+                      filename+"_metadata.json"))
 
         # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
-        pattern = f"*{metadata['Item']}*_properties_*.json"
-        files_matching_pattern = glob.glob(
-            os.path.join(config.PROCESSING_DIR, pattern))
-        if files_matching_pattern:
-            destination_dir = os.path.join(
-                S3_DESTINATION, product, metadata['Item'])
-            for file_to_move in files_matching_pattern:
-                move_files_with_rclone(file_to_move, destination_dir)
+        # TODO this is obsolete with step0 we do not need the prperteis json anymore
+        # pattern = f"*{metadata['Item']}*_properties_*.json"
+        # files_matching_pattern = glob.glob(
+        #     os.path.join(config.PROCESSING_DIR, pattern))
+        # if files_matching_pattern:
+        #     destination_dir = os.path.join(
+        #         S3_DESTINATION, file_product, metadata['Item'])
+        #     for file_to_move in files_matching_pattern:
+        #         move_files_with_rclone(file_to_move, destination_dir)
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
@@ -359,17 +461,19 @@ def clean_up_gdrive(filename):
         # Clean up GDAL temporary files
 
         # VRT file, Pattern for .vrt files
-        vrt_pattern = f"*{metadata['Item']}*.vrt"
+        vrt_pattern = f"*{existing_data['SWISSTOPO']['ITEM']}*.vrt"
         vrt_files = glob.glob(vrt_pattern)
         [os.remove(file_path)
          for file_path in vrt_files if os.path.exists(file_path)]
 
         # Pattern for _list.txt files
-        list_txt_pattern = f"*{metadata['Item']}*_list.txt"
+        list_txt_pattern = f"*{existing_data['SWISSTOPO']['ITEM']}*_list.txt"
         list_files = glob.glob(list_txt_pattern)
         [os.remove(file_path)
          for file_path in list_files if os.path.exists(file_path)]
-
+    else:
+        # No files found
+        print("No files found in GDRIVE to delete and move for "+filename)
     return
 
 
@@ -418,50 +522,50 @@ def delete_line_in_file(filepath, stringtoremove):
                 file.write("\n")
 
 
-def write_file_meta(input_dict, output_file):
-    """
-    Read the existing CSV file, append the input dictionary, and export it as a new CSV file.
+# def write_file_meta(input_dict, output_file):
+#     """
+#     Read the existing CSV file, append the input dictionary, and export it as a new CSV file.
 
-    Parameters:
-    input_dict (dict): Dictionary to be appended to the CSV file.
-    output_file (str): Path of the output CSV file.
+#     Parameters:
+#     input_dict (dict): Dictionary to be appended to the CSV file.
+#     output_file (str): Path of the output CSV file.
 
-    Returns:
-    None
-    """
-    existing_data = OrderedDict()
-    if os.path.isfile(output_file):
-        with open(output_file, "r", encoding="utf-8", newline='') as f:
-            reader = csv.reader(f)
-            existing_data = OrderedDict(zip(next(reader), next(reader)))
+#     Returns:
+#     None
+#     """
+#     existing_data = OrderedDict()
+#     if os.path.isfile(output_file):
+#         with open(output_file, "r", encoding="utf-8", newline='') as f:
+#             reader = csv.reader(f)
+#             existing_data = OrderedDict(zip(next(reader), next(reader)))
 
-    existing_data.update(input_dict)
+#     existing_data.update(input_dict)
 
-    with open(output_file, "w", encoding="utf-8", newline='') as f:
-        writer = csv.writer(f, delimiter=",", quotechar='"',
-                            lineterminator="\n")
+#     with open(output_file, "w", encoding="utf-8", newline='') as f:
+#         writer = csv.writer(f, delimiter=",", quotechar='"',
+#                             lineterminator="\n")
 
-        writer.writerow(list(existing_data.keys()))
-        writer.writerow(list(existing_data.values()))
+#         writer.writerow(list(existing_data.keys()))
+#         writer.writerow(list(existing_data.values()))
 
 
-def read_file_meta(input_file):
-    """
-    Read the existing CSV file
+# def read_file_meta(input_file):
+#     """
+#     Read the existing CSV file
 
-    Parameters:
-    input_file (str): Path of the output CSV file.
+#     Parameters:
+#     input_file (str): Path of the output CSV file.
 
-    Returns:
-    None
-    """
-    existing_data = OrderedDict()
-    if os.path.isfile(input_file):
-        with open(input_file, "r", encoding="utf-8", newline='') as f:
-            reader = csv.reader(f)
-            existing_data = OrderedDict(zip(next(reader), next(reader)))
+#     Returns:
+#     None
+#     """
+#     existing_data = OrderedDict()
+#     if os.path.isfile(input_file):
+#         with open(input_file, "r", encoding="utf-8", newline='') as f:
+#             reader = csv.reader(f)
+#             existing_data = OrderedDict(zip(next(reader), next(reader)))
 
-    return existing_data
+#     return existing_data
 
 
 def extract_product_and_item(task_description):
@@ -474,12 +578,15 @@ def extract_product_and_item(task_description):
     Returns:
     tuple: A tuple containing the extracted product and item information.
     """
-    product_start_index = task_description.index('P:') + 2
-    product_end_index = task_description.index(' I:')
-    product = task_description[product_start_index:product_end_index]
 
-    item_start_index = task_description.index('I:') + 2
-    item = task_description[item_start_index:]
+    product = task_description.split("_mosaic_")[0]
+    item = task_description
+    # product_start_index = task_description.index('P:') + 2
+    # product_end_index = task_description.index(' I:')
+    # product = task_description[product_start_index:product_end_index]
+
+    # item_start_index = task_description.index('I:') + 2
+    # item = task_description[item_start_index:]
 
     return product, item
 
@@ -573,19 +680,31 @@ if __name__ == "__main__":
             print(filename+" is ready to process")
 
             # Get the product and item
-            product, item = extract_product_and_item(
-                task_status['description'])
+            # product, item = extract_product_and_item(
+            #    task_status['description'])
 
-            # Get the metadata
-            metadata = read_file_meta(os.path.join(
-                config.PROCESSING_DIR, filename+".csv"))
+            # # Get the metadata
+            # metadata = read_file_meta(os.path.join(
+            #     config.PROCESSING_DIR, filename+".csv"))
 
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
 
-            # move file to Destination: in case reproejction is done here: move file_reprojected
+            # Get metdatafile by replacing ".tif" by "_metadata.json"
+            # metadata_file = file_merged.replace(".tif", "_metadata.json")
+
+            # read metadata from json
+            with open(os.path.join(
+                    config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
+                metadata = json.load(f)
+
+            # upload file to FSDI STAC
+            publish_to_stac(
+                file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+
+            # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
-                file_merged, os.path.join(S3_DESTINATION, product, metadata['Item']))
+                file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
             # clean up GDrive and local drive
             # os.remove(file_merged)
@@ -594,6 +713,9 @@ if __name__ == "__main__":
         else:
             print(filename+" is NOT ready to process")
 
+    # delete consolidated META file
+    [os.remove(file) for file in glob.glob("*_metadata.json")]
+    
     # Last step
     if run_type == 1:
         # Remove the key file so It wont be commited

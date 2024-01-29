@@ -12,6 +12,7 @@ RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
 GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
+EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
 # DEV
@@ -43,26 +44,64 @@ ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 NODATA = 9999  # No data values
 
+
 ## PRODUCTS and INDICES ###
 
-# NDVI product parameters
-PRODUCT_NDVI_MAX = {
-    "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
+PRODUCT_S2_LEVEL_2A = {
+    "prefix": "S2_L2A_mosaic",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "30",  # Days
-    "spatial_scale_export": "10",  # Meters
-    "band_names": [{'NIR': "B8", 'RED': "B4"}],
-    "product_name": "NDVI-MAX"
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask": 10,  # Meters
+    "product_name": "S2_LEVEL_2A",
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
 }
 
-PRODUCT_S2_LEVEL_2A = {
-    "prefix": "S2_L2A_SR",
+PRODUCT_NDVI_MAX = {
+    "prefix": "MAX_SR_CloudFree_crop_mosaic",
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": "1",  # Days
-    "spatial_scale_export": "10",  # Meters
-    "spatial_scale_export_qa60": "60",  # Meters
-    "product_name": "S2_LEVEL_2A"
+    "temporal_coverage": 30,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "band_names": [{'NIR': "B8", 'RED': "B4"}],
+    "product_name": "NDVI-MAX",
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_sr"
 }
+
+PRODUCT_S2_LEVEL_1C = {
+    "prefix": "S2_L1C_TOA",
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "spatial_scale_export_mask": 10,  # Meters
+    "product_name": "S2_LEVEL_1C",
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
+}
+
+PRODUCT_NDVI_MAX_TOA = {
+    "prefix": "SMAX_TOA_CloudFree_crop_mosaic",
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
+    "temporal_coverage": 30,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "band_names": [{'NIR': "B8", 'RED': "B4"}],
+    "product_name": "NDVI-MAX_TOA",
+    "step0_collection": "projects/satromo-exolabs/assets/col_s2_toa"
+}
+
+# dictionary used to manage custom asset,
+# for example to clear old images not used anymore.
+
+
+step0 = {
+    'projects/satromo-exolabs/assets/col_s2_toa': {
+        'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-exolabs/assets/col_s2_sr': {
+        'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    }
+}
+
 
 ## STAC ###
 

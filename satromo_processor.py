@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 from pydrive.auth import GoogleAuth
 import csv
 from oauth2client.service_account import ServiceAccountCredentials
@@ -9,6 +10,8 @@ import json
 import os
 import ee
 import configuration as config
+from step0_functions import get_step0_dict, step0_main
+import pandas as pd
 
 
 def determine_run_type():
@@ -135,6 +138,37 @@ def initialize_gee_and_drive():
         print("GEE initialization FAILED")
 
 
+def get_product_from_techname(techname):
+    """
+    This function searches for a dictionary in the 'config' module that contains 
+    'product_name' with a specified value and returns it.
+
+    Parameters:
+    techname (str): The value of 'product_name' to search for. 
+                    For example, 'ch.swisstopo.swisseo_s2-sr_v100'.
+
+    Returns:
+    dict: The dictionary that contains 'product_name' with the value of 'techname'. 
+          If no such dictionary is found, it returns None.
+    """
+
+    # Initialize the variable to None
+    var = None
+
+    # Iterate over all attributes in the config module
+    for attr_name in dir(config):
+        attr_value = getattr(config, attr_name)
+
+        # Check if the attribute is a dictionary
+        if isinstance(attr_value, dict):
+            # Check if the dictionary contains 'product_name' with the desired value
+            if attr_value.get('product_name') == techname:
+                var = attr_value
+                break  # Exit the loop once the dictionary is found
+
+    return var
+
+
 def maskOutside(image, aoi):
     """
     Masks the areas outside the specified region of interest (AOI) in an image.
@@ -203,6 +237,7 @@ def get_quadrants(roi):
     bounds = roi.bounds()
 
     # Get the coordinates of the bounding box
+
     bbox = bounds.coordinates().getInfo()[0]
 
     # Extract the coordinates
@@ -309,6 +344,26 @@ def start_export(image, scale, description, region, filename_prefix, crs):
 
         # Write the data
         writer.writerow(data)
+
+
+def check_product_status(product_name):
+    """
+    Check if the given product has a "Status" marked as complete
+
+    Parameters:
+    product_name (str): Name of the product to check.
+
+    Returns:
+    bool: True if "Status" has a value equal to 'complete'
+    False otherwise
+    """
+
+    with open(config.LAST_PRODUCT_UPDATES, "r", newline="", encoding="utf-8") as f:
+        dict_reader = csv.DictReader(f, delimiter=",")
+        for row in dict_reader:
+            if row["Product"] == product_name:
+                return row['Status'] == 'complete'
+    return False
 
 
 def check_product_update(product_name, date_string):
@@ -419,8 +474,10 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         filename_q = productasset + quadrant_name
         # Start the export for each quadrant
 
+        # start_export(image, int(scale),
+        #              "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
         start_export(image, int(scale),
-                     "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
+                     productasset, quadrant, filename_q, config.OUTPUT_CRS)
 
     # Generate product status information
     product_status = {
@@ -433,16 +490,40 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     # Update the product status file
     update_product_status_file(product_status, config.LAST_PRODUCT_UPDATES)
 
-    # Write the product description to a CSV file
-    header = ["Product", "Item", "Asset", "DateFirstScene", "DateLastScene",
-              "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion"]
-    data = [productname, productitem, productasset, str(sensor_stats[0]), str(
-        sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"]]
+    # Get Product info from config
+    product = get_product_from_techname(productname)
 
-    with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-        writer.writerow(data)
+    # Update the product  file
+    header = ["Product", "Item", "Asset", "DateFirstScene", "DateLastScene",
+              "NumberOfScenes", "DateItemGeneration", "ProcessorHashLink", "ProcessorReleaseVersion", "GeocatID"]
+    data = [productname, productitem, productasset, str(sensor_stats[0]), str(
+        sensor_stats[1]), str(sensor_stats[2]), current_date_str, processor_version["GithubLink"], processor_version["ReleaseVersion"], product['geocat_id']]
+
+    # Create swisstopo_data dictionary
+    swisstopo_data = {"header": header, "data": data}
+
+    # Create swisstopo_data dictionary with uppercase keys
+    swisstopo_data = {key.upper(): value for key, value in zip(header, data)}
+
+    # Adding extracting image info
+    image_info = ee.Image(image).getInfo()
+
+    # Convert keys to uppercase and add prefix
+    image_info_gee = {"GEE_" + key.upper(): value for key,
+                      value in image_info.items()}
+
+    # Add swisstopo_data to image_info_gee
+    image_info_gee["SWISSTOPO"] = swisstopo_data
+
+    # Export the dictionary as JSON
+    with open(os.path.join(config.PROCESSING_DIR, productasset + "_metadata.json"), 'w') as json_file:
+        json.dump(image_info_gee, json_file)
+
+    # Write the product description to a CSV file
+    # with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(header)
+    #     writer.writerow(data)
 
     # Return None
     return None
@@ -475,21 +556,25 @@ def addINDEX(image, bands, index_name):
     return image_with_index
 
 
-def process_NDVI_MAX():
+def process_NDVI_MAX(roi):
     """
     Process the NDVI MAX product.
 
     Returns:
         int: 1 if new imagery is found and processing is performed, 0 otherwise.
     """
+    product_name = config.PRODUCT_NDVI_MAX['product_name']
+    print("********* processing {} *********".format(product_name))
 
-    print("********* processing " +
-          config.PRODUCT_NDVI_MAX['product_name']+" *********")
+    # Filter the sensor collection based on date and region
+    start_date = ee.Date(current_date).\
+        advance(-int(config.PRODUCT_NDVI_MAX['temporal_coverage'])+1, 'day')
+    end_date = ee.Date(current_date).advance(1, 'day')
 
     # Filter the sensor collection based on date and region
     sensor = (
-        ee.ImageCollection(config.PRODUCT_NDVI_MAX['image_collection'])
-        .filterDate(current_date.advance(-int(config.PRODUCT_NDVI_MAX['temporal_coverage']), 'day'), current_date)
+        ee.ImageCollection(config.PRODUCT_NDVI_MAX['step0_collection'])
+        .filterDate(start_date, end_date)
         .filterBounds(roi)
     )
 
@@ -500,11 +585,6 @@ def process_NDVI_MAX():
     if check_product_update(config.PRODUCT_NDVI_MAX['product_name'], sensor_stats[1]) is True:
         print("new imagery from: "+sensor_stats[1])
 
-        # Generate the filename
-        filename = config.PRODUCT_NDVI_MAX['prefix']+sensor_stats[0].replace(
-            "-", "")+"-"+sensor_stats[1].replace("-", "")+"_run"+current_date_str.replace("-", "")
-        print(filename)
-
         # Create NDVI and NDVI max
         sensor = sensor.map(lambda image: addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX['band_names'][0], index_name="NDVI"))
@@ -512,7 +592,8 @@ def process_NDVI_MAX():
         mosaic = sensor.qualityMosaic("NDVI")
         ndvi_max = mosaic.select("NDVI")
 
-        # Multiply by 100 to move the decimal point two places back to the left and get rounded values, then round then cast to get int16, Int8 is not a sultion since COGTiff is not supported
+        # Multiply by 100 to move the decimal point two places back to the left and get rounded values,
+        # then round then cast to get int16, Int8 is not a sultion since COGTiff is not supported
         ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
 
         # Mask outside
@@ -520,22 +601,22 @@ def process_NDVI_MAX():
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+        timestamp = timestamp.strftime('%Y%m%dT235959')
+
+        # Generate the filename
+        filename = config.PRODUCT_NDVI_MAX['prefix'] + \
+            '_' + timestamp + '_10m'
+        print(filename)
 
         # Check if there is at least 1 scene to be defined (if minimal scene count is required) TODO: is this necessary?
         if sensor_stats[2] > 0:
             # Start the export
-            prepare_export(roi, timestamp.strftime('%Y%m%dT240000'), filename, config.PRODUCT_NDVI_MAX['product_name'], config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
+            prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
+                           config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
                            sensor_stats, current_date_str)
 
-            return 1
-        else:
-            # TODO: If there are not enough scenes, quit processing
-            return 0
-    else:
-        return "no new imagery"
 
-
-def process_S2_LEVEL_2A():
+def process_S2_LEVEL_2A(roi):
     """
     Export the S2 Level 2A product.
 
@@ -543,119 +624,320 @@ def process_S2_LEVEL_2A():
         str: "no new imagery" if no new imagery found, None if new imagery is processed.
     """
 
-    print("********* processing " +
-          config.PRODUCT_S2_LEVEL_2A['product_name']+" *********")
+    product_name = config.PRODUCT_S2_LEVEL_2A['product_name']
+    print("********* processing {} *********".format(product_name))
 
     # Filter the sensor collection based on date and region
+
+    start_date = ee.Date(
+        current_date).advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage'])+1, 'day')
+    end_date = ee.Date(current_date).advance(1, 'day')
+
     collection = (
-        ee.ImageCollection(config.PRODUCT_S2_LEVEL_2A['image_collection'])
-        .filterDate(current_date.advance(-int(config.PRODUCT_S2_LEVEL_2A['temporal_coverage']), 'day'), current_date)
+        ee.ImageCollection(config.PRODUCT_S2_LEVEL_2A['step0_collection'])
+        .filterDate(start_date, end_date)
         .filterBounds(roi)
     )
-
     # Get the number of images found in the collection
     num_images = collection.size().getInfo()
-
     # Check if there are any new imagery
-    if num_images != 0:
+    if num_images == 0:
+        print("no new imagery")
+        return 0
 
-        # Get information about the available sensor data for the range
-        sensor_stats = get_collection_info(collection)
+    # Get information about the available sensor data for the range
+    sensor_stats = get_collection_info(collection)
 
-        # Check if there is new sensor data compared to the stored dataset
-        if check_product_update(config.PRODUCT_S2_LEVEL_2A['product_name'], sensor_stats[1]) is True:
+    # Check if there is new sensor data compared to the stored dataset
+    if check_product_update(config.PRODUCT_S2_LEVEL_2A['product_name'], sensor_stats[1]) is True:
+        # Get the list of images
+        image_list = collection.toList(collection.size())
+        print(str(image_list.size().getInfo()) + " new image(s) for: " +
+              sensor_stats[1] + " to: "+current_date_str)
 
-            # Get the list of images
-            image_list = collection.toList(collection.size())
-            print(str(image_list.size().getInfo()) + " new image(s) for: " +
-                  sensor_stats[1] + " to: "+current_date_str)
+        # Print the names of the assets
+        for i in range(num_images):
+            image = ee.Image(image_list.get(i))
+            asset_name = image.get('system:index').getInfo()
+            print(f"Mosaic {i + 1} - Custom Asset Name: {asset_name}")
 
-            # Generate the mosaic name and snsing date by geeting EE asset ids from the first image
-            mosaic_id = ee.Image(image_list.get(0))
+        # Export the different bands
+        for i in range(num_images):
+            # Generate the mosaic name and sensing date by geeting EE asset ids from the first image
+            mosaic_id = ee.Image(image_list.get(i))
             mosaic_id = mosaic_id.id().getInfo()
-            mosaic_sensing_timestamp = mosaic_id.split('_')[0]
+            mosaic_sensing_timestamp = mosaic_id.split('_')[2]
 
-            # Split the string by underscores
-            parts = mosaic_id.split('_')
-
-            # Join the first two parts with an underscore to get the desired result
-            mosaic_id = '_'.join(parts[:2])
+            clipped_image = ee.Image(collection.toList(num_images).get(i))
+            # step0 No need to mosaic an clip since with step0 it is already clipped
 
             # Create a mosaic of the images for the specified date and time
-            mosaic = collection.mosaic()
+            # mosaic = collection.mosaic()
 
             # Clip Image to ROI
             # might add .unmask(config.NODATA)
-            clipped_image = mosaic.clip(roi)
+            # Can be removed when on prod
+            # No need to clip since with step0 it is already clipped
+            clip_temp = clipped_image.clip(roi)
+            clipped_image = clip_temp
 
             # Intersect ROI and clipped mosaic
             # Create an empty list to hold the footprints
-            footprints = ee.List([])
+            # footprints = ee.List([])
 
             # Function to extract footprint from each image and add to the list
-            def add_footprint(image, lst):
-                footprint = image.geometry()
-                return ee.List(lst).add(footprint)
+            # def add_footprint(image, lst):
+            #     footprint = image.geometry()
+            #     return ee.List(lst).add(footprint)
 
             # Map the add_footprint function over the collection to create a list of footprints
-            footprints_list = collection.iterate(add_footprint, footprints)
+            # footprints_list = collection.iterate(add_footprint, footprints)
 
             # Reduce the list of footprints into a single geometry using reduce
-            combined_swath_geometry = ee.Geometry.MultiPolygon(footprints_list)
+            # combined_swath_geometry = ee.Geometry.MultiPolygon(footprints_list)
 
-            # Clip the ROI with the combined_swath_geometry
-            clipped_roi = roi.intersection(
-                combined_swath_geometry, ee.ErrorMargin(1))
+            # Asset Geometry
+            # combined_swath_geometry = ee.Geometry.MultiPolygon(
+            #     image.geometry())
 
-            # Get the bounding box of clippedRoi
-            clipped_image_bounding_box = clipped_roi.bounds()
+            # # Clip the ROI with the combined_swath_geometry
+            # clipped_roi = roi.intersection(
+            #     combined_swath_geometry, ee.ErrorMargin(1))
 
-            # Generate the filename
-            filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
-                '_' + mosaic_id
+            # # Get the bounding box of clippedRoi
+            # clipped_image_bounding_box = clipped_roi.bounds()
 
-            # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
-            multiband_export = clipped_image.select(
-                ['B4', 'B3', 'B2', 'B8'])
-            multiband_export_name = filename + '_10M' + \
-                "_run"+current_date_str.replace("-", "")
-            prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export'], multiband_export,
-                           sensor_stats, current_date_str)
+            # # Get the bounding box of clippedRoi
+            clipped_image_bounding_box = clipped_image.geometry()
 
-            # Export QA60 band as a separate GeoTIFF with '_QA60'
-            qa60_export = clipped_image.select('QA60')
-            qa60_export_name = filename + '_QA60' + \
-                "_run"+current_date_str.replace("-", "")
-            prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, qa60_export_name, config.PRODUCT_S2_LEVEL_2A['product_name'], config.PRODUCT_S2_LEVEL_2A['spatial_scale_export_qa60'], qa60_export,
-                           sensor_stats, current_date_str)
+            # Get processing date
+            # Get the current date and time
+            now = datetime.datetime.now()
 
-            # For each image, process
-            for i in range(image_list.size().getInfo()):
-                image = ee.Image(image_list.get(i))
+            # Convert it to a string in ISO 8601 format and remove the seconds
+            processing_date = now.strftime("%Y-%m-%dT%H:%M")
 
-                # EE asset ids for Sentinel-2 L2 assets have the following format: 20151128T002653_20151128T102149_T56MNN.
-                #  Here the first numeric part represents the sensing date and time, the second numeric part represents the product generation date and time,
-                #  and the final 6-character string is a unique granule identifier indicating its UTM grid reference
-                image_id = image.id().getInfo()
-                image_sensing_timestamp = image_id.split('_')[0]
-                # first numeric part represents the sensing date, needs to be used in publisher
-                print("processing "+str(i+1)+" of "+str(image_list.size().getInfo()
-                                                        ) + " " + image_sensing_timestamp+" ...")
+            # Check if mosaic_id ends with "-10m"
+            if mosaic_id.endswith("-10m"):
 
-                # Generate the filename
-                filename = config.PRODUCT_S2_LEVEL_2A['prefix'] + \
-                    '_' + image_id
+                # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
+                multiband_export = clipped_image.select(
+                    ['B4', 'B3', 'B2', 'B8'])
 
-                # Export Image Properties into a json file
-                with open(os.path.join(config.PROCESSING_DIR, filename + "_properties"+"_run"+current_date_str.replace("-", "")+".json"), "w") as json_file:
-                    json.dump(image.getInfo(), json_file)
-            return 1
-        else:
-            print("no new imagery")
-            return 0
-    else:
+                # Replacing the collection Name  with the actual product name
+                # multiband_export_name = mosaic_id
+                multiband_export_name = mosaic_id.replace(
+                    "S2-L2A", product_name)
+
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
+                               multiband_export, sensor_stats, processing_date)
+
+                # Export terrain & shadow Mask
+                masks_export = clipped_image.select(
+                    ['terrainShadowMask', 'cloudAndCloudShadowMask', 'reg_confidence'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_masks-10m')
+
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, processing_date)
+
+                # Export Registration
+                masks_export = clipped_image.select(
+                    ['reg_dx', 'reg_dy'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_registration-10m')
+
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, processing_date)
+
+                # Export Cloudprobability
+                masks_export = clipped_image.select(
+                    ['cloudProbability'])
+                masks_export_name = mosaic_id.replace(
+                    '_bands-10m', '_cloudprobability-10m')
+                # Replacing the collection Name  with the actual product name
+                masks_export_name = masks_export_name.replace(
+                    "S2-L2A", product_name)
+
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'],
+                               10,
+                               masks_export, sensor_stats, processing_date)
+
+            # Check if mosaic_id ends with "-20m"
+            elif mosaic_id.endswith("-20m"):
+                # Export selected bands ('B8A', 'B11', 'B5') as a single GeoTIFF with '_20M'
+                multiband_export = clipped_image.select(['B8A', 'B11', 'B5'])
+
+                # Replacing the collection Name  with the actual product name
+                # multiband_export_name = mosaic_id
+                multiband_export_name = mosaic_id.replace(
+                    "S2-L2A", product_name)
+
+                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
+                               config.PRODUCT_S2_LEVEL_2A['product_name'], 20,
+                               multiband_export, sensor_stats, processing_date)
+
+
+def process_S2_LEVEL_1C(roi):
+    """
+    Export the S2 Level 1C product.
+
+    Returns:
+        None
+    """
+    product_name = config.PRODUCT_S2_LEVEL_1C['product_name']
+    print("********* processing {} *********".format(product_name))
+
+    # Filter the sensor collection based on date and region
+    start_date = ee.Date(
+        current_date).advance(-int(config.PRODUCT_S2_LEVEL_1C['temporal_coverage'])+1, 'day')
+    end_date = ee.Date(current_date).advance(1, 'day')
+
+    collection = (
+        ee.ImageCollection(config.PRODUCT_S2_LEVEL_1C['step0_collection'])
+        .filterDate(start_date, end_date)
+        .filterBounds(roi)
+    )
+    # Get the number of images found in the collection
+    num_images = collection.size().getInfo()
+    # Check if there are any new imagery
+    if num_images == 0:
         print("no new imagery")
         return 0
+
+    # Get information about the available sensor data for the range
+    sensor_stats = get_collection_info(collection)
+
+    # Check if there is new sensor data compared to the stored dataset
+    if check_product_update(config.PRODUCT_S2_LEVEL_1C['product_name'], sensor_stats[1]) is True:
+        # Get the list of images
+        image_list = collection.toList(collection.size())
+        image_list_size = image_list.size().getInfo()
+        print("{} new image(s) for: {} to {}".format(
+            image_list_size, sensor_stats[1], current_date_str))
+
+        # Generate the mosaic name and sensing date by geeting EE asset ids from the first image
+        mosaic_id = ee.Image(image_list.get(0))
+        mosaic_id = mosaic_id.id().getInfo()
+        mosaic_sensing_timestamp = mosaic_id.split('_')[2]
+
+        # Create a mosaic of the images for the specified date and time
+        mosaic = collection.mosaic()
+
+        # Clip Image to ROI
+        # might add .unmask(config.NODATA)
+        clipped_image = mosaic.clip(roi)
+
+        # Intersect ROI and clipped mosaic
+        # Create an empty list to hold the footprints
+        footprints = ee.List([])
+
+        # Function to extract footprint from each image and add to the list
+        def add_footprint(image, lst):
+            footprint = image.geometry()
+            return ee.List(lst).add(footprint)
+
+        # Map the add_footprint function over the collection to create a list of footprints
+        footprints_list = collection.iterate(add_footprint, footprints)
+
+        # Reduce the list of footprints into a single geometry using reduce
+        combined_swath_geometry = ee.Geometry.MultiPolygon(footprints_list)
+
+        # Clip the ROI with the combined_swath_geometry
+        clipped_roi = roi.intersection(
+            combined_swath_geometry, ee.ErrorMargin(1))
+
+        # Get the bounding box of clippedRoi
+        clipped_image_bounding_box = clipped_roi.bounds()
+
+        # Export selected bands (B4, B3, B2, B8) as a single GeoTIFF with '_10M'
+        multiband_export = clipped_image.select(['B4', 'B3', 'B2', 'B8'])
+        multiband_export_name = mosaic_id
+
+        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
+                       config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
+                       multiband_export, sensor_stats, current_date_str)
+
+        # Export QA60 band as a separate GeoTIFF with '_QA60'
+        masks_export = clipped_image.select(
+            ['terrainShadowMask', 'cloudAndCloudShadowMask'])
+        masks_export_name = mosaic_id.replace('_bands-10m', '_masks-10m')
+        prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                       config.PRODUCT_S2_LEVEL_1C['product_name'],
+                       config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask'], masks_export,
+                       sensor_stats, current_date_str)
+
+
+def process_NDVI_MAX_TOA(roi):
+    """
+    Process the NDVI MAX product for TOA.
+
+    Returns:
+        None
+    """
+    product_name = config.PRODUCT_NDVI_MAX_TOA['product_name']
+    print("********* processing {} *********".format(product_name))
+
+    # Filter the sensor collection based on date and region
+    start_date = ee.Date(
+        current_date).advance(-int(config.PRODUCT_NDVI_MAX_TOA['temporal_coverage'])+1, 'day')
+
+    end_date = ee.Date(current_date).advance(1, 'day')
+
+    sensor = (
+        ee.ImageCollection(config.PRODUCT_NDVI_MAX_TOA['step0_collection'])
+        .filterDate(start_date, end_date)
+        .filterBounds(roi)
+    )
+
+    # Get information about the available sensor data for the range
+    sensor_stats = get_collection_info(sensor)
+
+    # Check if there is new sensor data compared to the stored dataset
+    if check_product_update(config.PRODUCT_NDVI_MAX_TOA['product_name'], sensor_stats[1]) is True:
+        print("new imagery from: "+sensor_stats[1])
+
+        # Create NDVI and NDVI max
+        sensor = sensor.map(lambda image: addINDEX(
+            image, bands=config.PRODUCT_NDVI_MAX_TOA['band_names'][0], index_name="NDVI"))
+
+        mosaic = sensor.qualityMosaic("NDVI")
+        ndvi_max = mosaic.select("NDVI")
+
+        # Multiply by 100 to move the decimal point two places back to the left and get rounded values,
+        # then round then cast to get int16, Int8 is not a solution since COGTiff is not supported
+        ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
+
+        # Mask outside
+        ndvi_max_int = maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
+
+        # Define item Name
+        timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+        timestamp = timestamp.strftime('%Y%m%dT235959')
+
+        # Generate the filename
+        filename = config.PRODUCT_NDVI_MAX_TOA['prefix'] + \
+            '_' + timestamp + '_10m.tif'
+        print(filename)
+
+        # Start the export
+        prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
+                       config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
+                       sensor_stats, current_date_str)
 
 
 if __name__ == "__main__":
@@ -669,29 +951,52 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    #current_date_str = "2023-09-20"
-    #print("*****************************")
-    #print("")
-    #print("using a manual set Date: "+current_date_str)
-    #print("*****************************")
-    #print("")
+    current_date_str = "2023-10-28"
+    print("*****************************\n")
+    print("using a manual set Date: "+current_date_str)
+    print("*****************************\n")
 
-
-    global current_date
     current_date = ee.Date(current_date_str)
 
-    # Generate PRODUCTS
-    # NDVI MAX
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-    result = process_NDVI_MAX()
-    print("Result:", result)
+    step0_product_dict = get_step0_dict()
+    print(step0_product_dict)
 
-    # S2_L2A
-    border = ee.FeatureCollection(
-        "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
-    roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
-    # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
-    result = process_S2_LEVEL_2A()
-    print("Result:", result)
+    collections_ready_for_processors = step0_main(
+        step0_product_dict, current_date_str)
+    print(collections_ready_for_processors)
+
+    for collection_ready in collections_ready_for_processors:
+        print('Collection ready: {}'.format(collection_ready))
+        for product_to_be_processed in step0_product_dict[collection_ready][0]:
+            print('Launching product {}'.format(product_to_be_processed))
+            if product_to_be_processed == 'PRODUCT_NDVI_MAX':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                result = process_NDVI_MAX(roi)
+
+            elif product_to_be_processed == 'PRODUCT_S2_LEVEL_2A':
+                # ROI is only taking effect when testing. On prod we will use the clipping as defined in step0_processor_s2_sr
+                # border = ee.FeatureCollection(
+                #     "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                # roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+                # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+                # roi = ee.Geometry.Rectangle(
+                #     [ 7.471940, 47.011335, 7.497431, 47.027602])  
+                result = process_S2_LEVEL_2A(roi)
+
+            elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                result = process_NDVI_MAX_TOA(roi)
+
+            elif product_to_be_processed == 'PRODUCT_S2_LEVEL_1C':
+                border = ee.FeatureCollection(
+                    "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
+                roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
+                # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
+                result = process_S2_LEVEL_1C(roi)
+            else:
+                raise BrokenPipeError('Inconsitent configuration')
+
+            print("Result:", result)
 
 print("Processing done!")

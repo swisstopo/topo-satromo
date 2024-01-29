@@ -86,10 +86,11 @@ Adapt your GoogleEarthEngine and rclone credentials
 
 ## Functionality in detail
 
-For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions). During a "processor" run, the code:
-1. triggers GEE extraction of products for the region of Switzerland using the configuration and last update information in `tools/last_updates.csv`
-2. stores running tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
-3. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.
+For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions).The "processor" run is using by default the [dev_config.py](configuration/dev_config.py]). A specific configuration can be started with `python satromo_processor.py my_config.py`.  During a "processor" run, the code:
+1. Check the existence and completeness of personal collections in `step0`: post-processed Google Earth Engine (GEE) sensor collection with selected co-registered bands, topographic correction (TOA products), cloud & terrain shadow masks
+2. triggers GEE extraction of products for the region of Switzerland using the personal collection using the configuration and last update information in `tools/last_updates.csv`
+3. stores running tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
+4. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.  
 
 A pre-defined time after the "processor" run, a "publisher" run starts, assuming all exports are done. In it, the publisher process:
 1. reads the persisted information as to the most recently bprocessed  products based on IDs in `processing/running_tasks.csv`
@@ -98,6 +99,57 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 4. creates a static STAC Catalog
 5. updates `tools/last_updates.csv`.
 6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
+
+## Configuration of products
+
+### Configuration in <>_config.py  
+Edit [configuration/dev_config.py](configuration/dev_config.py) rename it to your needs. 
+
+#### Additional personal collections
+A personal collection contains a GEE collection `my_new_collection` which contains postprocessed sensor data. The postprocessing is done according to the ` <new_file>.<new_function_name>` . E.g. The product `ch.swisstopo-swisseo_vhi_v100` is based on the `COPERNICUS/S2_SR_HARMONIZED` collection which has been postprocessed with `step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date` and stored in the personal collection 'projects/username/assets/COL_S2_SR_HARMONIZED_SWISS'
+
+The personal collection needs to be created in advance in the GEE GUI via Assets -> new ->  Image collection
+
+**Note:if you want to ensure that other accounts can update/read the asset ( like satromo-int) you need to give them access via right click on asset which will then open https://console.cloud.google.com/iam-admin/iam?project=your-project and as well share "image collection" (like COL_S2_SR_HARMONIZED_SWISS).**
+
+Adding a new collection in the tool require to adapt the configuration file. 
+
+A new function specifically designed for this new collections should also be added in the step0_processors folder.
+(If you don't need a new step0 processor function, you certainly don't need a new collection...)
+Create the new function in a new file located in step0_processors folder.
+In the configuration file, add the function to the configuration entry of your new collection:
+The `cleaning_older_than` removes asset older teh defiend days to save GEE storage. 
+
+```
+step0: {
+    ...
+    my_new_collection: {
+        step0_function: <new_file>.<new_function_name>,
+        cleaning_older_than: <days> 
+    }
+}
+```
+
+
+#### Product definition based on personal collection
+Products are defined  with the following mandatory parameters. more can be added, based on needs for the product generation.Do mind that for all products based on the same sensor the same personal collection should be used
+
+```
+my_new_product = {
+    "prefix": <my_prefix>,
+    "temporal_coverage": <number of days to take into account for product generation>,  
+    "spatial_scale_export": <spatial resolution in m>,
+    "product_name": <my_product_name>,
+    "step0_collection": <my_new_collection to be used>
+    ...
+}
+
+```
+### Configuration post processing for each sensor step0_processor_<>.py
+A new function specifically designed for each personal collections is stored in the [step0_processors](step0_processors) folder.
+(If you don't need a new step0 processor function, you certainly don't need a new collection...)
+Create the new function in a new file located in step0_processors folder.
+
 
 ## Technologies
 
@@ -110,10 +162,10 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 
 - [ ] Add Changelog
 - [X] Implement STAC Cataloge description  
-- [ ] Implement Co-Registration correction
-- [ ] Implement Topografic shadow information
+- [X] Implement Co-Registration correction
+- [X] Implement Topografic shadow information
 - [ ] Products
-    - [ ] R1 Rohdaten Level-2A 
+    - [X] R1 Rohdaten Level-2A 
     - [ ] N1 Vitalität – NDVI Anomalien
     - [ ] M1 Vitalität – NDMI Anomalien
     - [ ] N2 Veränderung – NDVI Anomalien
@@ -146,8 +198,8 @@ Distributed under the BSD-3-Clause License. See `LICENSE.txt` for more informati
 
 ## Contact Information
 
-David Oesch - david.oesch@swisstopo.ch
-Joan Sturm - joan.sturm@swisstopo.ch
+David Oesch - david.oesch[ a t]swisstopo.ch
+Joan Sturm - joan.sturm[ a t]swisstopo.ch
 
 Project Link: [https://github.com/swisstopo/satromo](https://github.com/swisstopo/satromo)
 
