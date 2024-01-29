@@ -25,7 +25,7 @@ import configuration as config
 # ASSET JSON see as well lubis
 
 # TODO:
-# if_exists throws once in a while a 403 even if the path does exist
+# if_exists throws once in a while a 404 even if the path does exist, now solved with if asset_type is TIF then we do create item...not the proper way
 
 # Multipart upload
 part_size_mb = 5
@@ -89,10 +89,9 @@ def initialize_fsdi():
             'STAC_PASSWORD', config_data["FSDI"]["password"])
 
     else:
-        # TODO Initialize FSDI using GitHub secrets
-
-        # Authenticate using the provided secrets from GitHub Actions
-        print("\nType 1 run PUBLISHER: We are on INT:add GEE SECRETS")
+        # TODO Initialize FSDI using GitHub secrets; add PROD PW in GA and in config when going live
+        user = os.environ.get('FSDI_STAC_USER')
+        password = os.environ.get('FSDI_STAC_PASSWORD')
 
 
 def is_existing(stac_item_path):
@@ -104,6 +103,7 @@ def is_existing(stac_item_path):
         auth=(user, password),
         # headers=headers,
     )
+
     if response.status_code // 200 == 1:
         # if 200 <= response.status_code < 300 or response.status_code == 403:  # since it might exist but no acces
         return True
@@ -354,58 +354,6 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
     stac_path = f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}{config.STAC_FSDI_API}"
 
-    # ITEM
-    #############
-
-    # Check if ITEM exists, if not create it first
-
-    if is_existing(stac_path+item_path):
-        print(f"ITEM object {stac_path+item_path}: exists")
-    else:
-        print(f"ITEM object {item}: creating")
-        # Create payload
-        # Getting the bounds
-        # Open the GeoTIFF file
-        with rasterio.open(asset) as ds:
-            # Get the bounds of the raster
-            left, bottom, right, top = ds.bounds
-
-        # Create a list of coordinates (in this case, a rectangle)
-        coordinates_lv95 = [
-            [left, bottom],
-            [right, bottom],
-            [right, top],
-            [left, top],
-            [left, bottom]
-        ]
-        # Convert your coordinates
-        coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
-            *coord) for coord in coordinates_lv95]
-
-        # Date: Convert the string to a datetime object
-        dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
-
-        # Convert the datetime object back to a string in the desired format
-        dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        payload = item_create_json_payload(
-            item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
-
-        if upload_item(stac_path+item_path, payload):
-            print(f"ITEM object {item}: succesfully created")
-        else:
-            print(f"ITEM object {item}: creation FAILED")
-
-    # ASSET
-    #############
-
-    # Check if ASSET exists, if not upload it
-
-    if is_existing(f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}"):
-        print(f"ASSET object {asset}: exists ... overwriting")
-    else:
-        print(f"ASSET object {asset}: does not exist preparing...")
-
     # Get the file extension
     extension = asset.split('.')[-1]
 
@@ -416,6 +364,59 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
         asset_type = 'JSON'
     else:
         asset_type = 'TIF'
+
+    # ITEM
+    #############
+
+    # Check if ITEM exists, if not create it first
+
+    if is_existing(stac_path+item_path):
+        print(f"ITEM object {stac_path+item_path}: exists")
+    else:
+        if asset_type == 'TIF':
+            print(f"ITEM object {item}: creating")
+            # Create payload
+            # Getting the bounds
+            # Open the GeoTIFF file
+            with rasterio.open(asset) as ds:
+                # Get the bounds of the raster
+                left, bottom, right, top = ds.bounds
+
+            # Create a list of coordinates (in this case, a rectangle)
+            coordinates_lv95 = [
+                [left, bottom],
+                [right, bottom],
+                [right, top],
+                [left, top],
+                [left, bottom]
+            ]
+            # Convert your coordinates
+            coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
+                *coord) for coord in coordinates_lv95]
+
+            # Date: Convert the string to a datetime object
+            dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
+
+            # Convert the datetime object back to a string in the desired format
+            dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+            payload = item_create_json_payload(
+                item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
+
+            if upload_item(stac_path+item_path, payload):
+                print(f"ITEM object {item}: succesfully created")
+            else:
+                print(f"ITEM object {item}: creation FAILED")
+
+    # ASSET
+    #############
+
+    # Check if ASSET exists, if not upload it
+
+    if is_existing(f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}"):
+        print(f"ASSET object {asset}: exists ... overwriting")
+    else:
+        print(f"ASSET object {asset}: does not exist preparing...")
 
     # create asset payload
     payload = asset_create_json_payload(asset, asset_type)

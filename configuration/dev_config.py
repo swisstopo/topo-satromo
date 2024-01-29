@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 
-# General variants
+# General variables
 # --------------------------
 
 # GitHub repository
@@ -74,7 +74,7 @@ PRODUCT_S2_LEVEL_2A = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
-    "temporal_coverage": 30,  # Days
+    "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
@@ -85,10 +85,10 @@ PRODUCT_S2_LEVEL_2A = {
 # TEST datasets
 # TEST NDVI
 PRODUCT_NDVI_MAX = {
-    #"prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
+    # "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 3,  # Days
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
@@ -98,7 +98,7 @@ PRODUCT_NDVI_MAX = {
 # TEST S2 -TOA: TEST
 PRODUCT_S2_LEVEL_1C = {
     # "prefix": "S2_L1C_TOA",
-    "image_collection": "COPERNICUS/S2_HARMONIZED",  
+    "image_collection": "COPERNICUS/S2_HARMONIZED",
     "temporal_coverage": 30,  # Days
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_mask": 60,

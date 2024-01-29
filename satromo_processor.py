@@ -951,7 +951,7 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    current_date_str = "2023-10-31"
+    current_date_str = "2023-10-28"
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
     print("*****************************\n")
@@ -980,8 +980,8 @@ if __name__ == "__main__":
                 #     "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
                 # roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
                 # roi = ee.Geometry.Rectangle( [ 7.075402, 46.107098, 7.100894, 46.123639])
-                roi = ee.Geometry.Rectangle(
-                    [9.46097, 47.18192, 9.6619, 47.29495,])  # lichtenstein
+                # roi = ee.Geometry.Rectangle(
+                #     [ 7.471940, 47.011335, 7.497431, 47.027602])  
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
