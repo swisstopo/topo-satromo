@@ -601,7 +601,7 @@ def process_NDVI_MAX(roi):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y%m%dT235959')
+        timestamp = timestamp.strftime('%Y%m%dt235959')
 
         # Generate the filename
         filename = config.PRODUCT_NDVI_MAX['prefix'] + \
@@ -715,7 +715,7 @@ def process_S2_LEVEL_2A(roi):
             now = datetime.datetime.now()
 
             # Convert it to a string in ISO 8601 format and remove the seconds
-            processing_date = now.strftime("%Y-%m-%dT%H:%M")
+            processing_date = now.strftime("%Y-%m-%dt%H:%M")
 
             # Check if mosaic_id ends with "-10m"
             if mosaic_id.endswith("-10m"):
@@ -927,7 +927,7 @@ def process_NDVI_MAX_TOA(roi):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y%m%dT235959')
+        timestamp = timestamp.strftime('%Y%m%dt235959')
 
         # Generate the filename
         filename = config.PRODUCT_NDVI_MAX_TOA['prefix'] + \
