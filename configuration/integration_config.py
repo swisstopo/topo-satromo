@@ -90,7 +90,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST S2 -TOA: TEST

@@ -100,7 +100,7 @@ def is_existing(stac_item_path):
         url=stac_item_path,
         # proxies={"https": proxy.guess_proxy()},
         # verify=False,
-        auth=(user, password),
+        # auth=(user, password),
         # headers=headers,
     )
 
