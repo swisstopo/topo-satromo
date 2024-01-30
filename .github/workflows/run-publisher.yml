@@ -69,7 +69,7 @@ jobs:
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
         FSDI_STAC_USER: ${{ secrets.FSDI_STAC_USER}}
-        FSDI_STAC_PASSWORD: ${{ secrets.FSDI_PASSWORD}}
+        FSDI_STAC_PASSWORD: ${{ secrets.FSDI_STAC_PASSWORD}}
 
     #- name: Run Python script PUBLISH STAC
     #  run: |
