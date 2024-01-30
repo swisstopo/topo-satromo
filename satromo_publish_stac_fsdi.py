@@ -90,8 +90,8 @@ def initialize_fsdi():
 
     else:
         # TODO Initialize FSDI using GitHub secrets; add PROD PW in GA and in config when going live
-        user = os.environ.get('FSDI_STAC_USER')
-        password = os.environ.get('FSDI_STAC_PASSWORD')
+        user = os.environ.get['FSDI_STAC_USER']
+        password = os.environ.get['FSDI_STAC_PASSWORD']
 
 
 def is_existing(stac_item_path):
