@@ -351,6 +351,8 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
 
     item = raw_item.lower()  # STAC only allows lower case item
     asset = raw_asset.lower()  # STAC only allows lower case item
+    asset = os.path.normpath(asset)
+    item = os.path.normpath(item)
     item_title = collection.replace('ch.swisstopo.', '')+"_" + item
     item_path = f'collections/{collection}/items/{item}'
     # STAC only allows lower case item

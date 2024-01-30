@@ -335,8 +335,8 @@ def write_update_metadata(filename, filemeta):
             json.dump(metadata, json_file)
 
         # upload consolidated META JSON file to FSDI STAC
-        # publish_to_stac(
-        #     file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
+        publish_to_stac(
+            file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
 
 
 def clean_up_gdrive(filename):
@@ -699,8 +699,8 @@ if __name__ == "__main__":
                 metadata = json.load(f)
 
             # upload file to FSDI STAC
-            # publish_to_stac(
-            #    file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+            publish_to_stac(
+               file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
