@@ -412,7 +412,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
                 else:
                     print(f"ITEM object {item}: creation FAILED")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"An error occurred creating object {item}: {e}")
             print(payload)
     # ASSET
     #############
