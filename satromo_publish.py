@@ -422,7 +422,7 @@ def clean_up_gdrive(filename):
             json.dump(existing_data, json_file)
 
         # Write and upload consolidated META JSON file to FSDI STAC
-        #write_update_metadata(filename, existing_data)
+        write_update_metadata(filename, existing_data)
 
         # Move/ Delete CSV Description of item to destination DIR
         # move_files_with_rclone(os.path.join(
@@ -699,8 +699,8 @@ if __name__ == "__main__":
                 metadata = json.load(f)
 
             # upload file to FSDI STAC
-            #publish_to_stac(
-            #    file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+            publish_to_stac(
+                file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
@@ -715,7 +715,7 @@ if __name__ == "__main__":
 
     # delete consolidated META file
     [os.remove(file) for file in glob.glob("*_metadata.json")]
-    
+
     # Last step
     if run_type == 1:
         # Remove the key file so It wont be commited

@@ -144,20 +144,23 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
 
 
 def upload_item(item_path, item_payload):
-    response = requests.put(
-        url=item_path,
-        json=item_payload,
-        # proxies={"https": proxy.guess_proxy()},
-        # verify=False,
-        # auth=HTTPBasicAuth(user, password)
-        auth=(user, password)
-    )
+    try:
+        response = requests.put(
+            url=item_path,
+            json=item_payload,
+            # proxies={"https": proxy.guess_proxy()},
+            # verify=False,
+            # auth=HTTPBasicAuth(user, password)
+            auth=(user, password)
+        )
 
-    if response.status_code // 200 == 1:
-        return True
-    else:
-        print(response.json())
-        return False
+        if response.status_code // 200 == 1:
+            return True
+        else:
+            print(response.json())
+            return False
+    except Exception as e:
+        print(f"An error occurred in upload_item: {e}")
 
 
 def asset_create_title(asset):
@@ -373,41 +376,44 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     if is_existing(stac_path+item_path):
         print(f"ITEM object {stac_path+item_path}: exists")
     else:
-        if asset_type == 'TIF':
-            print(f"ITEM object {item}: creating")
-            # Create payload
-            # Getting the bounds
-            # Open the GeoTIFF file
-            with rasterio.open(asset) as ds:
-                # Get the bounds of the raster
-                left, bottom, right, top = ds.bounds
+        try:
+            if asset_type == 'TIF':
+                print(f"ITEM object {item}: creating")
+                # Create payload
+                # Getting the bounds
+                # Open the GeoTIFF file
+                with rasterio.open(asset) as ds:
+                    # Get the bounds of the raster
+                    left, bottom, right, top = ds.bounds
 
-            # Create a list of coordinates (in this case, a rectangle)
-            coordinates_lv95 = [
-                [left, bottom],
-                [right, bottom],
-                [right, top],
-                [left, top],
-                [left, bottom]
-            ]
-            # Convert your coordinates
-            coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
-                *coord) for coord in coordinates_lv95]
+                # Create a list of coordinates (in this case, a rectangle)
+                coordinates_lv95 = [
+                    [left, bottom],
+                    [right, bottom],
+                    [right, top],
+                    [left, top],
+                    [left, bottom]
+                ]
+                # Convert your coordinates
+                coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
+                    *coord) for coord in coordinates_lv95]
 
-            # Date: Convert the string to a datetime object
-            dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
+                # Date: Convert the string to a datetime object
+                dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
 
-            # Convert the datetime object back to a string in the desired format
-            dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                # Convert the datetime object back to a string in the desired format
+                dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-            payload = item_create_json_payload(
-                item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
+                payload = item_create_json_payload(
+                    item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
 
-            if upload_item(stac_path+item_path, payload):
-                print(f"ITEM object {item}: succesfully created")
-            else:
-                print(f"ITEM object {item}: creation FAILED")
-
+                if upload_item(stac_path+item_path, payload):
+                    print(f"ITEM object {item}: succesfully created")
+                else:
+                    print(f"ITEM object {item}: creation FAILED")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            print(payload)
     # ASSET
     #############
 
