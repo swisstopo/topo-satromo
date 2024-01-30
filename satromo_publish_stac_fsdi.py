@@ -349,12 +349,14 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     # Get FSDI credentials
     initialize_fsdi()
 
-    item = raw_item.lower()  # STAC only allows lower case item
-    asset = raw_asset.lower()  # STAC only allows lower case item
+    # STAC FSDI only allows lower case item, so we rename it here temporarely
+    item = raw_item.lower()
+    asset = raw_asset.lower()
+    os.rename(raw_asset, asset)
 
     item_title = collection.replace('ch.swisstopo.', '')+"_" + item
     item_path = f'collections/{collection}/items/{item}'
-    # STAC only allows lower case item
+    # Get path
     asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
     stac_path = f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}{config.STAC_FSDI_API}"
 
@@ -383,7 +385,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
                 # Create payload
                 # Getting the bounds
                 # Open the GeoTIFF file
-                with rasterio.open(asset) as ds:
+                with rasterio.open(raw_asset) as ds:
                     # Get the bounds of the raster
                     left, bottom, right, top = ds.bounds
 
@@ -449,3 +451,6 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
             print(f"ASSET object {asset}: upload FAILED")
     print("FSDI update completed: " +
           f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}")
+
+    # rename it back to upper case for further processing
+    os.rename(asset, raw_asset)
