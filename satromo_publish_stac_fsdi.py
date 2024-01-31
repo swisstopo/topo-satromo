@@ -386,7 +386,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
                 # Create payload
                 # Getting the bounds
                 # Open the GeoTIFF file
-                with rasterio.open(raw_asset) as ds:
+                with rasterio.open(asset) as ds:
                     # Get the bounds of the raster
                     left, bottom, right, top = ds.bounds
 
