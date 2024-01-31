@@ -1,4 +1,4 @@
-name: Run processor
+name: Run processorStep0
 
 on:
   schedule:
