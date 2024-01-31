@@ -26,10 +26,10 @@ import configuration as config
 
 # TODO:
 # if_exists throws once in a while a 404 even if the path does exist, now solved with if asset_type is TIF then we do create item...not the proper way: Since cloudfront is behine it we should  ask for the file twice so the dataset is in teh cache
-# Multipart upload: may set MB vlaue hiher
+
 
 # Multipart upload
-part_size_mb = 5
+part_size_mb = 100
 attempts = 5
 
 # Define the LV95 and WGS84 coordinate systems
