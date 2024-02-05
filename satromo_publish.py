@@ -324,11 +324,12 @@ def write_update_metadata(filename, filemeta):
     if band_name not in metadata:
         metadata[band_name] = {}
         # Copy the data
+
         metadata[band_name]['BANDS'] = filemeta['GEE_BANDS']
         metadata[band_name]['PROPERTIES'] = filemeta['SWISSTOPO']
-        metadata[band_name]['SOURCE_COLLECTION'] = filemeta['GEE_ID']
+        metadata[band_name]['SOURCE_COLLECTION'] = filemeta['GEE_ID'] if 'GEE_ID' in filemeta else filemeta['GEE_PROPERTIES']['collection']
         metadata[band_name]['SOURCE_COLLECTION_PROPERTIES'] = filemeta['GEE_PROPERTIES']
-        metadata[band_name]['GEE_VERSION'] = filemeta['GEE_VERSION']
+        metadata[band_name]['GEE_VERSION'] = filemeta['GEE_VERSION'] if 'GEE_VERSION' in filemeta else None
 
         # Write the updated data back to the JSON file
         with open(file_path, 'w') as json_file:
@@ -700,7 +701,7 @@ if __name__ == "__main__":
 
             # upload file to FSDI STAC
             publish_to_stac(
-               file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+                file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
