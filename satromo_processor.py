@@ -951,10 +951,10 @@ if __name__ == "__main__":
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
     # For debugging
-    #current_date_str = "2024-02-03"
-    #print("*****************************\n")
-    #print("using a manual set Date: "+current_date_str)
-    #print("*****************************\n")
+    current_date_str = "2024-02-05"
+    print("*****************************\n")
+    print("using a manual set Date: "+current_date_str)
+    print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
