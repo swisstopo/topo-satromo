@@ -15,14 +15,26 @@ import re
 
 import configuration as config
 
-# Refernces
-# create a ITEM https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#tag/Data-Management/operation/putFeature
-# create a ASSSET https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#tag/Data-Management/operation/putAsset
-# example upload https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#section/Example
+"""
+This script is used to publish geospatial data to the Swiss Federal Spatial Data Infrastructure (FSDI) using the SpatioTemporal Asset Catalog (STAC) API.
 
-#  Elias magic Script: https://github.com/geoadmin/tool-lubis/blob/81bfd2cf346a59e4ffc982f6b8dc8538b181bc9f/maintenance/scheduled/fra_stac/fra_stac.py
-# ITEM json  https://data.geo.admin.ch/api/stac/v0.9/collections/ch.swisstopo.lubis-luftbilder_schwarzweiss/items/lubis-luftbilder_schwarzweiss_000-000-003 based on https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.lubis-luftbilder_schwarzweiss/items/lubis-luftbilder_schwarzweiss_000-000-003?.language=en
-# ASSET JSON see as well lubis
+The script handles the following tasks:
+- Determines the run type (development or production) based on the existence of the SECRET on the local machine file.
+- Initializes FSDI authentication.
+- Checks if an item exists in the STAC collection.
+- Creates a new item in the STAC collection if it does not exist.
+- Checks if an asset exists in the STAC item.
+- Creates a new asset in the STAC item if it does not exist.
+- Uploads the asset data to the STAC item.
+
+The script supports multipart upload for large files and single part upload for smaller files.
+
+References:
+- Create a ITEM: https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#tag/Data-Management/operation/putFeature
+- Create a ASSET: https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#tag/Data-Management/operation/putAsset
+- Example upload: https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html#section/Example
+- Rayman inspiration: https://github.com/geoadmin/tool-lubis/blob/81bfd2cf346a59e4ffc982f6b8dc8538b181bc9f/maintenance/scheduled/fra_stac/fra_stac.py
+"""
 
 # TODO:
 # if_exists throws once in a while a 404 even if the path does exist, now solved with if asset_type is TIF then we do create item...not the proper way: Since cloudfront is behine it we should  ask for the file twice so the dataset is in teh cache
@@ -43,10 +55,15 @@ transformer_lv95_to_wgs84 = pyproj.Transformer.from_crs(
 
 def determine_run_type():
     """
-    Determines the run type based on the existence of the SECRET on the local machine file. And determine platform
+    Determines the run type based on the existence of the SECRET on the local machine file and the platform.
 
-    If the file `config.GDRIVE_SECRETS` exists, sets the run type to 2 (DEV) and prints a corresponding message.
-    Otherwise, sets the run type to 1 (PROD) and prints a corresponding message.
+    This function checks if the file `config.FSDI_SECRETS` exists. If it does, it sets the global variable `run_type` to 2 (indicating a DEV environment) and `os_name` to the current operating system's name. If the file does not exist, it sets `run_type` to 1 (indicating a PROD environment).
+
+    Args:
+        None
+
+    Returns:
+        None
     """
     global run_type
     global os_name
@@ -54,7 +71,7 @@ def determine_run_type():
     # Get the operating system name
     os_name = platform.system()
 
-    # Set SOURCE , DESTINATION and MOUNTPOINTS
+    # get secrets
 
     if os.path.exists(config.FSDI_SECRETS):
         run_type = 2
@@ -62,41 +79,53 @@ def determine_run_type():
 
     else:
         run_type = 1
-        print("\nType 1 run PUBLISHER: We are on INT")
+        # print("\nType 1 run PUBLISHER: We are on FSDI INT")
 
 
 def initialize_fsdi():
     """
     Initialize FSDI authentication.
 
-    This function authenticates FSDI STAC API either using a service account key file
-    or GitHub secrets depending on the run type.
+    This function authenticates FSDI STAC API either using a service account key file or GitHub secrets depending on the run type.
+
+    Args:
+        None
 
     Returns:
-    None
+        None
     """
     global user
     global password
 
+    # DEV
     if run_type == 2:
-        # Initialize FSDI using service account key file
-
-        # Authenticate using the service account key file
+        # get u/o using JSON file
         with open(config.FSDI_SECRETS, "r") as json_file:
             config_data = json.load(json_file)
 
         user = os.environ.get('STAC_USER', config_data["FSDI"]["username"])
         password = os.environ.get(
             'STAC_PASSWORD', config_data["FSDI"]["password"])
-
+    
+    # INT (github action)
     else:
-        # TODO Initialize FSDI using GitHub secrets; add PROD PW in GA and in config when going live
+        # TODO add PROD PW in GA and in config when going live
         user = os.environ['FSDI_STAC_USER']
         password = os.environ['FSDI_STAC_PASSWORD']
 
 
 def is_existing(stac_item_path):
+    """
+    Checks if a STAC item exists.
 
+    This function sends a GET request to the provided `stac_item_path` and checks the status code of the response. If the status code is in the 200 range, it returns True, indicating that the STAC item exists. Otherwise, it returns False.
+
+    Args:
+        stac_item_path (str): The path of the STAC item to check.
+
+    Returns:
+        bool: True if the STAC item exists, False otherwise.
+    """
     response = requests.get(
         url=stac_item_path,
         # proxies={"https": proxy.guess_proxy()},
@@ -106,13 +135,27 @@ def is_existing(stac_item_path):
     )
 
     if response.status_code // 200 == 1:
-        # if 200 <= response.status_code < 300 or response.status_code == 403:  # since it might exist but no acces
         return True
     else:
         return False
 
 
 def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
+    """
+    Creates a JSON payload for a STAC item.
+
+    This function creates a dictionary with the provided arguments and additional static data. The dictionary can be used as a JSON payload in a request to create a STAC item.
+
+    Args:
+        id (str): The ID of the STAC item.
+        coordinates (list): The coordinates of the STAC item.
+        dt_iso8601 (str): The datetime of the STAC item in ISO 8601 format.
+        title (str): The title of the STAC item.
+        geocat_id (str): The Geocat ID of the STAC item.
+
+    Returns:
+        dict: A dictionary representing the JSON payload for the STAC item.
+    """
     payload = {
         "id": id,
         "geometry": {
@@ -145,6 +188,18 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
 
 
 def upload_item(item_path, item_payload):
+    """
+    Uploads a STAC item.
+
+    This function sends a PUT request to the provided `item_path` with the provided `item_payload` as JSON data. If the status code of the response is in the 200 range, it returns True, indicating that the upload was successful. Otherwise, it returns False.
+
+    Args:
+        item_path (str): The path where the STAC item should be uploaded.
+        item_payload (dict): The JSON payload of the STAC item.
+
+    Returns:
+        bool: True if the upload was successful, False otherwise.
+    """
     try:
         response = requests.put(
             url=item_path,
@@ -165,6 +220,17 @@ def upload_item(item_path, item_payload):
 
 
 def asset_create_title(asset):
+    """
+    Creates a title for a STAC asset.
+
+    This function extracts the date from the provided `asset` string using a regular expression, finds the text after the date, removes the file extension, and converts the result to uppercase to create a title for the STAC asset.
+
+    Args:
+        asset (str): The string from which to create the title.
+
+    Returns:
+        str: The created title.
+    """
     # Regular expression to match the ISO 8601 date format
     match = re.search(r'\d{4}-\d{2}-\d{2}t\d{6}', asset)
 
@@ -184,6 +250,19 @@ def asset_create_title(asset):
 
 
 def asset_create_json_payload(id, asset_type):
+    """
+    Creates a JSON payload for a STAC asset.
+
+    This function creates a dictionary with the provided arguments and additional static data. The dictionary can be used as a JSON payload in a request to create a STAC asset.
+    JSON TIF and CSV type supported
+
+    Args:
+        id (str): The ID of the STAC asset.
+        asset_type (str): The type of the STAC asset.
+
+    Returns:
+        dict: A dictionary representing the JSON payload for the STAC asset.
+    """
     title = asset_create_title(id)
     if asset_type == "TIF":
         gsd = re.findall(r'\d+', title)
@@ -211,6 +290,18 @@ def asset_create_json_payload(id, asset_type):
 
 
 def create_asset(stac_asset_url, payload):
+    """
+    Creates a STAC asset.
+
+    This function sends a PUT request to the provided `stac_asset_url` with the provided `payload` as JSON data. If the status code of the response is in the 200 range, it returns True, indicating that the creation was successful. Otherwise, it returns False.
+
+    Args:
+        stac_asset_url (str): The URL where the STAC asset should be created.
+        payload (dict): The JSON payload of the STAC asset.
+
+    Returns:
+        bool: True if the creation was successful, False otherwise.
+    """
     response = requests.put(
         url=stac_asset_url,
         auth=(user, password),
@@ -227,7 +318,19 @@ def create_asset(stac_asset_url, payload):
 
 
 def upload_asset_multipart(stac_asset_filename, stac_asset_url, part_size=part_size_mb * 1024 ** 2):
+    """
+    Uploads a STAC asset in multiple parts.
 
+    This function prepares a multipart upload by calculating the SHA256 and MD5 hashes of the parts of the file at `stac_asset_filename`. It then creates a multipart upload, uploads the parts using the presigned URLs, and completes the upload. If any step fails, it returns False. Otherwise, it returns True.
+
+    Args:
+        stac_asset_filename (str): The filename of the STAC asset to upload.
+        stac_asset_url (str): The URL where the STAC asset should be uploaded.
+        part_size (int, optional): The size of each part in bytes. Defaults to `part_size_mb * 1024 ** 2`.
+
+    Returns:
+        bool: True if the upload was successful, False otherwise.
+    """
     # 1. Prepare multipart upload
     sha256 = hashlib.sha256()
     md5_parts = []
@@ -300,7 +403,18 @@ def upload_asset_multipart(stac_asset_filename, stac_asset_url, part_size=part_s
 
 
 def upload_asset(stac_asset_filename, stac_asset_url):
+    """
+    Uploads a STAC asset.
 
+    This function prepares a singlepart upload by calculating the SHA256 and MD5 hashes of the file at `stac_asset_filename`. It then creates a multipart upload, uploads the part using the presigned URL, and completes the upload. If any step fails, it returns False. Otherwise, it returns True.
+
+    Args:
+        stac_asset_filename (str): The filename of the STAC asset to upload.
+        stac_asset_url (str): The URL where the STAC asset should be uploaded.
+
+    Returns:
+        bool: True if the upload was successful, False otherwise.
+    """
     # 1. Prepare singlepart upload
     with open(stac_asset_filename, 'rb') as fd:
         data = fd.read()
@@ -343,7 +457,20 @@ def upload_asset(stac_asset_filename, stac_asset_url):
 
 
 def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
+    """
+    Publishes a STAC asset. 
 
+    This function determines the run type, initializes FSDI authentication, checks if the STAC item exists and creates it if it doesn't, checks if the STAC asset exists and overwrites it if it does, and finally uploads the STAC asset.
+
+    Args:
+        raw_asset (str): The filename of the raw asset to publish.
+        raw_item (str): The raw item associated with the asset.
+        collection (str): The collection to which the asset belongs.
+        geocat_id (str): The Geocat ID of the asset.
+
+    Returns:
+        None
+    """
     # Test if we are on Local DEV Run or if we are on PROD
     determine_run_type()
 
@@ -411,10 +538,8 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
                 payload = item_create_json_payload(
                     item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
 
-                if upload_item(stac_path+item_path, payload):
-                    print(f"ITEM object {item}: succesfully created")
-                else:
-                    print(f"ITEM object {item}: creation FAILED")
+                upload_item(stac_path+item_path, payload)
+
         except Exception as e:
             print(f"An error occurred creating object {item}: {e}")
 
@@ -432,26 +557,20 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     payload = asset_create_json_payload(asset, asset_type)
 
     # Create Asset
-    if create_asset(stac_path+asset_path, payload):
-        print(f"ASSET object {asset}: successfully created")
-    else:
+    if not create_asset(stac_path+asset_path, payload):
         print(f"ASSET object {asset}: creation FAILED")
 
     # Upload ASSET
     if asset_type == 'TIF':
         print("TIF asset - Multipart upload")
-        if upload_asset_multipart(asset, stac_path+asset_path):
-            print(f"ASSET object {asset}: succesfully uploaded")
-        else:
+        if not upload_asset_multipart(asset, stac_path+asset_path):
             print(f"ASSET object {asset}: upload FAILED")
     else:
         print(asset_type+" single part upload")
-        if upload_asset(asset, stac_path+asset_path):
-            print(f"ASSET object {asset}: succesfully uploaded")
-        else:
+        if not upload_asset(asset, stac_path+asset_path):
             print(f"ASSET object {asset}: upload FAILED")
-    print("FSDI update completed: " +
+    print("FSDI update done: " +
           f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}/{collection}/{item}/{asset}")
 
-    # rename it back to upper case for further processing
+    # rename it back to the orginal name for further processing
     os.rename(asset, raw_asset)

@@ -82,6 +82,18 @@ PRODUCT_S2_LEVEL_2A = {
     "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
+# V1 – Trockenstress
+PRODUCT_V1 = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
+    "temporal_coverage": 20,  # Days
+    "spatial_scale_export": 10,  # Meters
+    "band_names": [{'NIR': "B8", 'RED': "B4"}],
+    "product_name": "ch.swisstopo.swisseo_vhi_v100",
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+}
+
 # TEST datasets
 # TEST NDVI
 PRODUCT_NDVI_MAX = {
@@ -92,7 +104,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST S2 -TOA: TEST
