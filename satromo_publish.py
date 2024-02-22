@@ -13,6 +13,8 @@ import glob
 import platform
 import re
 from satromo_publish_stac_fsdi import publish_to_stac
+import main_functions
+
 
 # Set the CPL_DEBUG environment variable to enable verbose output
 # os.environ["CPL_DEBUG"] = "ON"
@@ -699,6 +701,9 @@ if __name__ == "__main__":
                     config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
                 metadata = json.load(f)
 
+            # Create thumbnail
+            thumbnail=main_functions.create_thumbnail(file_merged, metadata['SWISSTOPO']['PRODUCT'])
+
             # upload file to FSDI STAC
             publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
@@ -706,7 +711,13 @@ if __name__ == "__main__":
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
-
+            
+            #Upload and move thumbnail
+            if thumbnail is not False:
+                publish_to_stac(
+                    thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+                move_files_with_rclone(
+                    thumbnail, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
             # clean up GDrive and local drive
             # os.remove(file_merged)
             clean_up_gdrive(filename)

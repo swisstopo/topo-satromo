@@ -1,7 +1,7 @@
 import os
 import hashlib
 from base64 import b64encode
-
+from urllib.parse import urlparse
 import requests
 import multihash
 from hashlib import md5
@@ -106,7 +106,7 @@ def initialize_fsdi():
         user = os.environ.get('STAC_USER', config_data["FSDI"]["username"])
         password = os.environ.get(
             'STAC_PASSWORD', config_data["FSDI"]["password"])
-    
+
     # INT (github action)
     else:
         # TODO add PROD PW in GA and in config when going live
@@ -156,6 +156,17 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
     Returns:
         dict: A dictionary representing the JSON payload for the STAC item.
     """
+    # TODO Add stac_path Parse the URL
+    # parsed_url = urlparse(stac_path)
+    # Extract the domain
+    # domain = parsed_url.netloc
+    domain = "https://"+config.STAC_FSDI_HOSTNAME+"/"
+    # Define a regex pattern to match the date and 't'
+    pattern = r'_\d{4}-\d{2}-\d{2}t\d{6}$'
+    product = re.sub(pattern, '', title)
+    thumbnail_url = (domain+"ch.swisstopo."+product+"/" +
+                     id+"/thumbnail.jpg")
+
     payload = {
         "id": id,
         "geometry": {
@@ -168,19 +179,24 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
         },
         "links": [
             {
-                "href": "https://www.swisstopo.admin.ch/en/home/meta/conditions/geodata.html",
-                "rel": "license",
-                "title": "Opendata Federal Office of Topography swisstopo"
+                "href": "https://tinyurl.com/sat54?url="+domain+"ch.swisstopo."+product+"/" +
+                id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
+                "rel": "visual"
             },
             {
-                "href": "https://scihub.copernicus.eu/twiki/pub/SciHubWebPortal/TermsConditions/Sentinel_Data_Terms_and_Conditions.pdf",
-                "rel": "license",
-                "title": "Legal notice on the use of Copernicus Sentinel Data and Service Information"
-            },
-            {
-                "href": "https://www.geocat.ch/geonetwork/srv/eng/catalog.search#/metadata/"+geocat_id,
-                "rel": "describedby"
+                "href": thumbnail_url,
+                "rel": "preview"
             }
+
+            # {
+            #     "href": "https://scihub.copernicus.eu/twiki/pub/SciHubWebPortal/TermsConditions/Sentinel_Data_Terms_and_Conditions.pdf",
+            #     "rel": "license",
+            #     "title": "Contains modified Copernicus Sentinel data ["+id[:4]+"]"
+            # },
+            # {
+            #     "href": "https://www.geocat.ch/geonetwork/srv/eng/catalog.search#/metadata/"+geocat_id,
+            #     "rel": "describedby"
+            # }
         ]
     }
 
@@ -279,12 +295,18 @@ def asset_create_json_payload(id, asset_type):
             "title": title,
             "type": "application/json"
         }
-    else:
-        asset_type == "CSV"
+    elif asset_type == "CSV":
         payload = {
             "id": id,
             "title": title,
             "type": "text/csv"
+        }
+    else:
+        asset_type == "JPEG"
+        payload = {
+            "id": id,
+            "title": title,
+            "type": "image/jpeg"
         }
     return payload
 
@@ -496,6 +518,8 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
         asset_type = 'CSV'
     elif extension.lower() == 'json':
         asset_type = 'JSON'
+    elif extension.lower() == 'jpeg':
+        asset_type = 'JPEG'
     else:
         asset_type = 'TIF'
 
