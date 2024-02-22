@@ -247,22 +247,25 @@ def asset_create_title(asset):
     Returns:
         str: The created title.
     """
-    # Regular expression to match the ISO 8601 date format
-    match = re.search(r'\d{4}-\d{2}-\d{2}t\d{6}', asset)
+    if asset == "thumbnail.jpg":
+        return "THUMBNAIL"
+    else:
+        # Regular expression to match the ISO 8601 date format
+        match = re.search(r'\d{4}-\d{2}-\d{2}t\d{6}', asset)
 
-    # Find the position of the first underscore after the date
-    underscore_pos = asset.find('_', match.end())
+        # Find the position of the first underscore after the date
+        underscore_pos = asset.find('_', match.end())
 
-    # Extract the text after the date
-    text_after_date = asset[underscore_pos + 1:]
+        # Extract the text after the date
+        text_after_date = asset[underscore_pos + 1:]
 
-    # Remove the file extension
-    filename_without_extension = text_after_date.rsplit('.', 1)[0]
+        # Remove the file extension
+        filename_without_extension = text_after_date.rsplit('.', 1)[0]
 
-    # Convert to uppercase
-    filename_uppercase = filename_without_extension.upper()
+        # Convert to uppercase
+        filename_uppercase = filename_without_extension.upper()
 
-    return filename_uppercase
+        return filename_uppercase
 
 
 def asset_create_json_payload(id, asset_type):
