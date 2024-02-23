@@ -702,7 +702,8 @@ if __name__ == "__main__":
                 metadata = json.load(f)
 
             # Create thumbnail
-            thumbnail=main_functions.create_thumbnail(file_merged, metadata['SWISSTOPO']['PRODUCT'])
+            thumbnail = main_functions.create_thumbnail(
+                file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
             # upload file to FSDI STAC
             publish_to_stac(
@@ -711,8 +712,8 @@ if __name__ == "__main__":
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
-            
-            #Upload and move thumbnail
+
+            # Upload and move thumbnail
             if thumbnail is not False:
                 publish_to_stac(
                     thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])

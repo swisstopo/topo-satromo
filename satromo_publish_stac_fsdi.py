@@ -521,7 +521,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
         asset_type = 'CSV'
     elif extension.lower() == 'json':
         asset_type = 'JSON'
-    elif extension.lower() == 'jpeg':
+    elif extension.lower() == 'jpg':
         asset_type = 'JPEG'
     else:
         asset_type = 'TIF'
