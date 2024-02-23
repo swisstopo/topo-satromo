@@ -2,6 +2,54 @@ import os
 import configuration as config
 import subprocess
 import rasterio
+import numpy as np
+import rasterio
+
+
+def apply_overlay(input_file, output_file):
+    try:
+        # remove the filname extension:
+        input_file_without_extension = input_file.split('.')[0]
+        # Burn Rivers
+        command = [
+            "gdal_rasterize",
+            "-b", "1", "-b", "2", "-b", "3",
+            "-burn", "255", "-burn", "255", "-burn", "255",
+            "-l", "overview_rivers_2056",     # Specify layer name
+            config.OVERVIEW_RIVERS,
+            input_file_without_extension+".tif"
+        ]
+        subprocess.run(command, check=True, capture_output=True, text=True)
+
+        # Burn Lakes
+        command = [
+            "gdal_rasterize",
+            "-b", "1", "-b", "2", "-b", "3",
+            "-burn", "255", "-burn", "255", "-burn", "255",
+            "-l", "overview_lakes_2056",     # Specify layer name
+            config.OVERVIEW_LAKES,
+            input_file_without_extension+".tif"
+        ]
+        subprocess.run(command, check=True, capture_output=True, text=True)
+
+        # export to jpg
+        command = [
+            "gdal_translate",
+            "-of", "JPEG",
+            "--config", "GDAL_PAM_ENABLED", "NO",
+            input_file_without_extension+".tif",
+            output_file
+        ]
+        subprocess.run(command, check=True, capture_output=True, text=True)
+
+        # remove intermediate files
+        [os.remove(file) for file in os.listdir()
+            if file.startswith("output_thumbnail")]
+        return (output_file)
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e}")
+        return False
 
 
 def create_thumbnail(inputfile_name, product):
@@ -11,8 +59,8 @@ def create_thumbnail(inputfile_name, product):
 
     # Thumbnail S2_SR 20m bands
     if product.startswith("ch.swisstopo.swisseo_s2-sr") and inputfile_name.endswith("bands-10m.tif"):
-        #https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
-        #It should be called just   "thumbnail.jpg"  
+        # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
+        # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
         #     "bands-10m.tif", "thumbnail.jpeg")
         thumbnail_name = "thumbnail.jpg"
@@ -126,45 +174,81 @@ def create_thumbnail(inputfile_name, product):
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
 
-            # Burn Rivers
-            command = [
-                "gdal_rasterize",
-                "-b", "1", "-b", "2", "-b", "3",
-                "-burn", "255", "-burn", "255", "-burn", "255",
-                "-l", "overview_rivers_2056",     # Specify layer name
-                config.OVERVIEW_RIVERS,
-                "output_thumbnailRGB_scaled255nodata_clipped.tif"
-            ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            # Apply overlay and create JPG
+            thumbnail_name = apply_overlay(
+                "output_thumbnailRGB_scaled255nodata_clipped.tif", thumbnail_name)
 
-            # Burn Lakes
-            command = [
-                "gdal_rasterize",
-                "-b", "1", "-b", "2", "-b", "3",
-                "-burn", "255", "-burn", "255", "-burn", "255",
-                "-l", "overview_lakes_2056",     # Specify layer name
-                config.OVERVIEW_LAKES,
-                "output_thumbnailRGB_scaled255nodata_clipped.tif"
-            ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
+            return False
 
-            # export to jpg
-            command = [
-                "gdal_translate",
-                "-of", "JPEG",
-                "--config", "GDAL_PAM_ENABLED", "NO",
-                "output_thumbnailRGB_scaled255nodata_clipped.tif",
-                thumbnail_name
-            ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+    # VHI Use case
+    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("bands-10m.tif"):
+        # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
+        # It should be called just   "thumbnail.jpg"
+        # thumbnail_name = inputfile_name.replace(
+        #     "bands-10m.tif", "thumbnail.jpeg")
+        thumbnail_name = "thumbnail.jpg"
+        try:
 
-            # remove intermediate files
-            [os.remove(file) for file in os.listdir()
-             if file.startswith("output_thumbnail")]
+            src = rasterio.open(inputfile_name)
+            # Define the width of the thumbnail
+            thumbnail_width = 256
+
+            # Calculate the height to maintain aspect ratio
+            aspect_ratio = src.height / src.width
+            thumbnail_height = int(thumbnail_width * aspect_ratio)
+
+            # Read a subset of the data directly from the GeoTIFF
+            data = src.read(out_shape=(
+                src.count, thumbnail_height, thumbnail_width))
+
+            # Create a new GeoTIFF file for the thumbnail
+            output_file = "output_thumbnail.tif"
+            with rasterio.open(output_file, 'w', driver='GTiff', width=thumbnail_width, height=thumbnail_height, count=src.count, dtype=src.dtypes[0], crs=src.crs, transform=from_origin(src.bounds.left, src.bounds.top, src.transform.a, src.transform.e)) as dst:
+                dst.write(data)
+
+            # Define color map
+            color_map = {
+                (0, 10): (181, 106, 41),    # [0,10] extremely dry - dark brown
+                (10, 20): (206, 133, 64),   # (10,20] severely dry - brown
+                (20, 30): (245, 205, 133),  # (20,30] moderately dry - beige
+                (30, 40): (255, 245, 186),  # (30,40] mild dry - yellow
+                (40, 50): (203, 255, 202),  # (40,50] normal - light green
+                (50, 60): (82, 189, 159),   # (50,60] good - green
+                (60, 100): (4, 112, 176),   # (60,100] excellent - blue
+                (100, np.inf): (128, 128, 128)  # Values over 100 - gray
+            }
+
+            # Load TIFF file
+            with rasterio.open('output_thumbnail.tif') as src:
+                data = src.read(1)  # Assuming single band
+                profile = src.profile
+                # Update profile for 3 bands and uint8 dtype
+                profile.update(count=3, dtype=rasterio.uint8)
+
+            # Apply color mapping
+            data_rgb = np.zeros(
+                (3, data.shape[0], data.shape[1]), dtype=np.uint8)
+            for value_range, color in color_map.items():
+                mask = np.logical_and(
+                    data >= value_range[0], data <= value_range[1])
+                for i in range(3):
+                    data_rgb[i][mask] = color[i]
+
+            # Write RGB image
+            with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
+                dst.write(data_rgb)
+
+            # Apply overlay and create JPG
+            thumbnail_name = apply_overlay(
+                "output_thumbnailRGB.tif", thumbnail_name)
 
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             return False
     else:
         return False
+    
+    #return the thumbnail
     return thumbnail_name
