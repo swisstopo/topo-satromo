@@ -372,7 +372,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             mosaic_collection)).map(addMaskedPixelCount)
 
         # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 80% cloudfree.
-        S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 10))
+        S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 20))
         length_without_clouds = S2_sr.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
