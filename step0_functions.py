@@ -68,7 +68,8 @@ def check_if_asset_prepared(collection, assets, check_date, tasks):
     collection_basename = os.path.basename(collection)
     task_description = collection_basename + '_' + check_date_str
     for task in tasks:
-        if task_description in task['metadata']['description']:
+
+        if task_description not in task['metadata']['description']:
             continue
         if task['metadata']['state'] in ['PENDING', 'RUNNING']:
             print('task {} still running, skipping asset creation'.format(
