@@ -161,9 +161,14 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
     # Extract the domain
     # domain = parsed_url.netloc
     domain = "https://"+config.STAC_FSDI_HOSTNAME+"/"
-    # Define a regex pattern to match the date and 't'
-    pattern = r'_\d{4}-\d{2}-\d{2}t\d{6}$'
-    product = re.sub(pattern, '', title)
+
+    # define "current" use case
+    if id == title:
+        product = id
+    else:
+        # Define a regex pattern to match the date and 't'
+        pattern = r'_\d{4}-\d{2}-\d{2}t\d{6}$'
+        product = re.sub(pattern, '', title)
     thumbnail_url = (domain+"ch.swisstopo."+product+"/" +
                      id+"/thumbnail.jpg")
 
@@ -250,8 +255,13 @@ def asset_create_title(asset):
     if asset == "thumbnail.jpg":
         return "THUMBNAIL"
     else:
-        # Regular expression to match the ISO 8601 date format
-        match = re.search(r'\d{4}-\d{2}-\d{2}t\d{6}', asset)
+        #use case "current"
+        if 'current' in asset:
+            # Regular expression to match the  current pos
+            match = re.search(r'current', asset)
+        else:
+            # Regular expression to match the ISO 8601 date format
+            match = re.search(r'\d{4}-\d{2}-\d{2}t\d{6}', asset)
 
         # Find the position of the first underscore after the date
         underscore_pos = asset.find('_', match.end())
@@ -507,7 +517,12 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     asset = raw_asset.lower()
     os.rename(raw_asset, asset)
 
-    item_title = collection.replace('ch.swisstopo.', '')+"_" + item
+    if "current" in asset:
+        item_title = collection.replace('ch.swisstopo.', '')
+        item = item_title
+    else:
+        item_title = collection.replace('ch.swisstopo.', '')+"_" + item
+
     item_path = f'collections/{collection}/items/{item}'
     # Get path
     asset_path = f'collections/{collection}/items/{item}/assets/{asset}'
