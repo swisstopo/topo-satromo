@@ -1049,7 +1049,7 @@ if __name__ == "__main__":
     # print("using a manual set Date: "+current_date_str)
     # print("*****************************\n")
 
-    # current_date = ee.Date(current_date_str)
+    current_date = ee.Date(current_date_str)
 
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
     step0_product_dict = get_step0_dict()
