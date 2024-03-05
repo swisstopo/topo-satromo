@@ -140,7 +140,7 @@ def is_existing(stac_item_path):
         return False
 
 
-def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
+def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, current):
     """
     Creates a JSON payload for a STAC item.
 
@@ -152,6 +152,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
         dt_iso8601 (str): The datetime of the STAC item in ISO 8601 format.
         title (str): The title of the STAC item.
         geocat_id (str): The Geocat ID of the STAC item.
+        current (str): If not None, indicates the 'current' substring should be used to determine the title.
 
     Returns:
         dict: A dictionary representing the JSON payload for the STAC item.
@@ -163,7 +164,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id):
     domain = "https://"+config.STAC_FSDI_HOSTNAME+"/"
 
     # define "current" use case
-    if id == title:
+    if current is not None:
         product = id
     else:
         # Define a regex pattern to match the date and 't'
@@ -240,7 +241,7 @@ def upload_item(item_path, item_payload):
         print(f"An error occurred in upload_item: {e}")
 
 
-def asset_create_title(asset):
+def asset_create_title(asset,current):
     """
     Creates a title for a STAC asset.
 
@@ -248,6 +249,7 @@ def asset_create_title(asset):
 
     Args:
         asset (str): The string from which to create the title.
+        current (str): If not None, indicates the 'current' substring should be used to determine the title.
 
     Returns:
         str: The created title.
@@ -256,7 +258,7 @@ def asset_create_title(asset):
         return "THUMBNAIL"
     else:
         #use case "current"
-        if 'current' in asset:
+        if current is not None:
             # Regular expression to match the  current pos
             match = re.search(r'current', asset)
         else:
@@ -278,7 +280,7 @@ def asset_create_title(asset):
         return filename_uppercase
 
 
-def asset_create_json_payload(id, asset_type):
+def asset_create_json_payload(id, asset_type,current):
     """
     Creates a JSON payload for a STAC asset.
 
@@ -288,11 +290,12 @@ def asset_create_json_payload(id, asset_type):
     Args:
         id (str): The ID of the STAC asset.
         asset_type (str): The type of the STAC asset.
+        current (str): If not None, indicates the 'current' substring should be used to determine the title.
 
     Returns:
         dict: A dictionary representing the JSON payload for the STAC asset.
     """
-    title = asset_create_title(id)
+    title = asset_create_title(id,current)
     if asset_type == "TIF":
         gsd = re.findall(r'\d+', title)
         payload = {
@@ -491,7 +494,7 @@ def upload_asset(stac_asset_filename, stac_asset_url):
         return False
 
 
-def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
+def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     """
     Publishes a STAC asset. 
 
@@ -502,6 +505,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
         raw_item (str): The raw item associated with the asset.
         collection (str): The collection to which the asset belongs.
         geocat_id (str): The Geocat ID of the asset.
+        current (str): If not None, indicates the 'current' substring should be used to determine the title.
 
     Returns:
         None
@@ -517,7 +521,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
     asset = raw_asset.lower()
     os.rename(raw_asset, asset)
 
-    if "current" in asset:
+    if current is not None:
         item_title = collection.replace('ch.swisstopo.', '')
         item = item_title
     else:
@@ -578,7 +582,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
                 dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
                 payload = item_create_json_payload(
-                    item, coordinates_wgs84, dt_iso8601, item_title, geocat_id)
+                    item, coordinates_wgs84, dt_iso8601, item_title, geocat_id,current)
 
                 upload_item(stac_path+item_path, payload)
 
@@ -596,7 +600,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id):
         print(f"ASSET object {asset}: does not exist preparing...")
 
     # create asset payload
-    payload = asset_create_json_payload(asset, asset_type)
+    payload = asset_create_json_payload(asset, asset_type,current)
 
     # Create Asset
     if not create_asset(stac_path+asset_path, payload):

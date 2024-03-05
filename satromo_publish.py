@@ -615,6 +615,37 @@ def replace_running_with_complete(input_file, item):
     with open(input_file, 'w') as f:
         f.writelines(output_lines)
 
+def extract_and_compare_datetime_from_url(url, iso_string):
+    """
+    Extracts the datetime value from a given STAC ITEM JSON URL and compares it with a provided ISO string.
+
+    Args:
+        url (str): The URL to fetch JSON data from.
+        iso_string (str): The ISO 8601 datetime string for comparison.
+
+    Returns:
+        bool: True if the extracted datetime value is on the same day or newer than the provided ISO string; False otherwise.
+    """
+    response = requests.get(url)  # Fetch the JSON data from the URL
+    if response.status_code == 200:
+        data = response.json()  # Parse the JSON data
+        datetime_value = data['properties']['datetime']  # Extract the "datetime" value
+        
+        # Parse the datetime value from the JSON response
+        extracted_datetime = datetime.strptime(datetime_value, '%Y-%m-%dT%H:%M:%SZ')
+
+        # Parse the ISO string
+        iso_datetime = datetime.strptime(iso_string, '%Y-%m-%dT%H%M%S')
+
+        # Extract dates from both datetime objects
+        extracted_date = extracted_datetime.date()
+        iso_date = iso_datetime.date()
+
+        # Compare the dates
+        return extracted_date <= iso_date
+    else:
+        print("Failed to fetch data from the URL:", response.status_code)
+        return False
 
 if __name__ == "__main__":
 
@@ -705,9 +736,29 @@ if __name__ == "__main__":
             thumbnail = main_functions.create_thumbnail(
                 file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
+            
             # upload file to FSDI STAC
             publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+
+            # Create a current version and upload file to FSDI STAC, only if the latest item on TSAC is newer or of the same age
+            result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API+"collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""),metadata['SWISSTOPO']['ITEM'])
+            if result == True:
+                file_merged_current = re.sub(
+                    r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
+                # Rename the file
+                os.rename(file_merged, file_merged_current)
+
+                # Publish  current dataset to stac
+                publish_to_stac(
+                    file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'],current=True)
+                
+                # Publish  current thumbnail
+                publish_to_stac(
+                    thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'],current=True)
+                
+                # Rename the file back
+                os.rename(file_merged_current, file_merged)
 
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
