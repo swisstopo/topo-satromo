@@ -1030,6 +1030,17 @@ if __name__ == "__main__":
     # Get current date
     current_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
+    # Get the current date
+    current_date = datetime.datetime.today()
+
+    # Subtract X day back from the current date to procoess not todays but the  date in the past: This is to overcome the delay
+    delay = 1  # in days
+    previous_date = current_date - datetime.timedelta(days=delay)
+
+    # Convert the previous date to a string in the format 'YYYY-MM-DD' and set it to current date
+    current_date_str = previous_date.strftime('%Y-%m-%d')
+    print("Processing :", current_date_str)
+
     # For debugging
 
     # current_date_str = "2024-02-23"
