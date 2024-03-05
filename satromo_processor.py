@@ -1032,11 +1032,11 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2024-02-23"
+    # current_date_str = "2024-02-23"
 
-    print("*****************************\n")
-    print("using a manual set Date: "+current_date_str)
-    print("*****************************\n")
+    # print("*****************************\n")
+    # print("using a manual set Date: "+current_date_str)
+    # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
@@ -1061,8 +1061,8 @@ if __name__ == "__main__":
                 # border = ee.FeatureCollection(
                 #     "USDOS/LSIB_SIMPLE/2017").filter(ee.Filter.eq("country_co", "SZ"))
                 # roi = border.geometry().buffer(config.ROI_BORDER_BUFFER)
-                roi = ee.Geometry.Rectangle(
-                    [7.075402, 46.107098, 7.100894, 46.123639])
+                # roi = ee.Geometry.Rectangle(
+                #     [7.075402, 46.107098, 7.100894, 46.123639])
                 # roi = ee.Geometry.Rectangle(
                 #      [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 result = process_S2_LEVEL_2A(roi)
