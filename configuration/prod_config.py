@@ -74,63 +74,27 @@ NODATA = 9999
 PRODUCT_S2_LEVEL_2A = {
     # "prefix": "S2_L2A_SR",
     # TODO: check if needed in context with step0
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    #"image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
-# V1 – Trockenstress
+# V1 – Trockenstress ch.swisstopo.swisseo_vhi_v100
 PRODUCT_V1 = {
     # TODO: check if needed in context with step0
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    #"image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
-    "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
     # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
-# TEST datasets
-# TEST NDVI
-PRODUCT_NDVI_MAX = {
-    # "prefix": "Sentinel_NDVI-MAX_SR_CloudFree_crop",
-    # TODO: check if needed in context with step0
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "temporal_coverage": 3,  # Days
-    "spatial_scale_export": 10,  # Meters
-    "band_names": [{'NIR': "B8", 'RED': "B4"}],
-    "product_name": "NDVI-MAX",
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
-}
-
-# TEST S2 -TOA: TEST
-PRODUCT_S2_LEVEL_1C = {
-    # "prefix": "S2_L1C_TOA",
-    "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 30,  # Days
-    "spatial_scale_export": 10,  # Meters
-    "spatial_scale_export_mask": 60,
-    "product_name": "S2_LEVEL_1C",
-    # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
-}
-
-# TEST S2 -TOA- NDVI p
-PRODUCT_NDVI_MAX_TOA = {
-    # "prefix": "Sentinel_NDVI-MAX_TOA_CloudFree_crop",
-    # TODO: check if needed in context with step0
-    "image_collection": "COPERNICUS/S2_HARMONIZED",
-    "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 1,  # Meters
-    "band_names": [{'NIR': "B8", 'RED': "B4"}],
-    "product_name": "NDVI-MAX_TOA",
-    # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
-}
 
 # B custom COLLECTION
 # ********************
@@ -148,7 +112,7 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+    'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
@@ -170,9 +134,9 @@ GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
 STAC_DESTINATION_INT = "s3INT:satromoint"
 
-# STAC FSDI
+# STAC FSDI Production
 # ---------------
-STAC_FSDI_SCHEME = 'https'
-STAC_FSDI_HOSTNAME = 'sys-data.int.bgdi.ch'
-STAC_FSDI_API = '/api/stac/v0.9/'
 
+STAC_FSDI_SCHEME = 'https'
+STAC_FSDI_HOSTNAME = 'data.geo.admin.ch'
+STAC_FSDI_API = '/api/stac/v0.9/'
