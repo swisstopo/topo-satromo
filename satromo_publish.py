@@ -12,6 +12,8 @@ import subprocess
 import glob
 import platform
 import re
+import requests
+from datetime import datetime
 from satromo_publish_stac_fsdi import publish_to_stac
 import main_functions
 
@@ -742,6 +744,7 @@ if __name__ == "__main__":
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
             # Create a current version and upload file to FSDI STAC, only if the latest item on TSAC is newer or of the same age
+            collection=metadata['SWISSTOPO']['PRODUCT']
             result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API+"collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""),metadata['SWISSTOPO']['ITEM'])
             if result == True:
                 file_merged_current = re.sub(
