@@ -64,7 +64,7 @@ jobs:
     
     - name: Run Python script PUBLISH
       run: |
-        python satromo_publish.py integration_config.py
+        python satromo_publish.py prod_config.py
       env: # Set the secrets as env var
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         RCONF_SECRET: ${{ secrets.RCONF_SECRET }}
