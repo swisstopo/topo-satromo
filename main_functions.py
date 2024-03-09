@@ -57,7 +57,7 @@ def create_thumbnail(inputfile_name, product):
     # inputfile_name = "ch.swisstopo.swisseo_s2-sr_v100_mosaic_2023-10-28T102039_bands-10m.tif"
     # thumbnail_name = "ch.swisstopo.swisseo_s2-sr_v100_mosaic_2023-10-28T102039_thumbnail.jpeg"
 
-    # Thumbnail S2_SR 20m bands
+    # Thumbnail S2_SR 10m bands
     if product.startswith("ch.swisstopo.swisseo_s2-sr") and inputfile_name.endswith("bands-10m.tif"):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"

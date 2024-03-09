@@ -617,6 +617,7 @@ def replace_running_with_complete(input_file, item):
     with open(input_file, 'w') as f:
         f.writelines(output_lines)
 
+
 def extract_and_compare_datetime_from_url(url, iso_string):
     """
     Extracts the datetime value from a given STAC ITEM JSON URL and compares it with a provided ISO string.
@@ -631,10 +632,12 @@ def extract_and_compare_datetime_from_url(url, iso_string):
     response = requests.get(url)  # Fetch the JSON data from the URL
     if response.status_code == 200:
         data = response.json()  # Parse the JSON data
-        datetime_value = data['properties']['datetime']  # Extract the "datetime" value
-        
+        # Extract the "datetime" value
+        datetime_value = data['properties']['datetime']
+
         # Parse the datetime value from the JSON response
-        extracted_datetime = datetime.strptime(datetime_value, '%Y-%m-%dT%H:%M:%SZ')
+        extracted_datetime = datetime.strptime(
+            datetime_value, '%Y-%m-%dT%H:%M:%SZ')
 
         # Parse the ISO string
         iso_datetime = datetime.strptime(iso_string, '%Y-%m-%dT%H%M%S')
@@ -648,6 +651,7 @@ def extract_and_compare_datetime_from_url(url, iso_string):
     else:
         print("Failed to fetch data from the URL:", response.status_code)
         return False
+
 
 if __name__ == "__main__":
 
@@ -734,18 +738,18 @@ if __name__ == "__main__":
                     config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
                 metadata = json.load(f)
 
-            # Create thumbnail
+            # check if there is a need to create thumbnail , if yes create it
             thumbnail = main_functions.create_thumbnail(
                 file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
-            
             # upload file to FSDI STAC
             publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
-            # Create a current version and upload file to FSDI STAC, only if the latest item on TSAC is newer or of the same age
-            collection=metadata['SWISSTOPO']['PRODUCT']
-            result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API+"collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""),metadata['SWISSTOPO']['ITEM'])
+            # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
+            collection = metadata['SWISSTOPO']['PRODUCT']
+            result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
+                                                           "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
             if result == True:
                 file_merged_current = re.sub(
                     r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
@@ -754,12 +758,13 @@ if __name__ == "__main__":
 
                 # Publish  current dataset to stac
                 publish_to_stac(
-                    file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'],current=True)
-                
-                # Publish  current thumbnail
-                publish_to_stac(
-                    thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'],current=True)
-                
+                    file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
+                # Publish  current thumbnail if a thumbnail is required
+                if thumbnail is not False:
+                    publish_to_stac(
+                        thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
                 # Rename the file back
                 os.rename(file_merged_current, file_merged)
 
@@ -767,7 +772,7 @@ if __name__ == "__main__":
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
-            # Upload and move thumbnail
+            # Upload and move thumbnail if a thumbnail is required
             if thumbnail is not False:
                 publish_to_stac(
                     thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
