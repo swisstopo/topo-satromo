@@ -26,7 +26,7 @@ GDRIVE_MOUNT_DEV = r'Y:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 # INT
-GDRIVE_SOURCE_INT = "geedriveINT:"
+GDRIVE_SOURCE_INT = "geedrivePROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
@@ -130,7 +130,7 @@ STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
 
-GDRIVE_SOURCE_INT = "geedriveINT:"
+GDRIVE_SOURCE_INT = "geedrivePROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 STAC_DESTINATION_INT = "s3INT:satromoint"
 
