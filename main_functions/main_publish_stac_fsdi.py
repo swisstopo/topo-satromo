@@ -241,7 +241,7 @@ def upload_item(item_path, item_payload):
         print(f"An error occurred in upload_item: {e}")
 
 
-def asset_create_title(asset,current):
+def asset_create_title(asset, current):
     """
     Creates a title for a STAC asset.
 
@@ -257,7 +257,7 @@ def asset_create_title(asset,current):
     if asset == "thumbnail.jpg":
         return "THUMBNAIL"
     else:
-        #use case "current"
+        # use case "current"
         if current is not None:
             # Regular expression to match the  current pos
             match = re.search(r'current', asset)
@@ -280,7 +280,7 @@ def asset_create_title(asset,current):
         return filename_uppercase
 
 
-def asset_create_json_payload(id, asset_type,current):
+def asset_create_json_payload(id, asset_type, current):
     """
     Creates a JSON payload for a STAC asset.
 
@@ -295,7 +295,7 @@ def asset_create_json_payload(id, asset_type,current):
     Returns:
         dict: A dictionary representing the JSON payload for the STAC asset.
     """
-    title = asset_create_title(id,current)
+    title = asset_create_title(id, current)
     if asset_type == "TIF":
         gsd = re.findall(r'\d+', title)
         payload = {
@@ -384,6 +384,7 @@ def upload_asset_multipart(stac_asset_filename, stac_asset_url, part_size=part_s
         multihash.encode(sha256.digest(), "sha2-256"))
 
     # 2. Create a multipart upload
+
     response = requests.post(
         url=stac_asset_url + "/uploads",
         auth=(user, password),
@@ -391,7 +392,7 @@ def upload_asset_multipart(stac_asset_filename, stac_asset_url, part_size=part_s
         # proxies={"https": proxy.guess_proxy()},
         # verify=False,
         json={"number_parts": len(
-            md5_parts), "md5_parts": md5_parts, "checksum:multihash": checksum_multihash}
+            md5_parts), "md5_parts": md5_parts, "checksum:multihash": checksum_multihash, "update_interval": 30}
     )
     if response.status_code // 200 == 1:
         upload_id = response.json()["upload_id"]
@@ -550,9 +551,9 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
 
     # Check if ITEM exists, if not create it first
 
-    if is_existing(stac_path+item_path):
-        print(f"ITEM object {stac_path+item_path}: exists")
-    else:
+    # if is_existing(stac_path+item_path):
+    #     print(f"ITEM object {stac_path+item_path}: exists")
+    # else:
         try:
             if asset_type == 'TIF':
                 print(f"ITEM object {item}: creating")
@@ -582,7 +583,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
                 dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
                 payload = item_create_json_payload(
-                    item, coordinates_wgs84, dt_iso8601, item_title, geocat_id,current)
+                    item, coordinates_wgs84, dt_iso8601, item_title, geocat_id, current)
 
                 upload_item(stac_path+item_path, payload)
 
@@ -600,7 +601,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
         print(f"ASSET object {asset}: does not exist preparing...")
 
     # create asset payload
-    payload = asset_create_json_payload(asset, asset_type,current)
+    payload = asset_create_json_payload(asset, asset_type, current)
 
     # Create Asset
     if not create_asset(stac_path+asset_path, payload):
@@ -612,7 +613,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
         if not upload_asset_multipart(asset, stac_path+asset_path):
             print(f"ASSET object {asset}: upload FAILED")
     else:
-        print(asset_type+" single part upload")
+        print(asset_type+" Non TIF asset  part upload")
         if not upload_asset(asset, stac_path+asset_path):
             print(f"ASSET object {asset}: upload FAILED")
     print("FSDI update done: " +

@@ -474,8 +474,6 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         filename_q = productasset + quadrant_name
         # Start the export for each quadrant
 
-        # start_export(image, int(scale),
-        #              "P:" + productname + " I:" + productasset, quadrant, filename_q, config.OUTPUT_CRS)
         start_export(image, int(scale),
                      productasset, quadrant, filename_q, config.OUTPUT_CRS)
 
@@ -519,13 +517,6 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     with open(os.path.join(config.PROCESSING_DIR, productasset + "_metadata.json"), 'w') as json_file:
         json.dump(image_info_gee, json_file)
 
-    # Write the product description to a CSV file
-    # with open(os.path.join(config.PROCESSING_DIR, productasset + ".csv"), "w", newline="") as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(header)
-    #     writer.writerow(data)
-
-    # Return None
     return None
 
 
@@ -669,43 +660,10 @@ def process_S2_LEVEL_2A(roi):
             mosaic_sensing_timestamp = mosaic_id.split('_')[2]
 
             clipped_image = ee.Image(collection.toList(num_images).get(i))
-            # step0 No need to mosaic an clip since with step0 it is already clipped
-
-            # Create a mosaic of the images for the specified date and time
-            # mosaic = collection.mosaic()
 
             # Clip Image to ROI
-            # might add .unmask(config.NODATA)
-            # Can be removed when on prod
-            # No need to clip since with step0 it is already clipped
             clip_temp = clipped_image.clip(roi)
             clipped_image = clip_temp
-
-            # Intersect ROI and clipped mosaic
-            # Create an empty list to hold the footprints
-            # footprints = ee.List([])
-
-            # Function to extract footprint from each image and add to the list
-            # def add_footprint(image, lst):
-            #     footprint = image.geometry()
-            #     return ee.List(lst).add(footprint)
-
-            # Map the add_footprint function over the collection to create a list of footprints
-            # footprints_list = collection.iterate(add_footprint, footprints)
-
-            # Reduce the list of footprints into a single geometry using reduce
-            # combined_swath_geometry = ee.Geometry.MultiPolygon(footprints_list)
-
-            # Asset Geometry
-            # combined_swath_geometry = ee.Geometry.MultiPolygon(
-            #     image.geometry())
-
-            # # Clip the ROI with the combined_swath_geometry
-            # clipped_roi = roi.intersection(
-            #     combined_swath_geometry, ee.ErrorMargin(1))
-
-            # # Get the bounding box of clippedRoi
-            # clipped_image_bounding_box = clipped_roi.bounds()
 
             # # Get the bounding box of clippedRoi
             clipped_image_bounding_box = clipped_image.geometry()
@@ -964,9 +922,9 @@ def process_PRODUCT_V1(roi):
         .filter(ee.Filter.stringEndsWith('system:index', '-10m'))
     )
 
-    # above filter the blodsy snesor with assets which only end with_bands-10m, and use then this collection: se docu unter https://developers.google.com/earth-engine/guides/ic_filtering
-#     filtered = sensor.filter(ee.Filter.stringEndsWith('system:index', '-10m'))
-# -> now Use filtered as colelction
+    # above filters  assets which only end with_bands-10m, and use then this collection: see docu unter https://developers.google.com/earth-engine/guides/ic_filtering
+    #     filtered = sensor.filter(ee.Filter.stringEndsWith('system:index', '-10m'))
+    # -> now Use filtered as colelction
 
     # Get information about the available sensor data for the range
     sensor_stats = get_collection_info(sensor)
@@ -1043,7 +1001,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    # current_date_str = "2024-02-23"
+    # current_date_str = "2024-02-25"
 
     # print("*****************************\n")
     # print("using a manual set Date: "+current_date_str)
@@ -1075,7 +1033,7 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [7.075402, 46.107098, 7.100894, 46.123639])
                 # roi = ee.Geometry.Rectangle(
-                #      [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_V1':
