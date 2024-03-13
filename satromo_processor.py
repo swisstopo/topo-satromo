@@ -1043,7 +1043,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2024-03-09"
+    current_date_str = "2024-02-25"
 
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
