@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # V1 – Trockenstress
@@ -132,6 +132,19 @@ PRODUCT_NDVI_MAX_TOA = {
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
 
+#  ch.swisstopo.swisseo_l57-sr
+PRODUCT_L57_LEVEL_2 = {
+    # "prefix": "S2_L2A_SR",
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LT05/C02/T1_L2",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l57-sr_v100",
+    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+}
+
 # B custom COLLECTION
 # ********************
 # Contains dictionary used to manage custom collection (asset) in GEE,
@@ -150,6 +163,10 @@ step0 = {
     # },
     'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_SR_SWISS': {
+        'step0_function': 'step0_processor_l57_sr.generate_l57_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
 }
@@ -175,4 +192,3 @@ STAC_DESTINATION_INT = "s3INT:satromoint"
 STAC_FSDI_SCHEME = 'https'
 STAC_FSDI_HOSTNAME = 'sys-data.int.bgdi.ch'
 STAC_FSDI_API = '/api/stac/v0.9/'
-
