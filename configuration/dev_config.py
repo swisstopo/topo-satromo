@@ -142,7 +142,20 @@ PRODUCT_L57_LEVEL_2 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l57-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l57-sr
+PRODUCT_L57_LEVEL_1 = {
+    # "prefix": "S2_L2A_SR",
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LT05/C02/T1_TOA",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l57-toa_v100",
+    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
 # B custom COLLECTION
@@ -167,6 +180,10 @@ step0 = {
     },
     'projects/satromo-int/assets/COL_LANDSAT_SR_SWISS': {
         'step0_function': 'step0_processor_l57_sr.generate_l57_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
+        'step0_function': 'step0_processor_l57_toa.generate_l57_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
 }
