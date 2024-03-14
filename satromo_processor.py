@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2020-11-07"
+    current_date_str = "2005-11-08"
 
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
@@ -1057,7 +1057,8 @@ if __name__ == "__main__":
             elif product_to_be_processed == 'PRODUCT_L57_LEVEL_2':
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
-                result = step1_processor_l57_sr.process_L57_LEVEL_2(roi,current_date)
+                result = step1_processor_l57_sr.process_L57_LEVEL_2(
+                    roi, current_date)
             else:
                 raise BrokenPipeError('Inconsitent configuration')
 

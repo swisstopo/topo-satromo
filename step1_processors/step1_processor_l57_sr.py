@@ -73,7 +73,7 @@ def process_L57_LEVEL_2(roi,current_date):
 
             breakpoint()
             # TODO :
-            # - decide if we store the bands in different colelctions based on spatial resolution
+            # - decide if we store the bands in different collections based on spatial resolution
             # - then export accordingly, chnage the content below
 
             # Check if mosaic_id ends with "-10m"

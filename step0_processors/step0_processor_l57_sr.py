@@ -1,11 +1,14 @@
 import ee
-import configuration as config
 from .step0_utils import write_asset_as_empty
-import requests
+from main_functions import main_utils
 import math
 
 
 # Pre-processing pipeline for daily Landsat 5/7 surface reflectance (sr) mosaics over Switzerland
+# TODO :
+# - export Spatial resolution wise to asset as for S2 SR -> Decision
+# - multiply / cast 32bit/float bands to 16int
+# - rename asset export
 
 
 ##############################
@@ -369,7 +372,7 @@ def generate_l57_sr_mosaic_for_single_date(day_to_process: str, collection: str,
                                                                  "COLLECTION_CATEGORY", "COLLECTION_NUMBER",
                                                                  "DATA_SOURCE_ELEVATION", "DATE_ACQUIRED"])
         # Getting swisstopo Processor Version
-        processor_version = get_github_info()
+        processor_version = main_utils.get_github_info()
 
         # Copy the "DATE_ACQUIRED" property and store it as "date" since date is need by Master Gilians check function
         date_acquired = mosaic.get("DATE_ACQUIRED")
@@ -663,46 +666,3 @@ def generate_l57_sr_mosaic_for_single_date(day_to_process: str, collection: str,
     #         fileFormat='CSV'
     #     )
     #     task.start()
-
-
-def get_github_info():
-    """
-    Retrieves GitHub repository information and generates a GitHub link based on the latest commit.
-
-    Returns:
-        A dictionary containing the GitHub link. If the request fails or no commit hash is available, the link will be None.
-    """
-    # Enter your GitHub repository information
-    owner = config.GITHUB_OWNER
-    repo = config.GITHUB_REPO
-
-    # Make a GET request to the GitHub API to retrieve information about the repository
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/commits/main")
-
-    github_info = {}
-
-    if response.status_code == 200:
-        # Extract the commit hash from the response
-        commit_hash = response.json()["sha"]
-
-        # Generate the GitHub link
-        github_link = f"https://github.com/{owner}/{repo}/commit/{commit_hash}"
-        github_info["GithubLink"] = github_link
-
-    else:
-        github_info["GithubLink"] = None
-
-    # Make a GET request to the GitHub API to retrieve information about the repository releases
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/releases/latest")
-
-    if response.status_code == 200:
-        # Extract the release version from the response
-        release_version = response.json()["tag_name"]
-    else:
-        release_version = "0.0.0"
-
-    github_info["ReleaseVersion"] = release_version
-
-    return github_info
