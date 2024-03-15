@@ -3,7 +3,7 @@ from .step0_utils import write_asset_as_empty
 from main_functions import main_utils
 import math
 
-# Pre-processing pipeline for daily Landsat 5/7 top-of-athmosphere (toa) mosaics over Switzerland
+# Pre-processing pipeline for daily Landsat 5/7 surface reflectance (sr) mosaics over Switzerland
 # TODO :
 # - export Spatial resolution wise to asset as for S2 SR -> Decision
 # - multiply / cast 32bit/float bands to 16int
@@ -12,7 +12,7 @@ import math
 ##############################
 # INTRODUCTION
 #
-# This script provides a tool to preprocess Landsat 5/7 TOA (top-of-atmosphere) mosaics over Switzerland.
+# This script provides a tool to preprocess Landsat 8/9 TOA (top-of-atmosphere) mosaics over Switzerland.
 # It can mask clouds and cloud shadows, detect terrain shadows, mosaic images from the same image swath,
 # topographically correct images and export the results.
 #
@@ -30,27 +30,32 @@ import math
 #
 # The script is set up to export one mosaic image per day.
 
-def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
+def generate_l89_toa_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
     ##############################
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
 
     # options': True, False - defines if individual clouds and cloud shadows are masked
     cloudMasking = True
+
     # options': True, False - defines if a cast shadow mask is applied
     terrainShadowDetection = True
+
     # options': True, False - defines if individual scenes get mosaiced to an image swath
     swathMosaic = True
+
     # options': True, False - defines if a topographic correction is applied to the image swath
     topoCorrection = True
 
     # Export switches
     # options': True, False - defines if image with all bands is exported as an asset
-    exportAllToAsset = True
-    # options': True, 'False - defines if 30 m spectral bands are exported': 'B1','B2','B3','B4','B5','B7'
+    exportAllToAsset = False
+    # options': True, 'False - defines if 15 m panchromatic band is exported': 'B8'
+    export15mBand = True
+    # options': True, 'False - defines if 30 m spectral bands are exported': 'B1','B2','B3','B4','B5','B6','B7'
     export30mBands = True
-    # options': True, 'False - defines if 100 m thermal bands are exported': 'B6_VCID_1','B6_VCID_2'
-    export60mBands = True
+    # options': True, 'False - defines if 100 m thermal bands are exported': 'B10','B11'
+    export100mBands = True
     exportMasks = True  # options': True, 'False - defines if masks are exported': 'terrainShadowMask','cloudAndCloudShadowMask', 'TC_mask'
     # options': True, 'False - defines if Landsat QA bands are exported': 'QA_PIXEL', 'QA_RADSAT'
     exportQAbands = True
@@ -69,9 +74,9 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Official swisstopo boundaries
     # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
-    # processing: reprojected in QGIS to epsg32632
+    # processing: layer Landesgebiet dissolved  in QGIS and reprojected to epsg32632
     aoi_CH = ee.FeatureCollection(
-        "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+        "users/wulf/SATROMO/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
 
     # Simplified and buffered shapefile of Switzerland to simplify processing
     aoi_CH_simplified = ee.FeatureCollection(
@@ -79,20 +84,25 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # clipping on complex shapefiles costs more processing resources and can cause memory issues
 
     ##############################
+    # VISUALISATION
+    vis_nfci = {'bands': ['B7', 'B5', 'B4'], 'min': [
+        500, 500, 500], 'max': [4000, 5000, 3000]}
+
+    ##############################
     # REFERENCE DATA
 
     # SwissALTI3d - very precise digital terrain model in a 10 m resolution
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
-    # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
+    # processing: GDAL warp (reproject) to epsg32632 while resampling DHM25 to 10 m resolution, GDAL merge of SwissALTI3d on DHM25
     DEM_sa3d = ee.Image("users/wulf/SATROMO/SwissALTI3d_20kmBuffer_epsg32632")
     # # Map.addLayer(DEM_sa3d, {min: 0, max: 4000}, 'swissALTI3d', False)
 
     ##############################
     # SATELLITE DATA
 
-    # Landsat 5
-    L5_toa = ee.ImageCollection("LANDSAT/LT05/C02/T1_TOA") \
+    # Landsat 8
+    L8_toa = ee.ImageCollection("LANDSAT/LC08/C02/T1_TOA") \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date)) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 10)) \
@@ -100,8 +110,8 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
             ee.Filter.eq('IMAGE_QUALITY', 9),
             ee.Filter.eq('IMAGE_QUALITY_OLI', 9)))
 
-    # Landsat 7
-    L7_toa = ee.ImageCollection("LANDSAT/LE07/C02/T1_TOA") \
+    # Landsat 9
+    L9_toa = ee.ImageCollection("LANDSAT/LC09/C02/T1_TOA") \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date)) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 10)) \
@@ -109,24 +119,18 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
             ee.Filter.eq('IMAGE_QUALITY', 9),
             ee.Filter.eq('IMAGE_QUALITY_OLI', 9)))
 
-    # rename Landsat 7 thermal band to be coherent with Landsat 5
-
-    def func_lbo(img):
-        return img.addBands(img.select('B6_VCID_1').rename('B6'))
-
-    L7_toa = L7_toa.map(func_lbo)
-    L57_toa = L7_toa.merge(L5_toa)
+    L89_toa = L9_toa.merge(L8_toa)
 
     # Define if we have imagery for the selected day
-    image_list_size = L57_toa.size().getInfo()
+    image_list_size = L89_toa.size().getInfo()
     if image_list_size == 0:
         write_asset_as_empty(collection, day_to_process, 'No candidate scene')
         return
 
-    # print('L57 col size', L57_toa.size())
-    # print('L57 toa image - first', L57_toa.first())
+    # print('L89 col size', L89_toa.size())
+    # print('L89 toa image - first', L89_toa.first())
 
-    # Map.addLayer(L57_toa, {'bands': ['B7',  'B4',  'B3'], 'min': 0.05, 'max': [0.4, 0.5, 0.3]}, 'L57 original', False)
+    # Map.addLayer(L89_toa, {'bands': ['B7',  'B5',  'B4'], 'min': 0.05, 'max': [0.4, 0.5, 0.3]}, 'L89 original', False)
 
     ###########################
     # WATER MASK
@@ -218,7 +222,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
     # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
 
-    def maskCloudsAndShadowsL57toa(image):
+    def maskCloudsAndShadowsL89toa(image):
         # DETECT CLOUDS
         qa = image.select('QA_PIXEL')
         # See https:#www.usgs.gov/media/files/landsat-8-9-olitirs-collection-2-level-2-data-format-control-book
@@ -233,12 +237,11 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
         # DETECT CLOUD SHADOWS
         # Apply the scaling factors to the appropriate bands.
-        opticalBands = image.select(
-            ['B1', 'B2', 'B3', 'B4', 'B5', 'B7']).multiply(10000)
-        thermalBands = image.select(['B6'])
+        opticalBands = image.select(['B.']).multiply(10000)
+        thermalBands = image.select(['B10', 'B11'])
 
         # Find dark pixels in the image (used in the upcoming addTerrainShadow function)
-        darkPixels = image.select(['B4', 'B5', 'B7']).reduce(ee.Reducer.sum()).lt(0.25) \
+        darkPixels = image.select(['B5', 'B6', 'B7']).reduce(ee.Reducer.sum()).lt(0.25) \
             .subtract(water_binary).clamp(0, 1).rename('darkPixels')
 
         # get the solar position
@@ -282,10 +285,11 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # SWITCH
     if cloudMasking is True:
         print('--- Cloud and cloud shadow masking applied ---')
+
         # apply the masking function
-        L57_toa = L57_toa.map(maskCloudsAndShadowsL57toa)
-        # print('L57 toa cloud masked - first', L57_toa.first())
-        # Map.addLayer(L57_toa, vis_nfci, 'L57 cloud masked', False)
+        L89_toa = L89_toa.map(maskCloudsAndShadowsL89toa)
+        # print('L89 toa cloud masked - first', L89_toa.first())
+        # Map.addLayer(L89_toa, vis_nfci, 'L89 cloud masked', False)
 
     ##############################
     # TERRAIN SHADOWS
@@ -298,8 +302,9 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
         meanZenith = ee.Number(90).subtract(
             ee.Number(image.get('SUN_ELEVATION')))
 
-        # Define dark pixels
-        darkPixels = image.select('darkPixels')
+        # Find dark pixels but exclude lakes
+        darkPixels = image.select(['B5', 'B6', 'B7']).reduce(
+            ee.Reducer.sum()).lt(2500)
 
         # Terrain shadow
         terrainShadow = ee.Terrain.hillShadow(
@@ -332,10 +337,12 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # SWITCH
     if terrainShadowDetection is True:
         print('--- Terrain shadow detection applied ---')
+
         # apply the terrain shadow function
-        L57_toa = L57_toa.map(addTerrainShadow)
-        # print('L57 toa terrain shadow - first', L57_toa.first())
-        # Map.addLayer(L57_toa.select('terrainShadowMask'), {}, 'L57 terrain shadow mask', False)
+        L89_toa = L89_toa.map(addTerrainShadow)
+
+        # print('L89 toa terrain shadow - first', L89_toa.first())
+        # Map.addLayer(L89_toa.select('terrainShadowMask'), {}, 'L89 terrain shadow mask', False)
 
     # /
     # MOSAIC
@@ -343,7 +350,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # This step mosaics overlapping Landsat X tiles acquired on the same day
 
     # 'distinct' removes duplicates from a collection based on a property.
-    distinctDates_L57_toa = L57_toa.distinct(
+    distinctDates_L89_toa = L89_toa.distinct(
         'DATE_ACQUIRED').sort('DATE_ACQUIRED')
 
     # define the filter
@@ -355,7 +362,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     join = ee.Join.saveAll('date_match')
 
     # 'apply' Joins to collections.
-    joinCol_L57_toa = join.apply(distinctDates_L57_toa, L57_toa, filter)
+    joinCol_L89_toa = join.apply(distinctDates_L89_toa, L89_toa, filter)
 
     # function to mosaic matching images of the same day
 
@@ -401,19 +408,19 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
         print('--- Image swath mosaicing applied ---')
 
         # apply the mosaicing and maskPixelCount function
-        L57_toa = ee.ImageCollection(joinCol_L57_toa.map(
+        L89_toa = ee.ImageCollection(joinCol_L89_toa.map(
             mosaic_collection)).map(addMaskedPixelCount)
 
-        # print('L57_toa size after mosaic', L57_toa.size())
-        # print('L57 toa mosaiced - first', L57_toa.first())
+        # print('L89_toa size after mosaic', L89_toa.size())
+        # print('L89 toa mosaiced - first', L89_toa.first())
 
         # display the mosaic
-        imgMosaic = ee.Image(L57_toa.first())
-        # Map.addLayer(imgMosaic, vis_nfci, 'L57 mosaic', False)
+        imgMosaic = ee.Image(L89_toa.first())
+        # Map.addLayer(imgMosaic, vis_nfci, 'L89 mosaic', False)
 
         # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 80% cloudfree.
-        L57_toa = L57_toa.filter(ee.Filter.gte('percentData', 2))
-        length_without_clouds = L57_toa.size().getInfo()
+        L89_toa = L89_toa.filter(ee.Filter.gte('percentData', 2))
+        length_without_clouds = L89_toa.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
@@ -425,7 +432,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
     # This function calculates the illumination condition during the time of image acquisition
 
-    def topoCorr_L57(img):
+    def topoCorr_L89(img):
         # get the solar position
         meanAzimuth = ee.Number(img.get('SUN_AZIMUTH'))
         meanZenith = ee.Number(90).subtract(
@@ -463,17 +470,19 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
     # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
 
-    def topoCorr_SCSc_L57(img):
+    def topoCorr_SCSc_L89(img):
         img_plus_ic = img
 
         # masking flat, shadowed, and incorrect pixels (these get excluded from the topographic correction)
         mask = img_plus_ic.select('slope').gte(5) \
             .And(img_plus_ic.select('TC_illumination').gte(0.1)) \
-            .And(img_plus_ic.select('B4').gt(-0.1))
+            .And(img_plus_ic.select('B5').gt(-0.1))
         img_plus_ic_mask = ee.Image(img_plus_ic.updateMask(mask))
 
         # Specify Bands to topographically correct
-        bandList = ee.List(['B1', 'B2', 'B3', 'B4', 'B5', 'B7'])
+        bandList = ee.List(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8'])
+
+        # bandList = ee.List(['B2','B3','B4','B8']
 
         # This function quantifies the linear relation between illumination and reflectance and corrects for it
         def apply_SCSccorr(band):
@@ -487,8 +496,10 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
                 bestEffort=True,
                 tileScale=16
             )
+
             out_c = ee.Number(out.get('offset')).divide(
                 ee.Number(out.get('scale')))
+
             # apply the SCSc correction
             SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
                 'image': img_plus_ic_mask.select([band, ]),
@@ -497,11 +508,13 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
                 'cosZ': img_plus_ic_mask.select('cosZ'),
                 'cvalue': out_c
             })
+
             return ee.Image(SCSc_output)
 
         # list all bands without topographic correction (to be added to the TC image)
         bandsWithoutTC = ee.List(
-            ['B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'SAA', 'SZA', 'VAA', 'VZA', 'terrainShadowMask'])
+            ['B9', 'B10', 'B11', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'SAA', 'SZA', 'VAA', 'VZA',
+             'terrainShadowMask'])
 
         # Take care of dependencies between switches
         if terrainShadowDetection is False:
@@ -515,10 +528,8 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
         # add all bands and properties to the TC bands
         img_SCSccorr = ee.ImageCollection.fromImages(
             bandList.map(apply_SCSccorr)).toBands().rename(bandList)
-
         img_SCSccorr = img_SCSccorr.addBands(
             img_plus_ic.select(bandsWithoutTC))
-
         img_SCSccorr = img_SCSccorr.copyProperties(
             img_plus_ic, img_plus_ic.propertyNames())
 
@@ -533,39 +544,52 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
         print('--- Topographic correction applied ---')
 
         # apply the topographic correction function
-        L57_toa = L57_toa.map(topoCorr_L57)
-        L57_toa = L57_toa.map(topoCorr_SCSc_L57)
-        # print('L57_toa size after mosaic', L57_toa.size())
-        # print('L57 toa topoCorrected - first', L57_toa.first())
-        # Map.addLayer(L57_toa.first(), vis_nfci, 'L57 mosaic TC', False)
+        L89_toa = L89_toa.map(topoCorr_L89) \
+            .map(topoCorr_SCSc_L89)
+        # print('L89_toa size after mosaic', L89_toa.size())
+        # print('L89 toa topoCorrected - first', L89_toa.first())
+
+        # Map.addLayer(L89_toa.first(), vis_nfci, 'L89 mosaic TC', False)
 
     ##############################
     # EXPORT
 
+    # This function converts the data type of the topographically corrected images
+
+    def dataType(image):
+        return image.addBands(
+            image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7',
+                         'B8', 'B9', 'B10', 'B11']).round().toUint16(), None,
+            True)
+
+    # data type conversion
+    L89_toa = L89_toa.map(dataType)
+
     # convert image collection to image (used in export)
-    img_exp = ee.Image(L57_toa.first())
-    # Map.addLayer(img_exp, vis_nfci, 'L57 export', False)
+    img_exp = ee.Image(L89_toa.first())
+    # Map.addLayer(img_exp, vis_nfci, 'L89 export', False)
 
     # extract the image properties
     img_exp_properties = ee.FeatureCollection([ee.Feature(img_exp.select([]))])
 
     # extract the date and time
     sensing_date = img_exp.date().format('YYYY-MM-dd_hh-mm-ss').getInfo()
-    sensing_date_read = sensing_date[0:10] + '_T' + sensing_date[11: 19]
-    print(sensing_date)
+    sensing_date_read = sensing_date[0:10] + '_T' + sensing_date[11:19]
 
     # define the filenames
-    fname_all = 'L57-toa_Mosaic_' + sensing_date_read + '_All'
-    fname_30m = 'L57-toa_Mosaic_' + sensing_date_read + \
-        '_Bands-30m'  # ['B1','B2','B3','B4','B5','B7']
-    fname_60m = 'L57-toa_Mosaic_' + sensing_date_read + '_Band-60m'  # ['B6']
+    fname_all = 'L89-toa_Mosaic_' + sensing_date_read + '_All'
+    fname_15m = 'L89-toa_Mosaic_' + sensing_date_read + '_Band-15m'  # ['B8']
+    fname_30m = 'L89-toa_Mosaic_' + sensing_date_read + \
+        '_Bands-30m'  # ['B1','B2','B3','B4','B5','B6','B7']
+    fname_100m = 'L89-toa_Mosaic_' + \
+        sensing_date_read + '_Band-100m'  # ['B10', 'B11']
     # ['terrainShadowMask','cloudAndCloudShadowMask', 'TC_mask']
-    fname_masks = 'L57-toa_Mosaic_' + sensing_date_read + '_Masks-30m'
+    fname_masks = 'L89-toa_Mosaic_' + sensing_date_read + '_Masks-30m'
     # ["system:time_start", "system:index", "DATE_ACQUIRED", "SPACECRAFT_ID", "WRS_PATH", "SCENE_CENTER_TIME", "SENSOR_ID", "SUN_ELEVATION", "SUN_AZIMUTH", "EARTH_SUN_DISTANCE", "COLLECTION_CATEGORY", "COLLECTION_NUMBER", "DATA_SOURCE_ELEVATION"]
-    fname_properties = 'L57-toa_Mosaic_' + sensing_date_read + '_properties'
-    fname_QAbands = 'L57-toa_Mosaic_' + sensing_date_read + \
+    fname_properties = 'L89-toa_Mosaic_' + sensing_date_read + '_properties'
+    fname_QAbands = 'L89-toa_Mosaic_' + sensing_date_read + \
         '_Bands-QA'  # ['QA_PIXEL', 'QA_RADSAT']
-    fname_geometries = 'L57-toa_Mosaic_' + sensing_date_read + \
+    fname_geometries = 'L89-toa_Mosaic_' + sensing_date_read + \
         '_Geometries'  # ['SAA', 'SZA', 'VAA', 'VZA']
 
     # define the export aoi
@@ -577,7 +601,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # print('aoi_exp', aoi_exp)
     # Map.addLayer(aoi_exp, {}, 'aoi export', False)
 
-    # SWITCH ASSET export
+    # SWITCH export
     if exportAllToAsset is True:
         task = ee.batch.Export.image.toAsset(
             image=img_exp,
@@ -594,7 +618,7 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     # if export30mBands is True:
     #     # Export 30 m spectral bands
     #     task = ee.batch.Export.image.toDrive(
-    #         image=img_exp.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7']).toFloat(),
+    #         image=img_exp.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7']),
     #         scale=30,
     #         description=fname_30m,
     #         crs='EPSG:2056',
@@ -608,12 +632,29 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
     #     task.start()
 
     # # SWITCH export
-    # if export60mBands is True:
-    #     # Export 60 m thermal band
+    # if export15mBand is True:
+    #     # Export 15 m panchromatic band
     #     task = ee.batch.Export.image.toDrive(
-    #         image=img_exp.select(['B6']),
-    #         scale=60,
-    #         description=fname_60m,
+    #         image=img_exp.select(['B8']),
+    #         scale=15,
+    #         description=fname_15m,
+    #         crs='EPSG:2056',
+    #         region=aoi_exp,
+    #         maxPixels=1e10,
+    #         folder='eeExports',
+    #         skipEmptyTiles=True,
+    #         fileFormat='GeoTIFF',
+    #         formatOptions={'cloudOptimized': True}
+    #     )
+    #     task.start()
+
+    # # SWITCH export
+    # if export100mBands is True:
+    #     # Export 100 m thermal band
+    #     task = ee.batch.Export.image.toDrive(
+    #         image=img_exp.select(['B10', 'B11']),
+    #         scale=100,
+    #         description=fname_100m,
     #         crs='EPSG:2056',
     #         region=aoi_exp,
     #         maxPixels=1e10,

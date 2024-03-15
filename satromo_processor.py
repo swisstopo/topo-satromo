@@ -11,8 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr
-from step1_processors import step1_processor_l57_toa
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa
 from main_functions import main_utils
 import pandas as pd
 
@@ -98,9 +97,6 @@ def initialize_gee_and_drive():
         print("GEE initialization FAILED")
 
 
-
-
-
 def addINDEX(image, bands, index_name):
     """
     Add an Index (eg NDVI) band to the image based on two bands.
@@ -169,7 +165,8 @@ def process_NDVI_MAX(roi):
         ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
 
         # Mask outside
-        ndvi_max_int = main_utils.maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
+        ndvi_max_int = main_utils.maskOutside(
+            ndvi_max_int, roi).unmask(config.NODATA)
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
@@ -184,8 +181,8 @@ def process_NDVI_MAX(roi):
         if sensor_stats[2] > 0:
             # Start the export
             main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
-                           config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
-                           sensor_stats, current_date_str)
+                                      config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
+                                      sensor_stats, current_date_str)
 
 
 def process_S2_LEVEL_2A(roi):
@@ -269,8 +266,8 @@ def process_S2_LEVEL_2A(roi):
                     "S2-L2A", product_name)
 
                 main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
-                               config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
-                               multiband_export, sensor_stats, processing_date)
+                                          config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
+                                          multiband_export, sensor_stats, processing_date)
 
                 # Export terrain & shadow Mask
                 masks_export = clipped_image.select(
@@ -283,9 +280,9 @@ def process_S2_LEVEL_2A(roi):
                     "S2-L2A", product_name)
 
                 main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                               config.PRODUCT_S2_LEVEL_2A['product_name'],
-                               10,
-                               masks_export, sensor_stats, processing_date)
+                                          config.PRODUCT_S2_LEVEL_2A['product_name'],
+                                          10,
+                                          masks_export, sensor_stats, processing_date)
 
                 # Export Registration
                 masks_export = clipped_image.select(
@@ -298,9 +295,9 @@ def process_S2_LEVEL_2A(roi):
                     "S2-L2A", product_name)
 
                 main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                               config.PRODUCT_S2_LEVEL_2A['product_name'],
-                               10,
-                               masks_export, sensor_stats, processing_date)
+                                          config.PRODUCT_S2_LEVEL_2A['product_name'],
+                                          10,
+                                          masks_export, sensor_stats, processing_date)
 
                 # Export Cloudprobability
                 masks_export = clipped_image.select(
@@ -312,9 +309,9 @@ def process_S2_LEVEL_2A(roi):
                     "S2-L2A", product_name)
 
                 main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                               config.PRODUCT_S2_LEVEL_2A['product_name'],
-                               10,
-                               masks_export, sensor_stats, processing_date)
+                                          config.PRODUCT_S2_LEVEL_2A['product_name'],
+                                          10,
+                                          masks_export, sensor_stats, processing_date)
 
             # Check if mosaic_id ends with "-20m"
             elif mosaic_id.endswith("-20m"):
@@ -327,8 +324,8 @@ def process_S2_LEVEL_2A(roi):
                     "S2-L2A", product_name)
 
                 main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
-                               config.PRODUCT_S2_LEVEL_2A['product_name'], 20,
-                               multiband_export, sensor_stats, processing_date)
+                                          config.PRODUCT_S2_LEVEL_2A['product_name'], 20,
+                                          multiband_export, sensor_stats, processing_date)
 
 
 def process_S2_LEVEL_1C(roi):
@@ -408,17 +405,17 @@ def process_S2_LEVEL_1C(roi):
         multiband_export_name = mosaic_id
 
         main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
-                       config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
-                       multiband_export, sensor_stats, current_date_str)
+                                  config.PRODUCT_S2_LEVEL_1C['product_name'], config.PRODUCT_S2_LEVEL_1C['spatial_scale_export'],
+                                  multiband_export, sensor_stats, current_date_str)
 
         # Export QA60 band as a separate GeoTIFF with '_QA60'
         masks_export = clipped_image.select(
             ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         masks_export_name = mosaic_id.replace('_bands-10m', '_masks-10m')
         main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
-                       config.PRODUCT_S2_LEVEL_1C['product_name'],
-                       config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask'], masks_export,
-                       sensor_stats, current_date_str)
+                                  config.PRODUCT_S2_LEVEL_1C['product_name'],
+                                  config.PRODUCT_S2_LEVEL_1C['spatial_scale_export_mask'], masks_export,
+                                  sensor_stats, current_date_str)
 
 
 def process_NDVI_MAX_TOA(roi):
@@ -462,7 +459,8 @@ def process_NDVI_MAX_TOA(roi):
         ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
 
         # Mask outside
-        ndvi_max_int = main_utils.maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
+        ndvi_max_int = main_utils.maskOutside(
+            ndvi_max_int, roi).unmask(config.NODATA)
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
@@ -475,8 +473,8 @@ def process_NDVI_MAX_TOA(roi):
 
         # Start the export
         main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVI_MAX['product_name'],
-                       config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
-                       sensor_stats, current_date_str)
+                                  config.PRODUCT_NDVI_MAX['spatial_scale_export'], ndvi_max_int,
+                                  sensor_stats, current_date_str)
 
 
 def process_PRODUCT_V1(roi):
@@ -526,7 +524,8 @@ def process_PRODUCT_V1(roi):
         ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
 
         # Mask outside
-        ndvi_max_int = main_utils.maskOutside(ndvi_max_int, roi).unmask(config.NODATA)
+        ndvi_max_int = main_utils.maskOutside(
+            ndvi_max_int, roi).unmask(config.NODATA)
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
@@ -555,8 +554,8 @@ def process_PRODUCT_V1(roi):
 
         # Start the export
         main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                       config.PRODUCT_V1['spatial_scale_export'], ndvi_max_int,
-                       sensor_stats, current_date_str)
+                                  config.PRODUCT_V1['spatial_scale_export'], ndvi_max_int,
+                                  sensor_stats, current_date_str)
 
 
 if __name__ == "__main__":
@@ -582,7 +581,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2005-11-08"
+    current_date_str = "2023-11-07"
 
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
@@ -644,6 +643,18 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 result = step1_processor_l57_toa.process_L57_LEVEL_1(
+                    roi, current_date)
+
+            elif product_to_be_processed == 'PRODUCT_L89_LEVEL_2':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                result = step1_processor_l89_sr.process_L89_LEVEL_2(
+                    roi, current_date)
+
+            elif product_to_be_processed == 'PRODUCT_L89_LEVEL_1':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                result = step1_processor_l89_toa.process_L89_LEVEL_1(
                     roi, current_date)
 
             else:

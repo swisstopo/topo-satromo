@@ -145,7 +145,7 @@ PRODUCT_L57_LEVEL_2 = {
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
 }
 
-#  ch.swisstopo.swisseo_l57-sr
+#  ch.swisstopo.swisseo_l57-toa
 PRODUCT_L57_LEVEL_1 = {
 
     # TODO: check if needed in context with step0
@@ -155,6 +155,32 @@ PRODUCT_L57_LEVEL_1 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l57-toa_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l57-sr
+PRODUCT_L89_LEVEL_2 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LC08/C02/T1_L2",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l89-sr_v100",
+    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l89-toa
+PRODUCT_L89_LEVEL_1 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LC08/C02/T1_TOA",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l89-toa_v100",
     "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
@@ -184,6 +210,14 @@ step0 = {
     },
     'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
         'step0_function': 'step0_processor_l57_toa.generate_l57_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_SR_SWISS': {
+        'step0_function': 'step0_processor_l89_sr.generate_l89_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
+        'step0_function': 'step0_processor_l89_toa.generate_l89_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
 }
