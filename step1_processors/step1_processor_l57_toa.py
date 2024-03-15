@@ -1,7 +1,7 @@
 import ee
 import datetime
 import configuration as config
-from satromo_processor import get_collection_info,check_product_update, prepare_export
+from main_functions import main_utils
 
 def process_L57_LEVEL_1(roi,current_date):
     """
@@ -33,10 +33,10 @@ def process_L57_LEVEL_1(roi,current_date):
         return 0
 
     # Get information about the available sensor data for the range
-    sensor_stats = get_collection_info(collection)
+    sensor_stats = main_utils.get_collection_info(collection)
 
     # Check if there is new sensor data compared to the stored dataset
-    if check_product_update(config.PRODUCT_L57_LEVEL_1['product_name'], sensor_stats[1]) is True:
+    if main_utils.check_product_update(config.PRODUCT_L57_LEVEL_1['product_name'], sensor_stats[1]) is True:
         # Get the list of images
         image_list = collection.toList(collection.size())
         print(str(image_list.size().getInfo()) + " new image(s) for: " +
@@ -88,7 +88,7 @@ def process_L57_LEVEL_1(roi,current_date):
                 multiband_export_name = mosaic_id.replace(
                     "S2-L2A", product_name)
 
-                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
+                main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'], 10,
                                multiband_export, sensor_stats, processing_date)
 
@@ -102,7 +102,7 @@ def process_L57_LEVEL_1(roi,current_date):
                 masks_export_name = masks_export_name.replace(
                     "S2-L2A", product_name)
 
-                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
                                masks_export, sensor_stats, processing_date)
@@ -117,7 +117,7 @@ def process_L57_LEVEL_1(roi,current_date):
                 masks_export_name = masks_export_name.replace(
                     "S2-L2A", product_name)
 
-                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
                                masks_export, sensor_stats, processing_date)
@@ -131,7 +131,7 @@ def process_L57_LEVEL_1(roi,current_date):
                 masks_export_name = masks_export_name.replace(
                     "S2-L2A", product_name)
 
-                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
+                main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, masks_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'],
                                10,
                                masks_export, sensor_stats, processing_date)
@@ -146,6 +146,6 @@ def process_L57_LEVEL_1(roi,current_date):
                 multiband_export_name = mosaic_id.replace(
                     "S2-L2A", product_name)
 
-                prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
+                main_utils.prepare_export(clipped_image_bounding_box, mosaic_sensing_timestamp, multiband_export_name,
                                config.PRODUCT_S2_LEVEL_2A['product_name'], 20,
                                multiband_export, sensor_stats, processing_date)

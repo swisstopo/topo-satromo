@@ -134,7 +134,7 @@ PRODUCT_NDVI_MAX_TOA = {
 
 #  ch.swisstopo.swisseo_l57-sr
 PRODUCT_L57_LEVEL_2 = {
-    # "prefix": "S2_L2A_SR",
+
     # TODO: check if needed in context with step0
     "image_collection": "LANDSAT/LT05/C02/T1_L2",
     "geocat_id": "tbd",
@@ -147,7 +147,7 @@ PRODUCT_L57_LEVEL_2 = {
 
 #  ch.swisstopo.swisseo_l57-sr
 PRODUCT_L57_LEVEL_1 = {
-    # "prefix": "S2_L2A_SR",
+
     # TODO: check if needed in context with step0
     "image_collection": "LANDSAT/LT05/C02/T1_TOA",
     "geocat_id": "tbd",
