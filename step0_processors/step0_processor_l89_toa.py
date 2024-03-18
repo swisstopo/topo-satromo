@@ -399,7 +399,7 @@ def generate_l89_toa_mosaic_for_single_date(day_to_process: str, collection: str
             .set('index_list', index_list) \
             .set('scene_count', scene_count) \
             .set('SWISSTOPO_PROCESSOR', processor_version['GithubLink']) \
-            .set('SWISSTOPO_RELEASEVERSION', processor_version['ReleaseVersion'])
+            .set('SWISSTOPO_RELEASE_VERSION', processor_version['ReleaseVersion'])
 
         return mosaic
 
