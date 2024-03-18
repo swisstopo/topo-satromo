@@ -26,10 +26,10 @@ def determine_run_type():
     global run_type
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
-        print("\nType 2 run PROCESSOR: We are on DEV")
+        print("\nType 2 run PROCESSOR: We are on a local machine")
     else:
         run_type = 1
-        print("\nType 1 run PROCESSOR: We are on INT")
+        print("\nType 1 run PROCESSOR: We are on GitHub")
 
 
 def initialize_gee_and_drive():
