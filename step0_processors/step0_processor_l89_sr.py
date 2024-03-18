@@ -49,7 +49,7 @@ def generate_l89_sr_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # Export switches
     # options': True, False - defines if image with all bands is exported as an asset
-    exportAllToAsset = False
+    exportAllToAsset = True
     export30mBands = True  # options': True, 'False - defines if 30 m spectral bands are exported': 'SR_B1','SR_B2','SR_B3','SR_B4','SR_B5','SR_B6','SR_B7'
     # options': True, 'False - defines if 100 m thermal bands are exported': 'ST_B10'
     export100mBands = True

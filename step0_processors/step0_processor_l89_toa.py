@@ -49,7 +49,7 @@ def generate_l89_toa_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Export switches
     # options': True, False - defines if image with all bands is exported as an asset
-    exportAllToAsset = False
+    exportAllToAsset = True
     # options': True, 'False - defines if 15 m panchromatic band is exported': 'B8'
     export15mBand = True
     # options': True, 'False - defines if 30 m spectral bands are exported': 'B1','B2','B3','B4','B5','B6','B7'
