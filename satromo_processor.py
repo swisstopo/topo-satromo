@@ -581,7 +581,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2023-11-07"
+    current_date_str = "2023-08-22"
 
     print("*****************************\n")
     print("using a manual set Date: "+current_date_str)
@@ -614,6 +614,8 @@ if __name__ == "__main__":
                 #     [7.075402, 46.107098, 7.100894, 46.123639])
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                roi = ee.Geometry.Rectangle(
+                    [8.10470, 47.19934, 8.17412, 47.25292]) # 6221 Rickenbach
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_V1':

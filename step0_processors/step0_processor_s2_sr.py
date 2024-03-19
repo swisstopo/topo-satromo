@@ -32,6 +32,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # options': True, False - defines if individual clouds and cloud shadows are masked
     cloudMasking = True
+    # options: True, False - defines if the CloudScore+ dataset should be used (if False': s2cloudless)
+    cloudScorePlus = True
     # options: True, False - defines if a cast shadow mask is applied
     terrainShadowDetection = True
     # options': True, False - defines if individual scenes get mosaiced to an image swath
@@ -87,10 +89,16 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     ##############################
     # SATELLITE DATA
 
+    # S2 CloudScore+
+    S2_csp = ee.ImageCollection('GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED') \
+        .filter(ee.Filter.bounds(aoi_CH)) \
+        .filter(ee.Filter.date(start_date, end_date))
+
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
+        # .linkCollection(S2_csp, ['cs','cs_cdf'])
 
     image_list_size = S2_sr.size().getInfo()
     if image_list_size == 0:
@@ -164,7 +172,57 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # FUNCTIONS
 
     # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
-    def maskCloudsAndShadows(image):
+    # CloudScore+
+    def maskCloudsAndShadowsCloudScorePlus(image):
+        # Use 'cs' or 'cs_cdf'
+        # cs: Pixel quality score based on spectral distance from a (theoretical) clear reference
+        # cs_cdf: Value of the cumulative distribution function of possible cs values for the estimated cs value
+        QA_BAND = 'cs_cdf'
+
+        # invert the cloud score bands to represent cloudy with 1 and clear with 0
+        # inherently CloudScore+ shows the clearness of a pixel, but we would like to look at cloudyness
+        invertedImage = image.expression('1 - b("cs")', {'cs': image.select('cs')}).rename('cs') \
+            .addBands(image.expression('1 - b("cs_cdf")', {'cs_cdf': image.select('cs_cdf')}).rename('cs_cdf'))
+        
+        # replace the cloud score bands with the inverted ones
+        bandNames = image.bandNames()
+        bandsToDelete = ['cs','cs_cdf']
+        bandsToKeep = bandNames.filter(ee.Filter.inList('item', bandsToDelete).Not())
+
+        # Replace 'cs' and 'cs_cdf' bands in the original 'image' with the inverted versions
+        image = image \
+            .select(bandsToKeep) \
+            .addBands(invertedImage.select(['cs']).rename('cs')) \
+            .addBands(invertedImage.select(['cs_cdf']).rename('cs_cdf'))
+
+        # get the cloud probability
+        clouds = image.select(QA_BAND)
+
+        # The threshold for masking; values between 0.50 and 0.35 generally work well.
+        # Lower values will remove thin clouds, haze & cirrus shadows.
+        CLOUD_THRESHOLD = 0.35
+        # applying the maximum cloud probability threshold (also includes cloud shadows)
+        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
+        cloudAndCloudShadowMask = isNotCloud.Not()
+
+        # Opening operation: individual pixels are deleted
+        cloudAndCloudShadowMask = cloudAndCloudShadowMask.focalMin(50, 'circle', 'meters', 1, None)
+
+        # mask spectral bands for clouds and cloudShadows
+        # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
+        #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
+
+        # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
+        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
+            .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
+        return image_out.set({
+            'cloudDetectionAlgorithm': 'CloudScore+',    # name of the cloud detection algorithm
+            'cloudMaskThreshold': CLOUD_THRESHOLD        # threshold for cloud mask
+        })
+
+    # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
+    # S2cloudless
+    def maskCloudsAndShadowsSTwoCloudless(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
@@ -172,7 +230,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # get the cloud probability
         clouds = ee.Image(image.get('cloud_mask')).select('probability')
         # the maximum cloud probability threshold is set at 50
-        isNotCloud = clouds.lt(50)
+        CLOUD_THRESHOLD = 50
+        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
         cloudMask = isNotCloud.Not()
         # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
         cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(
@@ -210,7 +269,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
         image_out = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
-        return image_out
+        return image_out.set({
+            'cloudDetectionAlgorithm': 's2cloudless',     # name of the cloud detection algorithm
+            'cloudMaskThreshold': CLOUD_THRESHOLD         # threshold for cloud mask
+        })
 
     # This function detects and adds terrain shadows
     def addTerrainShadow(image):
@@ -284,20 +346,31 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     S2_sr = S2_sr.map(maskEdges) \
         .map(set_date)
 
-    # Join S2 SR with cloud probability dataset to add cloud mask.
-    S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
-        primary=S2_sr,
-        secondary=S2_clouds,
-        condition=ee.Filter.equals(
-            leftField='system:index', rightField='system:index')
-    )
-
     # SWITCH
     if cloudMasking is True:
-        print('--- Cloud and cloud shadow masking applied ---')
         # apply the cloud mapping and masking functions
-        S2_sr = ee.ImageCollection(
-            S2_srWithCloudMask).map(maskCloudsAndShadows)
+        if cloudScorePlus is True:
+            print('--- Cloud and cloud shadow masking applied: CloudScore+ ---')
+            # Join S2 SR with cloud probability dataset to add cloud mask.
+            S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
+                primary=S2_sr,
+                secondary=S2_csp,
+                condition=ee.Filter.equals(
+                    leftField='system:index', rightField='system:index')
+            )
+            S2_sr = ee.ImageCollection(
+                S2_srWithCloudMask).map(maskCloudsAndShadowsCloudScorePlus)
+        else:
+            print('--- Cloud and cloud shadow masking applied: s2cloudless ---')
+            # Join S2 SR with cloud probability dataset to add cloud mask.
+            S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
+                primary=S2_sr,
+                secondary=S2_clouds,
+                condition=ee.Filter.equals(
+                    leftField='system:index', rightField='system:index')
+            )
+            S2_sr = ee.ImageCollection(
+                S2_srWithCloudMask).map(maskCloudsAndShadowsSTwoCloudless)
 
     # SWITCH
     if terrainShadowDetection is True:
@@ -354,7 +427,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             .set('index_list', index_list) \
             .set('scene_count', scene_count) \
             .set('SWISSTOPO_PROCESSOR', processor_version['GithubLink']) \
-            .set('SWISSTOPO_RELEASEVERSION', processor_version['ReleaseVersion'])
+            .set('SWISSTOPO_RELEASE_VERSION', processor_version['ReleaseVersion'])
 
         # reset the projection to epsg:32632 as mosaic changes it to epsg:4326 (otherwise the registration fails)
         mosaic = ee.Image(mosaic).setDefaultProjection('epsg:32632', None, 10)

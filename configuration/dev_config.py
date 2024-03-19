@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # V1 – Trockenstress
@@ -168,7 +168,7 @@ PRODUCT_L89_LEVEL_2 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l89-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
 }
 
 #  ch.swisstopo.swisseo_l89-toa
@@ -181,7 +181,7 @@ PRODUCT_L89_LEVEL_1 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l89-toa_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
 # B custom COLLECTION
