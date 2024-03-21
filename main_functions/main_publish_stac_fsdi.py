@@ -185,7 +185,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
         },
         "links": [
             {
-                "href": "https://tinyurl.com/sat54?url="+domain+"ch.swisstopo."+product+"/" +
+                "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
                 id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
                 "rel": "visual"
             },
