@@ -97,8 +97,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
-        .filter(ee.Filter.date(start_date, end_date))
-        # .linkCollection(S2_csp, ['cs','cs_cdf'])
+        .filter(ee.Filter.date(start_date, end_date)) \
+        .linkCollection(S2_csp, ['cs','cs_cdf'])
 
     image_list_size = S2_sr.size().getInfo()
     if image_list_size == 0:
@@ -206,7 +206,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         cloudAndCloudShadowMask = isNotCloud.Not()
 
         # Opening operation: individual pixels are deleted
-        cloudAndCloudShadowMask = cloudAndCloudShadowMask.focalMin(50, 'circle', 'meters', 1, None)
+        cloudAndCloudShadowMask = cloudAndCloudShadowMask.focalMin(
+            50, 'circle', 'meters', 1, None)
 
         # mask spectral bands for clouds and cloudShadows
         # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
@@ -238,8 +239,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             100, 'circle', 'meters', 1, None)
 
         # Find dark pixels but exclude lakes and rivers (otherwise projected shadows would cover large parts of water bodies)
-        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(ee.Reducer.sum()).lt(2500).subtract(water_binary).clamp(
-            0, 1)
+        darkPixels = image.select(['B8', 'B11', 'B12']).reduce(
+            ee.Reducer.sum()).lt(2500).subtract(water_binary).clamp(0, 1)
 
         # Project shadows from clouds. This step assumes we're working in a UTM projection.
         shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
@@ -351,15 +352,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # apply the cloud mapping and masking functions
         if cloudScorePlus is True:
             print('--- Cloud and cloud shadow masking applied: CloudScore+ ---')
-            # Join S2 SR with cloud probability dataset to add cloud mask.
-            S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
-                primary=S2_sr,
-                secondary=S2_csp,
-                condition=ee.Filter.equals(
-                    leftField='system:index', rightField='system:index')
-            )
             S2_sr = ee.ImageCollection(
-                S2_srWithCloudMask).map(maskCloudsAndShadowsCloudScorePlus)
+                S2_sr).map(maskCloudsAndShadowsCloudScorePlus)
         else:
             print('--- Cloud and cloud shadow masking applied: s2cloudless ---')
             # Join S2 SR with cloud probability dataset to add cloud mask.
@@ -504,7 +498,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     ##############################
     # EXPORT
-
+    
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
     sensing_date_read = sensing_date[0:4] + '-' + \
@@ -522,17 +516,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Launching export for 10m bands')
         # define the filenames
         fname_10m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-10m'
-        band_list = ['B2', 'B3', 'B4', 'B8']
+        band_list_10m = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
-            band_list.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+            band_list_10m.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
         if exportRegLayers:
-            band_list.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
+            band_list_10m.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
         if exportS2cloud:
-            band_list.extend(['cloudProbability'])
-        print('Band list: {}'.format(band_list))
+            band_list_10m.extend(['cloudProbability'])
+        print('Band list: {}'.format(band_list_10m))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(band_list).clip(aoi_exp),
+            image=S2_sr.select(band_list_10m).clip(aoi_exp),
             scale=10,
             description=task_description + '_10m',
             crs='EPSG:2056',
@@ -547,9 +541,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Launching export for 20m bands')
         # define the filenames
         fname_20m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-20m'
+        band_list_20m = ['B8A', 'B11', 'B5']
+        print('Band list: {}'.format(band_list_20m))
         # Export COG 20m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(['B8A', 'B11', 'B5']).clip(aoi_exp),
+            image=S2_sr.select(band_list_20m).clip(aoi_exp),
             scale=20,
             description=task_description + '_20m',
             crs='EPSG:2056',
@@ -559,17 +555,22 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         )
         task.start()
 
-    """"# SWITCH export
+    """"
+    # SWITCH export
     if export60mBands is True:
+        print('Launching export for 60m bands')
         fname_60m = 'S2-L2A_Mosaic_' + sensing_date_read + '_Bands-60m'
-        task = ee.batch.Export.image.toDrive(
-            image=S2_sr.select(['B1', 'B9', 'B10']),
+        band_list_60m = ['B1', 'B9', 'B10']
+        print('Band list: {}'.format(band_list_60m))
+        task = ee.batch.Export.image.toAsset(
+            image=S2_sr.select(band_list_60m).clip(aoi_exp),
             scale=60,
-            description=fname_60m,
+            description=task_description + '_60m',
             crs='EPSG:2056',
             region=aoi_exp,
             maxPixels=1e10,
-            assetId=fname_60m
+            assetId=collection + '/' + fname_60m
         )
-        task.start()"""
+        task.start()
+    """
 
