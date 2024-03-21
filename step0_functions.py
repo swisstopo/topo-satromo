@@ -98,8 +98,7 @@ def check_if_asset_prepared(collection, assets, check_date, tasks):
         return True
 
     print('Starting asset generation for {} / {}'.format(collection, check_date_str))
-    generate_single_date_function = eval(
-        config.step0[collection]['step0_function'])
+    generate_single_date_function = eval(config.step0[collection]['step0_function'])
     generate_single_date_function(check_date_str, collection, task_description)
     return False
 
