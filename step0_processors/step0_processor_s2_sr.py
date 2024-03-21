@@ -446,11 +446,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
+        S2_sr = S2_sr.first()
+
         # Add Source
         S2_sr = S2_sr.set(
             'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
 
-        S2_sr = S2_sr.first()
 
     ##############################
     # REGISTER
