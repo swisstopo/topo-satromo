@@ -97,13 +97,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
-<<<<<<< Updated upstream
         .filter(ee.Filter.date(start_date, end_date)) \
-        .linkCollection(S2_csp, ['cs','cs_cdf'])
-=======
-        .filter(ee.Filter.date(start_date, end_date))
-    # .linkCollection(S2_csp, ['cs','cs_cdf'])
->>>>>>> Stashed changes
+        .linkCollection(S2_csp, ['cs', 'cs_cdf'])
 
     image_list_size = S2_sr.size().getInfo()
     if image_list_size == 0:
@@ -508,7 +503,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     ##############################
     # EXPORT
-    
+
     # extract the date and time (it is same time for all images in the mosaic)
     sensing_date = S2_sr.get('system:index').getInfo()[0:15]
     sensing_date_read = sensing_date[0:4] + '-' + \
@@ -528,7 +523,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         fname_10m = 'S2-L2A_mosaic_' + sensing_date_read + '_bands-10m'
         band_list_10m = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
-            band_list_10m.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+            band_list_10m.extend(
+                ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         if exportRegLayers:
             band_list_10m.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
         if exportS2cloud:
@@ -581,10 +577,5 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             maxPixels=1e10,
             assetId=collection + '/' + fname_60m
         )
-<<<<<<< Updated upstream
         task.start()
     """
-
-=======
-        task.start()"""
->>>>>>> Stashed changes
