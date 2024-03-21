@@ -97,8 +97,13 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
+<<<<<<< Updated upstream
         .filter(ee.Filter.date(start_date, end_date)) \
         .linkCollection(S2_csp, ['cs','cs_cdf'])
+=======
+        .filter(ee.Filter.date(start_date, end_date))
+    # .linkCollection(S2_csp, ['cs','cs_cdf'])
+>>>>>>> Stashed changes
 
     image_list_size = S2_sr.size().getInfo()
     if image_list_size == 0:
@@ -183,11 +188,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # inherently CloudScore+ shows the clearness of a pixel, but we would like to look at cloudyness
         invertedImage = image.expression('1 - b("cs")', {'cs': image.select('cs')}).rename('cs') \
             .addBands(image.expression('1 - b("cs_cdf")', {'cs_cdf': image.select('cs_cdf')}).rename('cs_cdf'))
-        
+
         # replace the cloud score bands with the inverted ones
         bandNames = image.bandNames()
-        bandsToDelete = ['cs','cs_cdf']
-        bandsToKeep = bandNames.filter(ee.Filter.inList('item', bandsToDelete).Not())
+        bandsToDelete = ['cs', 'cs_cdf']
+        bandsToKeep = bandNames.filter(
+            ee.Filter.inList('item', bandsToDelete).Not())
 
         # Replace 'cs' and 'cs_cdf' bands in the original 'image' with the inverted versions
         image = image \
@@ -217,7 +223,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         image_out = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
         return image_out.set({
-            'cloudDetectionAlgorithm': 'CloudScore+',    # name of the cloud detection algorithm
+            # name of the cloud detection algorithm
+            'cloudDetectionAlgorithm': 'CloudScore+',
             'cloudMaskThreshold': CLOUD_THRESHOLD        # threshold for cloud mask
         })
 
@@ -271,7 +278,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         image_out = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
         return image_out.set({
-            'cloudDetectionAlgorithm': 's2cloudless',     # name of the cloud detection algorithm
+            # name of the cloud detection algorithm
+            'cloudDetectionAlgorithm': 's2cloudless',
             'cloudMaskThreshold': CLOUD_THRESHOLD         # threshold for cloud mask
         })
 
@@ -414,7 +422,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Getting swisstopo Processor Version
         processor_version = main_utils.get_github_info()
-
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
             .set('system:time_end', time_end) \
@@ -434,7 +441,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # apply the mosaicing function
         S2_sr = ee.ImageCollection(joinCol_S2_sr.map(
             mosaic_collection)).map(addMaskedPixelCount)
-
         # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 80% cloudfree.
         S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 20))
         length_without_clouds = S2_sr.size().getInfo()
@@ -444,6 +450,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # This is the If condition the return just the line after the end the step0 script ends the process if 'percentData' is greater.
         # It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
+
+        # Add Source
+        S2_sr = S2_sr.set(
+            'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
 
         S2_sr = S2_sr.first()
 
@@ -571,6 +581,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             maxPixels=1e10,
             assetId=collection + '/' + fname_60m
         )
+<<<<<<< Updated upstream
         task.start()
     """
 
+=======
+        task.start()"""
+>>>>>>> Stashed changes
