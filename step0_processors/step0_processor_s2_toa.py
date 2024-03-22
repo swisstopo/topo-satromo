@@ -266,8 +266,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
         return image.set({
-            'cloudDetectionAlgorithm': 'CloudScore+',
-            'cloudMaskThreshold': str(CLOUD_THRESHOLD) + ' / ' + str(CLOUDSHADOW_THRESHOLD)
+            'cloud_detection_algorithm': 'CloudScore+',
+            'cloud_mask_threshold': str(CLOUD_THRESHOLD) + ' / ' + str(CLOUDSHADOW_THRESHOLD)
         })
 
     # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
@@ -321,8 +321,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             .addBands(darkPixels.rename(['darkPixels']))
 
         return image.set({
-            'cloudDetectionAlgorithm': 's2cloudless',
-            'cloudMaskThreshold': CLOUD_THRESHOLD         # threshold for cloud mask
+            'cloud_detection_algorithm': 's2cloudless',
+            'cloud_mask_threshold': CLOUD_THRESHOLD         # threshold for cloud mask
         })
 
     # This function detects and adds terrain shadows
@@ -472,7 +472,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         mosaic = col.mosaic().clip(col_geo).copyProperties(img, ["system:time_start", "system:index", "date", "month",
                                                                  "SENSING_ORBIT_NUMBER", "PROCESSING_BASELINE",
                                                                  "SPACECRAFT_NAME", "MEAN_SOLAR_ZENITH_ANGLE",
-                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE"])
+                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE","cloud_detection_algorithm",
+                                                                 "cloud_mask_threshold"])
 
         # Getting swisstopo Processor Version
         processor_version = get_github_info()
