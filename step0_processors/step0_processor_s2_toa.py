@@ -1,9 +1,7 @@
-import os
-import math
-from datetime import datetime, timedelta
-import json
 import ee
+import math
 import configuration as config
+from main_functions import main_utils
 from .step0_utils import write_asset_as_empty
 import requests
 
@@ -23,7 +21,7 @@ import requests
 #
 # - export aoi on extended Switzerland (rectangle) instead of admin boundaries (cost effective)
 # - EECU seconds are not consistent for the same export at different times
-# - data availibility threshold ('percentData') at 2%
+# - data availibility threshold ('percent_data') at 2%
 # - export to asset and drive as options
 # - export band names - keep as original (differences within the Landsat program, different script for L5+7?)
 #
@@ -48,6 +46,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # options': True, False - defines if individual clouds and cloud shadows are masked
     cloudMasking = True
+    # options: True, False - defines if the CloudScore+ dataset should be used (if False': s2cloudless)
+    cloudScorePlus = True
     # options: True, False - defines if a cast shadow mask is applied
     terrainShadowDetection = True
     # options': True, False - defines if individual scenes get mosaiced to an image swath
@@ -105,10 +105,22 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     ##############################
     # SATELLITE DATA
 
+    # S2 CloudScore+
+    S2_csp = ee.ImageCollection('GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED') \
+        .filter(ee.Filter.bounds(aoi_CH)) \
+        .filter(ee.Filter.date(start_date, end_date))
+    
+    # S2cloudless
+    S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
+        .filter(ee.Filter.bounds(aoi_CH)) \
+        .filter(ee.Filter.date(start_date, end_date))
+    
     # Sentinel-2
     S2_toa = ee.ImageCollection('COPERNICUS/S2_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
-        .filter(ee.Filter.date(start_date, end_date))
+        .filter(ee.Filter.date(start_date, end_date)) \
+        .linkCollection(S2_csp, ['cs', 'cs_cdf']) \
+        .linkCollection(S2_clouds, ['probability'])
 
     image_list_size = S2_toa.size().getInfo()
     if image_list_size == 0:
@@ -138,10 +150,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     #     with open(json_path, "w") as json_file:
     #         json.dump(image.getInfo(), json_file)
 
-    # S2cloudless
-    S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
-        .filter(ee.Filter.bounds(aoi_CH)) \
-        .filter(ee.Filter.date(start_date, end_date))
 
     ###########################
     # WATER MASK
@@ -183,15 +191,96 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # FUNCTIONS
 
     # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
-    def maskCloudsAndShadows(image):
+    # CloudScore+
+    def maskCloudsAndShadowsCloudScorePlus(image):
+        # Use 'cs' or 'cs_cdf'
+        # cs: Pixel quality score based on spectral distance from a (theoretical) clear reference
+        # cs_cdf: Value of the cumulative distribution function of possible cs values for the estimated cs value
+        QA_BAND = 'cs_cdf'
+
+        # invert the cloud score bands to represent cloudy with 1 and clear with 0
+        # inherently CloudScore+ shows the clearness of a pixel, but we would like to look at cloudyness
+        invertedImage = image.expression('1 - b("cs")', {'cs': image.select('cs')}).rename('cs') \
+            .addBands(image.expression('1 - b("cs_cdf")', {'cs_cdf': image.select('cs_cdf')}).rename('cs_cdf'))
+
+        # replace the cloud score bands with the inverted ones
+        bandNames = image.bandNames()
+        bandsToDelete = ['cs', 'cs_cdf']
+        bandsToKeep = bandNames.filter(
+            ee.Filter.inList('item', bandsToDelete).Not())
+
+        # Replace 'cs' and 'cs_cdf' bands in the original 'image' with the inverted versions
+        image = image \
+            .select(bandsToKeep) \
+            .addBands(invertedImage.select(['cs']).rename('cs')) \
+            .addBands(invertedImage.select(['cs_cdf']).rename('cs_cdf'))
+
+        # get the cloud probability
+        clouds = image.select(QA_BAND)
+
+        # The threshold for masking; values between 0.50 and 0.35 generally work well.
+        # Lower values will remove thin clouds, haze, cirrus & shadows.
+        CLOUD_THRESHOLD = 0.4
+        CLOUDSHADOW_THRESHOLD = 0.2
+
+        # applying the maximum cloud probability threshold
+        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
+
+        # get the solar position
+        meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
+        meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
+
+        # define potential cloud shadow values
+        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(clouds.gte(CLOUDSHADOW_THRESHOLD))
+
+        # Project shadows from clouds. This step assumes we're working in a UTM projection.
+        shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
+        # shadow distance is tied to the solar zenith angle (minimum shadowDistance is 30 pixel)
+        shadowDistance = ee.Number(meanZenith).multiply(
+            0.7).floor().int().max(30)
+
+        # With the following algorithm, cloud shadows are projected.
+        isCloud = isNotCloud.directionalDistanceTransform(
+            shadowAzimuth, shadowDistance)
+        isCloud = isCloud.reproject(
+            crs=image.select('B2').projection(), scale=100)
+
+        cloudShadow = isCloud.select('distance').mask()
+
+        # combine projected Shadows & potential cloud shadow values
+        cloudShadow = cloudShadow.And(cloudShadowMask)
+
+        # combine mask for clouds and cloud shadows
+        cloudAndCloudShadowMask = cloudShadow.Or(isNotCloud.Not())
+
+        # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
+        cloudAndCloudShadowMask = cloudAndCloudShadowMask \
+            .focalMin(50, 'circle', 'meters', 1, None) \
+            .focalMax(100, 'circle', 'meters', 1, None)
+
+        # mask spectral bands for clouds and cloudShadows
+        # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
+        #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
+
+        # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
+        image = image.addBands(clouds.rename(['cloudProbability'])) \
+            .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
+        return image.set({
+            'cloudDetectionAlgorithm': 'CloudScore+',
+            'cloudMaskThreshold': str(CLOUD_THRESHOLD) + ' / ' + str(CLOUDSHADOW_THRESHOLD)
+        })
+
+    # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
+    def maskCloudsAndShadowsSTwoCloudless(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # get the cloud probability
-        clouds = ee.Image(image.get('cloud_mask')).select('probability')
+        clouds = image.select('probability')
         # the maximum cloud probability threshold is set at 50
-        isNotCloud = clouds.lt(50)
+        CLOUD_THRESHOLD = 50
+        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
         cloudMask = isNotCloud.Not()
         # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
         cloudMask = cloudMask.focalMin(50, 'circle', 'meters', 1, None).focalMax(
@@ -227,11 +316,14 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
-        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
+        image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask'])) \
             .addBands(darkPixels.rename(['darkPixels']))
 
-        return image_out
+        return image.set({
+            'cloudDetectionAlgorithm': 's2cloudless',
+            'cloudMaskThreshold': CLOUD_THRESHOLD         # threshold for cloud mask
+        })
 
     # This function detects and adds terrain shadows
     def addTerrainShadow(image):
@@ -302,9 +394,9 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         percData = ee.Number(100).subtract(percMasked)
 
         return image.set({
-            'percentData': percData,  # percentage of unmasked pixel
+            'percent_data': percData,  # percentage of unmasked pixel
             # masked pixels include clouds, cloud shadows and QA pixels
-            'percentMasked': percMasked
+            'percent_masked': percMasked
         })
 
     # This function masks all bands to the same extent as the 20 m and 60 m bands
@@ -323,22 +415,20 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # PROCESSING
 
     # Mapping of the date on the edges function
-    S2_toa = S2_toa.map(maskEdges).map(set_date)
-
-    # Join S2 toa with cloud probability dataset to add cloud mask.
-    S2_toaWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
-        primary=S2_toa,
-        secondary=S2_clouds,
-        condition=ee.Filter.equals(
-            leftField='system:index', rightField='system:index')
-    )
+    S2_toa = S2_toa.map(maskEdges) \
+        .map(set_date)
 
     # SWITCH
     if cloudMasking is True:
-        print('--- Cloud and cloud shadow masking applied ---')
         # apply the cloud mapping and masking functions
-        S2_toa = ee.ImageCollection(
-            S2_toaWithCloudMask).map(maskCloudsAndShadows)
+        if cloudScorePlus is True:
+            print('--- Cloud and cloud shadow masking applied: CloudScore+ ---')
+            S2_toa = ee.ImageCollection(
+                S2_toa).map(maskCloudsAndShadowsCloudScorePlus)
+        else:
+            print('--- Cloud and cloud shadow masking applied: s2cloudless ---')
+            S2_toa = ee.ImageCollection(
+                S2_toa).map(maskCloudsAndShadowsSTwoCloudless)
 
     # SWITCH
     if terrainShadowDetection is True:
@@ -346,7 +436,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # apply the terrain shadow function
         S2_toa = S2_toa.map(addTerrainShadow)
 
-    # /
     # MOSAIC
     # This step mosaics overlapping Sentinel-2 tiles acquired on the same day
 
@@ -407,17 +496,22 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         S2_toa = ee.ImageCollection(joinCol_S2_toa.map(
             mosaic_collection)).map(addMaskedPixelCount)
 
-        # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 80% cloudfree.
-        S2_toa = S2_toa.filter(ee.Filter.gte('percentData', 10))
+        # filter for data availability: "'percent_data', 2 " is 98% cloudfree. "'percent_data', 20 " is 80% cloudfree.
+        S2_toa = S2_toa.filter(ee.Filter.gte('percent_data', 10))
         length_without_clouds = S2_toa.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
-        # This is the If condition the return just the line after the end the step0 script ends the process if 'percentData' is greater.
+        # This is the If condition the return just the line after the end the step0 script ends the process if 'percent_data' is greater.
         #It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
         S2_toa = S2_toa.first()
+
+        # Add Source
+        S2_toa = S2_toa.set(
+            'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
+        
 
     ##############################
     # REGISTER
@@ -450,11 +544,18 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             'confidence').rename('reg_confidence')
         reg_confidence = reg_confidence.multiply(100).round().toUint8()
 
+        # Compute image offset and direction.
+        reg_offset = reg_dx.hypot(reg_dy).rename('reg_offset')
+        reg_angle = reg_dx.atan2(reg_dy).rename('reg_offsetAngle')
+
         # Use the computed displacement to register all original bands.
         registered = image.displace(displacement) \
             .addBands(reg_dx) \
             .addBands(reg_dy) \
-            .addBands(reg_confidence)
+            .addBands(reg_confidence) \
+            .addBands(reg_offset) \
+            .addBands(reg_angle)
+
         return registered
 
     # SWITCH
@@ -601,19 +702,19 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # SWITCH export
     if export10mBands is True:
-        fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
         print('Launching export for 10m bands')
-        band_list = ['B2', 'B3', 'B4', 'B8']
+        fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
+        band_list_10m = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
-            band_list.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+            band_list_10m.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
         if exportRegLayers:
-            band_list.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
+            band_list_10m.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
         if exportS2cloud:
-            band_list.extend(['cloudProbability'])
-        print('Band list: {}'.format(band_list))
+            band_list_10m.extend(['cloudProbability'])
+        print('Band list: {}'.format(band_list_10m))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_toa.select(band_list).clip(aoi_exp),
+            image=S2_toa.select(band_list_10m).clip(aoi_exp),
             scale=10,
             description=task_description + '_10m',
             crs='EPSG:2056',
@@ -626,30 +727,36 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     """
     # SWITCH export
     if export20mBands is True:
+        print('Launching export for 20m bands')
         fname_20m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-20m'
+        band_list_20m = ['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']
+        print('Band list: {}'.format(band_list_20m))
         # Export COG 20m bands
         task = ee.batch.Export.image.toDrive(
-            image=S2_toa.select(['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']),
+            image=S2_toa.select(band_list_20m).clip(aoi_exp),
             scale=20,
-            description=fname_20m + + '_20m',
+            description=task_description + '_20m',
             crs='EPSG:2056',
             region=aoi_exp,
             maxPixels=1e10,
-            assetId=fname_20m
+            assetId=collection + '/' + fname_20m
         )
         task.start()
 
     # SWITCH export
     if export60mBands is True:
+        print('Launching export for 60m bands')
         fname_60m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-60m'
+        band_list_60m = ['B1', 'B9', 'B10']
+        print('Band list: {}'.format(band_list_60m))
         task = ee.batch.Export.image.toDrive(
-            image=S2_toa.select(['B1', 'B9', 'B10']),
+            image=S2_toa.select(band_list_60m).clip(aoi_exp),
             scale=60,
-            description=fname_60m,
+            description=task_description + '_60m',
             crs='EPSG:2056',
             region=aoi_exp,
             maxPixels=1e10,
-            assetId=fname_60m
+            assetId=collection + '/' +fname_60m
         )
         task.start()"""
 
