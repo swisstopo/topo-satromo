@@ -202,15 +202,44 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         clouds = image.select(QA_BAND)
 
         # The threshold for masking; values between 0.50 and 0.35 generally work well.
-        # Lower values will remove thin clouds, haze & cirrus shadows.
-        CLOUD_THRESHOLD = 0.35
-        # applying the maximum cloud probability threshold (also includes cloud shadows)
-        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
-        cloudAndCloudShadowMask = isNotCloud.Not()
+        # Lower values will remove thin clouds, haze, cirrus & shadows.
+        CLOUD_THRESHOLD = 0.4
+        CLOUDSHADOW_THRESHOLD = 0.2
 
-        # Opening operation: individual pixels are deleted
-        cloudAndCloudShadowMask = cloudAndCloudShadowMask.focalMin(
-            50, 'circle', 'meters', 1, None)
+        # applying the maximum cloud probability threshold
+        isNotCloud = clouds.lt(CLOUD_THRESHOLD)
+
+        # get the solar position
+        meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
+        meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
+
+        # define potential cloud shadow values
+        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(clouds.gte(CLOUDSHADOW_THRESHOLD))
+
+        # Project shadows from clouds. This step assumes we're working in a UTM projection.
+        shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
+        # shadow distance is tied to the solar zenith angle (minimum shadowDistance is 30 pixel)
+        shadowDistance = ee.Number(meanZenith).multiply(
+            0.7).floor().int().max(30)
+
+        # With the following algorithm, cloud shadows are projected.
+        isCloud = isNotCloud.directionalDistanceTransform(
+            shadowAzimuth, shadowDistance)
+        isCloud = isCloud.reproject(
+            crs=image.select('B2').projection(), scale=100)
+
+        cloudShadow = isCloud.select('distance').mask()
+
+        # combine projected Shadows & potential cloud shadow values
+        cloudShadow = cloudShadow.And(cloudShadowMask)
+
+        # combine mask for clouds and cloud shadows
+        cloudAndCloudShadowMask = cloudShadow.Or(isNotCloud.Not())
+
+        # Opening operation: individual pixels are deleted (localMin) and buffered (localMax) to also capture semi-transparent cloud edges
+        cloudAndCloudShadowMask = cloudAndCloudShadowMask \
+            .focalMin(50, 'circle', 'meters', 1, None) \
+            .focalMax(100, 'circle', 'meters', 1, None)
 
         # mask spectral bands for clouds and cloudShadows
         # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
