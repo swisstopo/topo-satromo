@@ -94,11 +94,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
 
+    # S2cloudless
+    S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
+        .filter(ee.Filter.bounds(aoi_CH)) \
+        .filter(ee.Filter.date(start_date, end_date))
+    
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date)) \
-        .linkCollection(S2_csp, ['cs', 'cs_cdf'])
+        .linkCollection(S2_csp, ['cs', 'cs_cdf']) \
+        .linkCollection(S2_clouds, ['probability'])
 
     image_list_size = S2_sr.size().getInfo()
     if image_list_size == 0:
@@ -127,10 +133,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     #     with open(json_path, "w") as json_file:
     #         json.dump(image.getInfo(), json_file)
 
-    # S2cloudless
-    S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
-        .filter(ee.Filter.bounds(aoi_CH)) \
-        .filter(ee.Filter.date(start_date, end_date))
 
     ###########################
     # WATER MASK
@@ -231,7 +233,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # get the cloud probability
-        clouds = ee.Image(image.get('cloud_mask')).select('probability')
+        clouds = image.select('probability')
         # the maximum cloud probability threshold is set at 50
         CLOUD_THRESHOLD = 50
         isNotCloud = clouds.lt(CLOUD_THRESHOLD)
@@ -359,15 +361,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
                 S2_sr).map(maskCloudsAndShadowsCloudScorePlus)
         else:
             print('--- Cloud and cloud shadow masking applied: s2cloudless ---')
-            # Join S2 SR with cloud probability dataset to add cloud mask.
-            S2_srWithCloudMask = ee.Join.saveFirst('cloud_mask').apply(
-                primary=S2_sr,
-                secondary=S2_clouds,
-                condition=ee.Filter.equals(
-                    leftField='system:index', rightField='system:index')
-            )
             S2_sr = ee.ImageCollection(
-                S2_srWithCloudMask).map(maskCloudsAndShadowsSTwoCloudless)
+                S2_sr).map(maskCloudsAndShadowsSTwoCloudless)
 
     # SWITCH
     if terrainShadowDetection is True:
