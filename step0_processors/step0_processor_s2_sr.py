@@ -246,12 +246,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
-        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
+        image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
-        return image_out.set({
-            # name of the cloud detection algorithm
-            'cloudDetectionAlgorithm': 'CloudScore+',
-            'cloudMaskThreshold': CLOUD_THRESHOLD        # threshold for cloud mask
+        
+        return image.set({
+            'cloud_detection_algorithm': 'CloudScore+',
+            'cloud_mask_threshold': str(CLOUD_THRESHOLD) + ' / ' + str(CLOUDSHADOW_THRESHOLD)
         })
 
     # This function detects clouds and cloud shadows, masks all spectral bands for them, and adds the mask as an additional layer
@@ -301,12 +301,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
-        image_out = image.addBands(clouds.rename(['cloudProbability'])) \
+        image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
-        return image_out.set({
-            # name of the cloud detection algorithm
-            'cloudDetectionAlgorithm': 's2cloudless',
-            'cloudMaskThreshold': CLOUD_THRESHOLD         # threshold for cloud mask
+        
+        return image.set({
+            'cloud_detection_algorithm': 's2cloudless',
+            'cloud_mask_threshold': CLOUD_THRESHOLD         # threshold for cloud mask
         })
 
     # This function detects and adds terrain shadows
@@ -359,9 +359,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         percData = ee.Number(100).subtract(percMasked)
 
         return image.set({
-            'percentData': percData,  # percentage of unmasked pixel
+            'percent_data': percData,  # percentage of unmasked pixel
             # masked pixels include clouds, cloud shadows and QA pixels
-            'percentMasked': percMasked
+            'percent_masked': percMasked
         })
 
     # This function masks all bands to the same extent as the 20 m and 60 m bands
@@ -417,8 +417,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # This function mosaics image acquired on the same day (same image swath)
     def mosaic_collection(img):
-        orig = img
-
         # create a collection of the date-matching images
         col = ee.ImageCollection.fromImages(img.get('date_match'))
 
@@ -437,7 +435,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         mosaic = col.mosaic().clip(col_geo).copyProperties(img, ["system:time_start", "system:index", "date", "month",
                                                                  "SENSING_ORBIT_NUMBER", "PROCESSING_BASELINE",
                                                                  "SPACECRAFT_NAME", "MEAN_SOLAR_ZENITH_ANGLE",
-                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE"])
+                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE","cloud_detection_algorithm",
+                                                                 "cloud_mask_threshold"])
 
         # Getting swisstopo Processor Version
         processor_version = main_utils.get_github_info()
@@ -460,13 +459,13 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # apply the mosaicing function
         S2_sr = ee.ImageCollection(joinCol_S2_sr.map(
             mosaic_collection)).map(addMaskedPixelCount)
-        # filter for data availability: "'percentData', 2 " is 98% cloudfree. "'percentData', 20 " is 80% cloudfree.
-        S2_sr = S2_sr.filter(ee.Filter.gte('percentData', 20))
+        # filter for data availability: "'percent_data', 2 " is 98% cloudfree. "'percent_data', 20 " is 80% cloudfree.
+        S2_sr = S2_sr.filter(ee.Filter.gte('percent_data', 20))
         length_without_clouds = S2_sr.size().getInfo()
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
-        # This is the If condition the return just the line after the end the step0 script ends the process if 'percentData' is greater.
+        # This is the If condition the return just the line after the end the step0 script ends the process if 'percent_data' is greater.
         # It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
