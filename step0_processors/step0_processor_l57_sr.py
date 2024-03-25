@@ -413,6 +413,10 @@ def generate_l57_sr_mosaic_for_single_date(day_to_process: str, collection: str,
         # It's after the mosaic because the threshold (98% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
+        # Add Source to fullfill: https://www.usgs.gov/information-policies-and-instructions/usgs-visual-identity-system
+        L57_sr = L57_sr.set(
+            'DATA_SOURCE', "Landsat image courtesy of the U.S. Geological Survey")
+
     ##############################
     # TOPOGRAPHIC CORRECTION
     # This step compensates for the effects of terrain elevation, slope, and solar illumination variations.
