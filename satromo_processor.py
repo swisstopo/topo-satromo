@@ -11,7 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa,step1_processor_s3_toa
 from main_functions import main_utils
 import pandas as pd
 
@@ -657,6 +657,12 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 result = step1_processor_l89_toa.process_L89_LEVEL_1(
+                    roi, current_date)
+            
+            elif product_to_be_processed == 'PRODUCT_S3_LEVEL_1':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                result = step1_processor_s3_toa.process_S3_LEVEL_1(
                     roi, current_date)
 
             else:
