@@ -471,9 +471,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         S2_sr = S2_sr.first()
 
-        # Add Source
-        S2_sr = S2_sr.set(
-            'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
+
 
 
     ##############################
@@ -533,6 +531,10 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     sensing_date_read = sensing_date[0:4] + '-' + \
         sensing_date[4:6] + '-' + sensing_date[6:15]
 
+    # Add Source to fullfill Copernicus requirements:
+    S2_sr = S2_sr.set(
+        'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
+    
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = S2_sr.geometry()

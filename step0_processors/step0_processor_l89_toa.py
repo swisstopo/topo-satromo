@@ -424,11 +424,9 @@ def generate_l89_toa_mosaic_for_single_date(day_to_process: str, collection: str
         if length_without_clouds == 0:
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
-        
-        # Add Source to fullfill: https://www.usgs.gov/information-policies-and-instructions/usgs-visual-identity-system
-        L89_toa = L89_toa.set(
-            'DATA_SOURCE', "Landsat image courtesy of the U.S. Geological Survey")
-            
+
+
+
     ##############################
     # TOPOGRAPHIC CORRECTION
     # This step compensates for the effects of terrain elevation, slope, and solar illumination variations.
@@ -596,6 +594,11 @@ def generate_l89_toa_mosaic_for_single_date(day_to_process: str, collection: str
     fname_geometries = 'L89-toa_Mosaic_' + sensing_date_read + \
         '_Geometries'  # ['SAA', 'SZA', 'VAA', 'VZA']
 
+    # Add Source to fullfill: https://www.usgs.gov/information-policies-and-instructions/usgs-visual-identity-system
+
+    img_exp = img_exp.set(
+            'DATA_SOURCE', "Landsat image courtesy of the U.S. Geological Survey")
+    
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = img_exp.geometry()

@@ -1,9 +1,7 @@
 import ee
-import math
-import configuration as config
-from main_functions import main_utils
 from .step0_utils import write_asset_as_empty
-import requests
+from main_functions import main_utils
+import math
 
 
 # Pre-processing pipeline for daily Sentinel-2 L1C top-of-atmosphere (toa) mosaics over Switzerland
@@ -61,7 +59,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
     export10mBands = True
     # options': True, 'False - defines if 20-m-bands are exported': 'B5','B6','B7','B8A','B11','B12'
-    # export20mBands = False  # NOTEJS: ununsed, export function commented in the script below
+    export20mBands = True  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if 60-m-bands are exported': 'B1','B9','B10'
     # export60mBands = False  # NOTEJS: ununsed, export function commented in the script below
     # options': True, 'False - defines if registration layers are exported': 'reg_dx','reg_dy', 'reg_confidence'
@@ -477,11 +475,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
                                                                  "cloud_mask_threshold"])
 
         # Getting swisstopo Processor Version
-        processor_version = get_github_info()
-
-        # Copy the "DATE_ACQUIRED" property and store it as "date" since date is need by Master Gilians check function
-        date_acquired = mosaic.get("DATE_ACQUIRED")
-        mosaic = mosaic.set("date", date_acquired)
+        processor_version = main_utils.get_github_info()
 
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
@@ -513,10 +507,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # we decide together for the whole swath if we want to process it or not.
 
         S2_toa = S2_toa.first()
-
-        # Add Source
-        S2_toa = S2_toa.set(
-            'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
 
     ##############################
     # REGISTER
@@ -698,6 +688,10 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     sensing_date_read = sensing_date[0:4] + '-' + \
         sensing_date[4:6] + '-' + sensing_date[6:15]
 
+    # Add Source to fullfill Copernicus requirements:
+    S2_toa = S2_toa.set(
+        'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
+
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = S2_toa.geometry()
@@ -708,7 +702,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # SWITCH export
     if export10mBands is True:
         print('Launching export for 10m bands')
-        fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
+        fname_10m = 'S2-L1C_mosaic_' + sensing_date_read + '_bands-10m'
         band_list_10m = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
             band_list_10m.extend(
@@ -730,15 +724,14 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         )
         task.start()
 
-    """
     # SWITCH export
     if export20mBands is True:
         print('Launching export for 20m bands')
-        fname_20m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-20m'
-        band_list_20m = ['B5', 'B6', 'B7', 'B8A', 'B11', 'B12']
+        fname_20m = 'S2-L1C_mosaic_' + sensing_date_read + '_bands-20m'
+        band_list_20m = ['B8A', 'B11', 'B5']
         print('Band list: {}'.format(band_list_20m))
         # Export COG 20m bands
-        task = ee.batch.Export.image.toDrive(
+        task = ee.batch.Export.image.toAsset(
             image=S2_toa.select(band_list_20m).clip(aoi_exp),
             scale=20,
             description=task_description + '_20m',
@@ -749,6 +742,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         )
         task.start()
 
+    """
     # SWITCH export
     if export60mBands is True:
         print('Launching export for 60m bands')
@@ -765,46 +759,3 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             assetId=collection + '/' +fname_60m
         )
         task.start()"""
-
-
-def get_github_info():
-    """
-    Retrieves GitHub repository information and generates a GitHub link based on the latest commit.
-
-    Returns:
-        A dictionary containing the GitHub link. If the request fails or no commit hash is available, the link will be None.
-    """
-    # Enter your GitHub repository information
-    owner = config.GITHUB_OWNER
-    repo = config.GITHUB_REPO
-
-    # Make a GET request to the GitHub API to retrieve information about the repository
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/commits/main")
-
-    github_info = {}
-
-    if response.status_code == 200:
-        # Extract the commit hash from the response
-        commit_hash = response.json()["sha"]
-
-        # Generate the GitHub link
-        github_link = f"https://github.com/{owner}/{repo}/commit/{commit_hash}"
-        github_info["GithubLink"] = github_link
-
-    else:
-        github_info["GithubLink"] = None
-
-    # Make a GET request to the GitHub API to retrieve information about the repository releases
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/releases/latest")
-
-    if response.status_code == 200:
-        # Extract the release version from the response
-        release_version = response.json()["tag_name"]
-    else:
-        release_version = "0.0.0"
-
-    github_info["ReleaseVersion"] = release_version
-
-    return github_info
