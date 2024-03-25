@@ -109,12 +109,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     S2_csp = ee.ImageCollection('GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
-    
+
     # S2cloudless
     S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
-    
+
     # Sentinel-2
     S2_toa = ee.ImageCollection('COPERNICUS/S2_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
@@ -149,7 +149,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     #     json_path = os.path.join(config.PROCESSING_DIR, file_name)
     #     with open(json_path, "w") as json_file:
     #         json.dump(image.getInfo(), json_file)
-
 
     ###########################
     # WATER MASK
@@ -231,7 +230,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # define potential cloud shadow values
-        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(clouds.gte(CLOUDSHADOW_THRESHOLD))
+        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(
+            clouds.gte(CLOUDSHADOW_THRESHOLD))
 
         # Project shadows from clouds. This step assumes we're working in a UTM projection.
         shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
@@ -365,7 +365,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
     def addMaskedPixelCount(image):
         # counter the umber of pixel that are masked by cloud or shadows
-        image_mask = image.select('cloudAndCloudShadowMask').gt(0).Or(image.select('terrainShadowMask').gt(0))
+        image_mask = image.select('cloudAndCloudShadowMask').gt(
+            0).Or(image.select('terrainShadowMask').gt(0))
         statsMasked = image_mask.select('B2').reduceRegion(
             reducer=ee.Reducer.sum(),
             geometry=image.geometry().intersection(aoi_CH_simplified),
@@ -472,11 +473,15 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         mosaic = col.mosaic().clip(col_geo).copyProperties(img, ["system:time_start", "system:index", "date", "month",
                                                                  "SENSING_ORBIT_NUMBER", "PROCESSING_BASELINE",
                                                                  "SPACECRAFT_NAME", "MEAN_SOLAR_ZENITH_ANGLE",
-                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE","cloud_detection_algorithm",
+                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE", "cloud_detection_algorithm",
                                                                  "cloud_mask_threshold"])
 
         # Getting swisstopo Processor Version
         processor_version = get_github_info()
+
+        # Copy the "DATE_ACQUIRED" property and store it as "date" since date is need by Master Gilians check function
+        date_acquired = mosaic.get("DATE_ACQUIRED")
+        mosaic = mosaic.set("date", date_acquired)
 
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
@@ -504,7 +509,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
         # This is the If condition the return just the line after the end the step0 script ends the process if 'percent_data' is greater.
-        #It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
+        # It's after the mosaic because the threshold (80% here) is applied on the whole mosaic and not per scene:
         # we decide together for the whole swath if we want to process it or not.
 
         S2_toa = S2_toa.first()
@@ -512,7 +517,6 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         # Add Source
         S2_toa = S2_toa.set(
             'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
-        
 
     ##############################
     # REGISTER
@@ -707,7 +711,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         fname_10m = 'S2-L1C_Mosaic_' + sensing_date_read + '_Bands-10m'
         band_list_10m = ['B2', 'B3', 'B4', 'B8']
         if exportMasks:
-            band_list_10m.extend(['terrainShadowMask', 'cloudAndCloudShadowMask'])
+            band_list_10m.extend(
+                ['terrainShadowMask', 'cloudAndCloudShadowMask'])
         if exportRegLayers:
             band_list_10m.extend(['reg_dx', 'reg_dy', 'reg_confidence'])
         if exportS2cloud:
@@ -760,6 +765,7 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             assetId=collection + '/' +fname_60m
         )
         task.start()"""
+
 
 def get_github_info():
     """
