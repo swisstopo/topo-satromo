@@ -418,10 +418,6 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
             write_asset_as_empty(collection, day_to_process, 'cloudy')
             return
 
-        # Add Source to fullfill: https://www.usgs.gov/information-policies-and-instructions/usgs-visual-identity-system
-        L57_toa = L57_toa.set(
-            'DATA_SOURCE', "Landsat image courtesy of the U.S. Geological Survey")
-
     ##############################
     # TOPOGRAPHIC CORRECTION
     # This step compensates for the effects of terrain elevation, slope, and solar illumination variations.
@@ -571,6 +567,11 @@ def generate_l57_toa_mosaic_for_single_date(day_to_process: str, collection: str
         '_Bands-QA'  # ['QA_PIXEL', 'QA_RADSAT']
     fname_geometries = 'L57-toa_Mosaic_' + sensing_date_read + \
         '_Geometries'  # ['SAA', 'SZA', 'VAA', 'VZA']
+
+    # Add Source to fullfill: https://www.usgs.gov/information-policies-and-instructions/usgs-visual-identity-system
+
+    img_exp = img_exp.set(
+        'DATA_SOURCE', "Landsat image courtesy of the U.S. Geological Survey")
 
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
