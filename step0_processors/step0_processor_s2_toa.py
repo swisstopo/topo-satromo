@@ -398,14 +398,19 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             'percent_masked': percMasked
         })
 
-    # This function masks all bands to the same extent as the 20 m and 60 m bands
-
+    # This function buffers (inward) the tile geometry by 500m
+    # necessary because the CloudScore+ dataset has edge effects
+    def clip_outermost_rows(image):
+        img_geometry = image.geometry()  # Get the geometry of each image
+        buffered_geometry = img_geometry.buffer(-500)  # Buffer the geometry inward by 500 meters
+        return image.clip(buffered_geometry)  # Clip the image to the outer bounds
+    
+    # This function masks all bands to the same extent as the 20 m and 60 m band
     def maskEdges(s2_img):
         return s2_img.updateMask(
             s2_img.select('B8A').mask().updateMask(s2_img.select('B9').mask()))
 
     # This function sets the date as an additional property to each image
-
     def set_date(img):
         date = img.date().format('YYYY-MM-dd')
         return img.set('date', date)
@@ -414,7 +419,8 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # PROCESSING
 
     # Mapping of the date on the edges function
-    S2_toa = S2_toa.map(maskEdges) \
+    S2_toa = S2_toa.map(clip_outermost_rows) \
+        .map(maskEdges) \
         .map(set_date)
 
     # SWITCH
