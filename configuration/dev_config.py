@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # V1 – Trockenstress
@@ -93,7 +93,7 @@ PRODUCT_V1 = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST datasets
@@ -184,6 +184,19 @@ PRODUCT_L89_LEVEL_1 = {
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
+#  ch.swisstopo.swisseo_s3-toa
+PRODUCT_S3_LEVEL_1 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S3/OLCI",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 300,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_s3-toa_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_S3_TOA_SWISS"
+}
+
 # B custom COLLECTION
 # ********************
 # Contains dictionary used to manage custom collection (asset) in GEE,
@@ -219,7 +232,12 @@ step0 = {
     'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
         'step0_function': 'step0_processor_l89_toa.generate_l89_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_S3_TOA_SWISS': {
+        'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
     }
+
 }
 
 

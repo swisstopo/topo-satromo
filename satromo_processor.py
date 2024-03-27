@@ -11,7 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa,step1_processor_s3_toa
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_pv1
 from main_functions import main_utils
 import pandas as pd
 
@@ -97,33 +97,6 @@ def initialize_gee_and_drive():
         print("GEE initialization FAILED")
 
 
-def addINDEX(image, bands, index_name):
-    """
-    Add an Index (eg NDVI) band to the image based on two bands.
-
-    Args:
-        image (ee.Image): Input image to add the index band.
-        bands (dict): Dictionary containing band names for NIR and RED.
-        index_name (str): Name of the index used as band name
-
-    Returns:
-        ee.Image: Image with the index band added.
-    """
-
-    # Extract the band names for NIR and RED from the input dictionary
-    NIR = bands['NIR']
-    RED = bands['RED']
-
-    # Compute the index using the normalizedDifference() function and rename the band to "NDVI"
-    index = image.normalizedDifference([NIR, RED]).rename(index_name)
-
-    # Add the index band to the image using the addBands() function
-    image_with_index = image.addBands(index)
-
-    # Return the image with the NDVI band added
-    return image_with_index
-
-
 def process_NDVI_MAX(roi):
     """
     Process the NDVI MAX product.
@@ -154,7 +127,7 @@ def process_NDVI_MAX(roi):
         print("new imagery from: "+sensor_stats[1])
 
         # Create NDVI and NDVI max
-        sensor = sensor.map(lambda image: addINDEX(
+        sensor = sensor.map(lambda image: main_utils.addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX['band_names'][0], index_name="NDVI"))
 
         mosaic = sensor.qualityMosaic("NDVI")
@@ -448,7 +421,7 @@ def process_NDVI_MAX_TOA(roi):
         print("new imagery from: "+sensor_stats[1])
 
         # Create NDVI and NDVI max
-        sensor = sensor.map(lambda image: addINDEX(
+        sensor = sensor.map(lambda image: main_utils.addINDEX(
             image, bands=config.PRODUCT_NDVI_MAX_TOA['band_names'][0], index_name="NDVI"))
 
         mosaic = sensor.qualityMosaic("NDVI")
@@ -477,87 +450,6 @@ def process_NDVI_MAX_TOA(roi):
                                   sensor_stats, current_date_str)
 
 
-def process_PRODUCT_V1(roi):
-    """
-    Process swissEO VHI: Karte des Vegetationszustandes .ch.swisstopo.swisseo_vhi_v100
-
-    Returns:
-        None
-    """
-    product_name = config.PRODUCT_V1['product_name']
-    print("********* processing {} *********".format(product_name))
-
-    # Filter the sensor collection based on date and region
-    start_date = ee.Date(
-        current_date).advance(-int(config.PRODUCT_V1['temporal_coverage'])+1, 'day')
-
-    end_date = ee.Date(current_date).advance(1, 'day')
-
-    sensor = (
-        ee.ImageCollection(config.PRODUCT_V1['step0_collection'])
-        .filterDate(start_date, end_date)
-        .filterBounds(roi)
-        # we need only the 10m bands!
-        .filter(ee.Filter.stringEndsWith('system:index', '-10m'))
-    )
-
-    # above filters  assets which only end with_bands-10m, and use then this collection: see docu unter https://developers.google.com/earth-engine/guides/ic_filtering
-    #     filtered = sensor.filter(ee.Filter.stringEndsWith('system:index', '-10m'))
-    # -> now Use filtered as colelction
-
-    # Get information about the available sensor data for the range
-    sensor_stats = main_utils.get_collection_info(sensor)
-
-    # Check if there is new sensor data compared to the stored dataset
-    if main_utils.check_product_update(config.PRODUCT_V1['product_name'], sensor_stats[1]) is True:
-        print("new imagery from: "+sensor_stats[1])
-
-        # Create NDVI and NDVI max
-        sensor = sensor.map(lambda image: addINDEX(
-            image, bands=config.PRODUCT_V1['band_names'][0], index_name="NDVI"))
-
-        mosaic = sensor.qualityMosaic("NDVI")
-        ndvi_max = mosaic.select("NDVI")
-
-        # Multiply by 100 to move the decimal point two places back to the left and get rounded values,
-        # then round then cast to get int16, Int8 is not a solution since COGTiff is not supported
-        ndvi_max_int = ndvi_max.multiply(100).round().toInt16()
-
-        # Mask outside
-        ndvi_max_int = main_utils.maskOutside(
-            ndvi_max_int, roi).unmask(config.NODATA)
-
-        # Define item Name
-        timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y-%m-%dT235959')
-
-        # Generate the filename
-        filename = config.PRODUCT_V1['product_name'] + \
-            '_mosaic_' + timestamp + '_10m'
-        print(filename)
-
-        # extract collection properties to assign to the product
-        time_start = sensor.aggregate_min('system:time_start')
-        time_end = sensor.aggregate_max('system:time_end')
-        index_list = sensor.aggregate_array('system:index')
-        index_list = index_list.join(',')
-        scene_count = sensor.size()
-        ee_version = ee.__version__
-
-        # set the properties
-        ndvi_max_int = ndvi_max_int.set('system:time_start', time_start) \
-            .set('system:time_end', time_end) \
-            .set('collection', collection_ready)\
-            .set('index_list', index_list) \
-            .set('scene_count', scene_count) \
-            .set('GEE_api_version', ee_version)
-
-        # Start the export
-        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                                  config.PRODUCT_V1['spatial_scale_export'], ndvi_max_int,
-                                  sensor_stats, current_date_str)
-
-
 if __name__ == "__main__":
     # Test if we are on Local DEV Run or if we are on PROD
     determine_run_type()
@@ -581,7 +473,7 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2020-07-23"
+    current_date_str = "2020-07-18"
 
     print("*****************************\n")
     print("using a manual set Date: " + current_date_str)
@@ -615,14 +507,15 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 roi = ee.Geometry.Rectangle(
-                    [8.10470, 47.19934, 8.17412, 47.25292]) # 6221 Rickenbach
+                    [8.10470, 47.19934, 8.17412, 47.25292])  # 6221 Rickenbach
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_V1':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
-                result = process_PRODUCT_V1(roi)
+                result = step1_processor_pv1.process_PRODUCT_V1(
+                    roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
@@ -658,7 +551,7 @@ if __name__ == "__main__":
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
                 result = step1_processor_l89_toa.process_L89_LEVEL_1(
                     roi, current_date)
-            
+
             elif product_to_be_processed == 'PRODUCT_S3_LEVEL_1':
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein

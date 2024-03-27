@@ -80,6 +80,31 @@ def get_product_from_techname(techname):
 
     return var
 
+def addINDEX(image, bands, index_name):
+    """
+    Add an Index (eg NDVI) band to the image based on two bands.
+
+    Args:
+        image (ee.Image): Input image to add the index band.
+        bands (dict): Dictionary containing band names for NIR and RED.
+        index_name (str): Name of the index used as band name
+
+    Returns:
+        ee.Image: Image with the index band added.
+    """
+
+    # Extract the band names for NIR and RED from the input dictionary
+    NIR = bands['NIR']
+    RED = bands['RED']
+
+    # Compute the index using the normalizedDifference() function and rename the band to "NDVI"
+    index = image.normalizedDifference([NIR, RED]).rename(index_name)
+
+    # Add the index band to the image using the addBands() function
+    image_with_index = image.addBands(index)
+
+    # Return the image with the NDVI band added
+    return image_with_index
 
 def maskOutside(image, aoi):
     """
