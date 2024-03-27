@@ -367,6 +367,13 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             'percent_masked': percMasked
         })
 
+    # This function buffers (inward) the tile geometry by 500m
+    # necessary because the CloudScore+ dataset has edge effects
+    def clip_outermost_rows(image):
+        img_geometry = image.geometry()  # Get the geometry of each image
+        buffered_geometry = img_geometry.buffer(-500)  # Buffer the geometry inward by 500 meters
+        return image.clip(buffered_geometry)  # Clip the image to the outer bounds
+
     # This function masks all bands to the same extent as the 20 m and 60 m bands
     def maskEdges(s2_img):
         return s2_img.updateMask(
@@ -381,7 +388,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # PROCESSING
 
     # Map the date and edges functions
-    S2_sr = S2_sr.map(maskEdges) \
+    S2_sr = S2_sr.map(clip_outermost_rows) \
+        .map(maskEdges) \
         .map(set_date)
 
     # SWITCH
