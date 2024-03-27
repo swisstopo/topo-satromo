@@ -78,11 +78,11 @@ def generate_s3_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
     # processing: layer Landesgebiet dissolved  in QGIS and reprojected to epsg32632
     aoi_CH = ee.FeatureCollection(
-        "users/wulf/SATROMO/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
+        "projects/satromo-prod/assets/res/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
 
     # Simplified and buffered shapefile of Switzerland to simplify processing
     aoi_CH_simplified = ee.FeatureCollection(
-        "users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+        "projects/satromo-prod/assets/res/CH_boundaries_buffer_5000m_epsg32632").geometry()
     # clipping on complex shapefiles costs more processing resources and can cause memory issues
 
     ##############################
@@ -168,7 +168,7 @@ def generate_s3_toa_mosaic_for_single_date(day_to_process: str, collection: str,
 
     # Lakes
     # lakes = ee.FeatureCollection("users/michaelbrechbuehler/eu-hydro")
-    lakes = ee.FeatureCollection("users/wulf/SATROMO/CH_inlandWater")
+    lakes = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_inlandWater")
 
     # vector-to-image conversion based on the area attribute
     lakes_img = lakes.reduceToImage(
@@ -181,7 +181,7 @@ def generate_s3_toa_mosaic_for_single_date(day_to_process: str, collection: str,
     # # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
 
     # Rivers
-    rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
+    rivers = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_RiverNet")
     # print('rivers',rivers.first())
     # Make an image out of the land area attribute.
     rivers_img = rivers.reduceToImage(

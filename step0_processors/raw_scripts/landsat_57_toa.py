@@ -54,10 +54,10 @@ start_date = end_date.advance(-1, 'day')  # this script is set up to export only
 # Official swisstopo boundaries
 # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
 # processing: reprojected in QGIS to epsg32632
-aoi_CH = ee.FeatureCollection("users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+aoi_CH = ee.FeatureCollection("projects/satromo-prod/assets/res/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
 
 # Simplified and buffered shapefile of Switzerland to simplify processing
-aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+aoi_CH_simplified = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_boundaries_buffer_5000m_epsg32632").geometry()
 # clipping on complex shapefiles costs more processing resources and can cause memory issues
 
 
@@ -73,7 +73,7 @@ vis_nfci = {'bands': ['B7', 'B4', 'B3'], 'min': [500, 500, 500], 'max': [4000, 5
 # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
 # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
 # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
-DEM_sa3d = ee.Image("users/wulf/SATROMO/SwissALTI3d_20kmBuffer_epsg32632")
+DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
 # # Map.addLayer(DEM_sa3d, {min: 0, max: 4000}, 'swissALTI3d', False)
 
 
@@ -124,7 +124,7 @@ print('L57 toa image - first', L57_toa.first())
 
 # Lakes
 # lakes = ee.FeatureCollection("users/michaelbrechbuehler/eu-hydro")
-lakes = ee.FeatureCollection("users/wulf/SATROMO/CH_inlandWater")
+lakes = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_inlandWater")
 
 # vector-to-image conversion based on the area attribute
 lakes_img = lakes.reduceToImage(
@@ -138,7 +138,7 @@ lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
 
 
 # Rivers
-rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
+rivers = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_RiverNet")
 # print('rivers',rivers.first())
 # Make an image out of the land area attribute.
 rivers_img = rivers.reduceToImage(

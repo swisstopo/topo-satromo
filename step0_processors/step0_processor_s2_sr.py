@@ -68,9 +68,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
     # processing: reprojected in QGIS to epsg32632
     aoi_CH = ee.FeatureCollection(
-        "users/wulf/SATROMO/swissBOUNDARIES3D_1_4_TLM_LANDESGEBIET_epsg32632").geometry()
+        "projects/satromo-prod/assets/res/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
     aoi_CH_simplified = ee.FeatureCollection(
-        "users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+        "projects/satromo-prod/assets/res/CH_boundaries_buffer_5000m_epsg32632").geometry()
 
     ##############################
     # REFERENCE DATA
@@ -78,13 +78,14 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Sentinel-2 Global Reference Image (contains the red spectral band in 10 m resolution))
     # source: https:#s2gri.csgroup.space
     # processing: GDAL merge and warp (reproject) to epsg32632
-    S2_gri = ee.Image("users/wulf/SATROMO/S2_GRI_CH_epsg32632")
+    S2_gri = ee.Image("projects/satromo-prod/assets/res/S2_GRI_CH_epsg32632")
 
     # SwissALTI3d - very precise digital terrain model in a 10 m resolution
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
     # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
     # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
-    DEM_sa3d = ee.Image("users/wulf/SATROMO/SwissALTI3d_20kmBuffer_epsg32632")
+    DEM_sa3d = ee.Image(
+        "projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
 
     ##############################
     # SATELLITE DATA
@@ -98,7 +99,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     S2_clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY') \
         .filter(ee.Filter.bounds(aoi_CH)) \
         .filter(ee.Filter.date(start_date, end_date))
-    
+
     # Sentinel-2
     S2_sr = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filter(ee.Filter.bounds(aoi_CH)) \
@@ -133,7 +134,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     #     with open(json_path, "w") as json_file:
     #         json.dump(image.getInfo(), json_file)
 
-
     ###########################
     # WATER MASK
     # The water mask is used to limit a buffering operation on the cast shadow mask.
@@ -144,7 +144,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # processing: reprojected in QGIS to epsg32632
 
     # Lakes
-    lakes = ee.FeatureCollection("users/wulf/SATROMO/CH_inlandWater")
+    lakes = ee.FeatureCollection(
+        "projects/satromo-prod/assets/res/CH_inlandWater")
 
     # vector-to-image conversion based on the area attribute
     lakes_img = lakes.reduceToImage(
@@ -156,7 +157,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     lakes_binary = lakes_img.gt(0).unmask().clip(aoi_CH_simplified)
 
     # Rivers
-    rivers = ee.FeatureCollection("users/wulf/SATROMO/CH_RiverNet")
+    rivers = ee.FeatureCollection(
+        "projects/satromo-prod/assets/res/CH_RiverNet")
 
     # vector-to-image conversion based on the area attribute.
     rivers_img = rivers.reduceToImage(
@@ -214,7 +216,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
 
         # define potential cloud shadow values
-        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(clouds.gte(CLOUDSHADOW_THRESHOLD))
+        cloudShadowMask = clouds.lt(CLOUD_THRESHOLD).And(
+            clouds.gte(CLOUDSHADOW_THRESHOLD))
 
         # Project shadows from clouds. This step assumes we're working in a UTM projection.
         shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
@@ -248,7 +251,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
         image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
-        
+
         return image.set({
             'cloud_detection_algorithm': 'CloudScore+',
             'cloud_mask_threshold': str(CLOUD_THRESHOLD) + ' / ' + str(CLOUDSHADOW_THRESHOLD)
@@ -303,7 +306,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
         image = image.addBands(clouds.rename(['cloudProbability'])) \
             .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
-        
+
         return image.set({
             'cloud_detection_algorithm': 's2cloudless',
             'cloud_mask_threshold': CLOUD_THRESHOLD         # threshold for cloud mask
@@ -435,7 +438,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         mosaic = col.mosaic().clip(col_geo).copyProperties(img, ["system:time_start", "system:index", "date", "month",
                                                                  "SENSING_ORBIT_NUMBER", "PROCESSING_BASELINE",
                                                                  "SPACECRAFT_NAME", "MEAN_SOLAR_ZENITH_ANGLE",
-                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE","cloud_detection_algorithm",
+                                                                 "MEAN_SOLAR_AZIMUTH_ANGLE", "cloud_detection_algorithm",
                                                                  "cloud_mask_threshold"])
 
         # Getting swisstopo Processor Version
@@ -471,13 +474,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         S2_sr = S2_sr.first()
 
-
-
-
     ##############################
     # REGISTER
 
     # This function co-registers Sentinel-2 images to the Sentinel-2 global reference image
+
     def S2regFunc(image):
 
         # Use bicubic resampling during registration.
@@ -534,7 +535,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Add Source to fullfill Copernicus requirements:
     S2_sr = S2_sr.set(
         'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
-    
+
     # define the export aoi
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = S2_sr.geometry()
