@@ -464,7 +464,7 @@ if __name__ == "__main__":
     current_date = datetime.datetime.today()
 
     # Subtract X day back from the current date to procoess not todays but the  date in the past: This is to overcome the delay
-    delay = 1  # in days
+    delay = 2  # in days
     previous_date = current_date - datetime.timedelta(days=delay)
 
     # Convert the previous date to a string in the format 'YYYY-MM-DD' and set it to current date
@@ -473,11 +473,11 @@ if __name__ == "__main__":
 
     # For debugging
 
-    current_date_str = "2020-07-18"
+    # current_date_str = "2020-07-23"
 
-    print("*****************************\n")
-    print("using a manual set Date: " + current_date_str)
-    print("*****************************\n")
+    # print("*****************************\n")
+    # print("using a manual set Date: " + current_date_str)
+    # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
@@ -493,7 +493,7 @@ if __name__ == "__main__":
         print('Collection ready: {}'.format(collection_ready))
         for product_to_be_processed in step0_product_dict[collection_ready][0]:
             print('Launching product {}'.format(product_to_be_processed))
-            if product_to_be_processed == 'PRODUCT_NDVI_MAX':
+            if product_to_be_processed == 'PRODUCT_NDVI_MAX':  # TODO Needs to be checked if needed
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 result = process_NDVI_MAX(roi)
 
@@ -505,15 +505,15 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [7.075402, 46.107098, 7.100894, 46.123639])
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
-                roi = ee.Geometry.Rectangle(
-                    [8.10470, 47.19934, 8.17412, 47.25292])  # 6221 Rickenbach
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
+                # roi = ee.Geometry.Rectangle(
+                #     [8.10470, 47.19934, 8.17412, 47.25292])  # 6221 Rickenbach
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_V1':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_pv1.process_PRODUCT_V1(
                     roi, collection_ready, current_date_str)
 
@@ -530,31 +530,31 @@ if __name__ == "__main__":
 
             elif product_to_be_processed == 'PRODUCT_L57_LEVEL_2':
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_l57_sr.process_L57_LEVEL_2(
                     roi, current_date)
 
             elif product_to_be_processed == 'PRODUCT_L57_LEVEL_1':
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_l57_toa.process_L57_LEVEL_1(
                     roi, current_date)
 
             elif product_to_be_processed == 'PRODUCT_L89_LEVEL_2':
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_l89_sr.process_L89_LEVEL_2(
                     roi, current_date)
 
             elif product_to_be_processed == 'PRODUCT_L89_LEVEL_1':
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_l89_toa.process_L89_LEVEL_1(
                     roi, current_date)
 
             elif product_to_be_processed == 'PRODUCT_S3_LEVEL_1':
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Lichtenstein
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_s3_toa.process_S3_LEVEL_1(
                     roi, current_date)
 

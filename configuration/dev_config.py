@@ -19,13 +19,13 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
-# DEV
+# Local Machine
 GDRIVE_SOURCE_DEV = "geedrivetest:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 GDRIVE_MOUNT_DEV = r'Y:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
-# INT
+# GITHUB
 GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
@@ -57,7 +57,7 @@ OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
 ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 
-# No data value
+# No data value TODO : needs to be defined per product
 NODATA = 9999
 
 
@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # V1 – Trockenstress
@@ -93,7 +93,8 @@ PRODUCT_V1 = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "no_data": 255,
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST datasets
