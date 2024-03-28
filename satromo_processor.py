@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # For debugging
 
 
-     current_date_str = "2023-08-24"
+    current_date_str = "2023-08-24"
 
 
     print("*****************************\n")
