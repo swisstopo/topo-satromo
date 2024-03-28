@@ -19,13 +19,13 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
-# DEV
+# Local Machine
 GDRIVE_SOURCE_DEV = "geedrivetest:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 GDRIVE_MOUNT_DEV = r'Y:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
-# INT
+# GITHUB
 GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
@@ -57,7 +57,7 @@ OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
 ROI_RECTANGLE = [5.78, 45.70, 10.69, 47.89]
 ROI_BORDER_BUFFER = 5000  # Buffer around Switzerland
 
-# No data value
+# No data value TODO : needs to be defined per product
 NODATA = 9999
 
 
@@ -93,6 +93,7 @@ PRODUCT_V1 = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
+    "no_data": 255,
     # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
@@ -132,6 +133,71 @@ PRODUCT_NDVI_MAX_TOA = {
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
 
+#  ch.swisstopo.swisseo_l57-sr
+PRODUCT_L57_LEVEL_2 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LT05/C02/T1_L2",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l57-sr_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l57-toa
+PRODUCT_L57_LEVEL_1 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LT05/C02/T1_TOA",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l57-toa_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l57-sr
+PRODUCT_L89_LEVEL_2 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LC08/C02/T1_L2",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l89-sr_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
+}
+
+#  ch.swisstopo.swisseo_l89-toa
+PRODUCT_L89_LEVEL_1 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "LANDSAT/LC08/C02/T1_TOA",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_l89-toa_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
+}
+
+#  ch.swisstopo.swisseo_s3-toa
+PRODUCT_S3_LEVEL_1 = {
+
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S3/OLCI",
+    "geocat_id": "tbd",
+    "temporal_coverage": 1,  # Days
+    "spatial_scale_export": 300,  # Meters # TODO: check if needed in context with step0
+    # Meters # TODO: check if needed in context with step0
+    "product_name": "ch.swisstopo.swisseo_s3-toa_v100",
+    # "step0_collection": "projects/satromo-int/assets/COL_S3_TOA_SWISS"
+}
+
 # B custom COLLECTION
 # ********************
 # Contains dictionary used to manage custom collection (asset) in GEE,
@@ -151,7 +217,28 @@ step0 = {
     'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_SR_SWISS': {
+        'step0_function': 'step0_processor_l57_sr.generate_l57_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
+        'step0_function': 'step0_processor_l57_toa.generate_l57_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_SR_SWISS': {
+        'step0_function': 'step0_processor_l89_sr.generate_l89_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS': {
+        'step0_function': 'step0_processor_l89_toa.generate_l89_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/COL_S3_TOA_SWISS': {
+        'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
     }
+
 }
 
 
@@ -175,4 +262,3 @@ STAC_DESTINATION_INT = "s3INT:satromoint"
 STAC_FSDI_SCHEME = 'https'
 STAC_FSDI_HOSTNAME = 'sys-data.int.bgdi.ch'
 STAC_FSDI_API = '/api/stac/v0.9/'
-

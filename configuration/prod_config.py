@@ -19,13 +19,13 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
-# DEV
+# Local Machine
 GDRIVE_SOURCE_DEV = "geedrivetest:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 GDRIVE_MOUNT_DEV = r'Y:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
-# INT
+#  GITHUB 
 GDRIVE_SOURCE_INT = "geedrivePROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
@@ -92,7 +92,7 @@ PRODUCT_V1 = {
     "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
 

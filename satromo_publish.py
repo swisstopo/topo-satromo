@@ -14,8 +14,7 @@ import platform
 import re
 import requests
 from datetime import datetime
-from satromo_publish_stac_fsdi import publish_to_stac
-import main_functions
+from main_functions import main_thumbnails, main_publish_stac_fsdi
 
 
 # Set the CPL_DEBUG environment variable to enable verbose output
@@ -340,8 +339,25 @@ def write_update_metadata(filename, filemeta):
             json.dump(metadata, json_file)
 
         # upload consolidated META JSON file to FSDI STAC
-        publish_to_stac(
+        main_publish_stac_fsdi.publish_to_stac(
             file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
+
+        # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
+        collection = metadata[band_name]['PROPERTIES']['PRODUCT']
+        result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
+                                                       "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata[band_name]['PROPERTIES']['ITEM'])
+        if result == True:
+            file_merged_current = re.sub(
+                r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_path)
+            # Rename the file
+            os.rename(file_path, file_merged_current)
+
+            # Publish  current dataset to stac
+            main_publish_stac_fsdi.publish_to_stac(
+                file_merged_current, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'], current=True)
+
+            # Rename the file back
+            os.rename(file_merged_current, file_path)
 
 
 def clean_up_gdrive(filename):
@@ -391,24 +407,6 @@ def clean_up_gdrive(filename):
             # Remove the line from the RUNNING tasks file
             delete_line_in_file(config.GEE_RUNNING_TASKS, file_task_id)
 
-        # Obsolete from here
-        # # Add DATA GEE PROCESSING info to Metadata of item,
-        # write_file_meta(file_task_status, os.path.join(
-        #     config.PROCESSING_DIR, item+".csv"))
-
-        # # Get the filename metadata
-        # metadata = read_file_meta(os.path.join(
-        #     config.PROCESSING_DIR, filename+".csv"))
-
-        # # Assuming you have the existing JSON file path and the file_task_status dictionary
-        # file_path = os.path.join(
-        #     config.PROCESSING_DIR, metadata['Asset'] + "_metadata.json")
-
-        # # Load the existing JSON file
-        # with open(file_path, 'r') as json_file:
-        #     existing_data = json.load(json_file)
-
-        # Obsolete til here
         # read metadata from json
         with open(os.path.join(
                 config.PROCESSING_DIR, filename + "_metadata.json"), 'r') as f:
@@ -429,14 +427,6 @@ def clean_up_gdrive(filename):
         # Write and upload consolidated META JSON file to FSDI STAC
         write_update_metadata(filename, existing_data)
 
-        # Move/ Delete CSV Description of item to destination DIR
-        # move_files_with_rclone(os.path.join(
-        #     config.PROCESSING_DIR, item+".csv"), os.path.join(S3_DESTINATION, product, metadata['Item']))
-        # if os.path.exists(os.path.join(config.PROCESSING_DIR, filename+".csv")):
-        #     os.remove(os.path.join(config.PROCESSING_DIR, filename+".csv"))
-        # else:
-        #     print(f"File {filename}.csv does not exist. not deleted. continuing...")
-
        # Copy  consolidated META JSON file to SATROMO INT
         move_files_with_rclone(os.path.join(
             existing_data['SWISSTOPO']['PRODUCT']+"_mosaic_"+existing_data['SWISSTOPO']['ITEM']+"_metadata.json"), os.path.join(S3_DESTINATION, file_product, existing_data['SWISSTOPO']['ITEM']), move=False)
@@ -447,17 +437,6 @@ def clean_up_gdrive(filename):
                 config.PROCESSING_DIR, filename+"_metadata.json")):
             os.remove(os.path.join(config.PROCESSING_DIR,
                       filename+"_metadata.json"))
-
-        # Move Metadata of item to destination DIR, only for  RAW data products, assuming we take always the first
-        # TODO this is obsolete with step0 we do not need the prperteis json anymore
-        # pattern = f"*{metadata['Item']}*_properties_*.json"
-        # files_matching_pattern = glob.glob(
-        #     os.path.join(config.PROCESSING_DIR, pattern))
-        # if files_matching_pattern:
-        #     destination_dir = os.path.join(
-        #         S3_DESTINATION, file_product, metadata['Item'])
-        #     for file_to_move in files_matching_pattern:
-        #         move_files_with_rclone(file_to_move, destination_dir)
 
         # Update Status in RUNNING tasks file
         replace_running_with_complete(
@@ -527,52 +506,6 @@ def delete_line_in_file(filepath, stringtoremove):
                 file.write("\n")
 
 
-# def write_file_meta(input_dict, output_file):
-#     """
-#     Read the existing CSV file, append the input dictionary, and export it as a new CSV file.
-
-#     Parameters:
-#     input_dict (dict): Dictionary to be appended to the CSV file.
-#     output_file (str): Path of the output CSV file.
-
-#     Returns:
-#     None
-#     """
-#     existing_data = OrderedDict()
-#     if os.path.isfile(output_file):
-#         with open(output_file, "r", encoding="utf-8", newline='') as f:
-#             reader = csv.reader(f)
-#             existing_data = OrderedDict(zip(next(reader), next(reader)))
-
-#     existing_data.update(input_dict)
-
-#     with open(output_file, "w", encoding="utf-8", newline='') as f:
-#         writer = csv.writer(f, delimiter=",", quotechar='"',
-#                             lineterminator="\n")
-
-#         writer.writerow(list(existing_data.keys()))
-#         writer.writerow(list(existing_data.values()))
-
-
-# def read_file_meta(input_file):
-#     """
-#     Read the existing CSV file
-
-#     Parameters:
-#     input_file (str): Path of the output CSV file.
-
-#     Returns:
-#     None
-#     """
-#     existing_data = OrderedDict()
-#     if os.path.isfile(input_file):
-#         with open(input_file, "r", encoding="utf-8", newline='') as f:
-#             reader = csv.reader(f)
-#             existing_data = OrderedDict(zip(next(reader), next(reader)))
-
-#     return existing_data
-
-
 def extract_product_and_item(task_description):
     """
     Extract the product and item information from a task description.
@@ -586,12 +519,6 @@ def extract_product_and_item(task_description):
 
     product = task_description.split("_mosaic_")[0]
     item = task_description
-    # product_start_index = task_description.index('P:') + 2
-    # product_end_index = task_description.index(' I:')
-    # product = task_description[product_start_index:product_end_index]
-
-    # item_start_index = task_description.index('I:') + 2
-    # item = task_description[item_start_index:]
 
     return product, item
 
@@ -711,39 +638,25 @@ if __name__ == "__main__":
 
         # Check overall completion status
         if all_completed:
-            # if run_type == 2:
-            # local machine run
-            # Download DATA
-            # breakpoint()  # TODO add local processor
-            # download_and_delete_file(filename)
-            # else:
+
             print(filename+" is ready to process")
-
-            # Get the product and item
-            # product, item = extract_product_and_item(
-            #    task_status['description'])
-
-            # # Get the metadata
-            # metadata = read_file_meta(os.path.join(
-            #     config.PROCESSING_DIR, filename+".csv"))
 
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
 
             # Get metdatafile by replacing ".tif" by "_metadata.json"
             # metadata_file = file_merged.replace(".tif", "_metadata.json")
-
             # read metadata from json
             with open(os.path.join(
                     config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
                 metadata = json.load(f)
 
             # check if there is a need to create thumbnail , if yes create it
-            thumbnail = main_functions.create_thumbnail(
+            thumbnail = main_thumbnails.create_thumbnail(
                 file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
             # upload file to FSDI STAC
-            publish_to_stac(
+            main_publish_stac_fsdi.publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
             # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
@@ -751,18 +664,19 @@ if __name__ == "__main__":
             result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                            "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
             if result == True:
+                print("Newest dataset detected: updating CURRENT")
                 file_merged_current = re.sub(
                     r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
                 # Rename the file
                 os.rename(file_merged, file_merged_current)
 
                 # Publish  current dataset to stac
-                publish_to_stac(
+                main_publish_stac_fsdi.publish_to_stac(
                     file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
 
                 # Publish  current thumbnail if a thumbnail is required
                 if thumbnail is not False:
-                    publish_to_stac(
+                    main_publish_stac_fsdi.publish_to_stac(
                         thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
 
                 # Rename the file back
@@ -774,11 +688,12 @@ if __name__ == "__main__":
 
             # Upload and move thumbnail if a thumbnail is required
             if thumbnail is not False:
-                publish_to_stac(
+                main_publish_stac_fsdi.publish_to_stac(
                     thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
                 move_files_with_rclone(
                     thumbnail, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
-            # clean up GDrive and local drive
+
+            # clean up GDrive and local drive, move JSON to STAC
             # os.remove(file_merged)
             clean_up_gdrive(filename)
 

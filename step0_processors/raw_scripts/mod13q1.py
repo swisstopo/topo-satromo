@@ -55,10 +55,10 @@ start_date = end_date.advance(-16, 'day')   # this script is set up to export on
 # Official swisstopo boundaries
 # source: https:#www.swisstopo.admin.ch/de/geodata/landscape/boundaries3d.html#download
 # processing: layer Landesgebiet dissolved  in QGIS and reprojected to epsg32632
-aoi_CH = ee.FeatureCollection("users/wulf/SATROMO/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
+aoi_CH = ee.FeatureCollection("projects/satromo-prod/assets/res/swissBOUNDARIES3D_1_5_TLM_LANDESGEBIET_dissolve_epsg32632").geometry()
 
 # Simplified and buffered shapefile of Switzerland to simplify processing
-aoi_CH_simplified = ee.FeatureCollection("users/wulf/SATROMO/CH_boundaries_buffer_5000m_epsg32632").geometry()
+aoi_CH_simplified = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_boundaries_buffer_5000m_epsg32632").geometry()
 # clipping on complex shapefiles costs more processing resources and can cause memory issues
 
 
