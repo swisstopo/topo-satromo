@@ -473,13 +473,11 @@ if __name__ == "__main__":
 
     # For debugging
 
+    current_date_str = "2020-07-11"
 
-    # current_date_str = "2020-07-23"
-
-
-    # print("*****************************\n")
-    # print("using a manual set Date: " + current_date_str)
-    # print("*****************************\n")
+    print("*****************************\n")
+    print("using a manual set Date: " + current_date_str)
+    print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
