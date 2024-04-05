@@ -201,6 +201,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             .addBands(invertedImage.select(['cs_cdf']).rename('cs_cdf'))
 
         # get the cloud probability
+
         # clouds = image.select(QA_BAND)
         # get the cloud probability casted to uint8 0-100
         clouds = image.select(QA_BAND).multiply(100).toUint8()
@@ -209,6 +210,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Lower values will remove thin clouds, haze, cirrus & shadows.
         CLOUD_THRESHOLD = 40 # casted to 100 from 0.4
         CLOUDSHADOW_THRESHOLD = 20 # casted to 100 from 0.2
+
 
         # applying the maximum cloud probability threshold
         isNotCloud = clouds.lt(CLOUD_THRESHOLD)
@@ -373,10 +375,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # necessary because the CloudScore+ dataset has edge effects
     def clip_outermost_rows(image):
         img_geometry = image.geometry()  # Get the geometry of each image
+
         # Buffer the geometry inward by 500 meters
         buffered_geometry = img_geometry.buffer(-500)
         # Clip the image to the outer bounds
         return image.clip(buffered_geometry)
+
 
     # This function masks all bands to the same extent as the 20 m and 60 m bands
     def maskEdges(s2_img):
