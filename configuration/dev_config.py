@@ -81,7 +81,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # V1 – Trockenstress
@@ -89,12 +89,16 @@ PRODUCT_V1 = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
     "no_data": 255,
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "missing_data": 110,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
+    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # TEST datasets

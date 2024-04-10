@@ -11,7 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_pv1
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi
 from main_functions import main_utils
 import pandas as pd
 
@@ -473,10 +473,12 @@ if __name__ == "__main__":
 
     # For debugging
 
-    # current_date_str = "2024-04-02"
+
+    current_date_str = "2023-08-30"
+
 
     # print("*****************************\n")
-    # print("using a manual set Date: " + current_date_str)
+    print("using a manual set Date: " + current_date_str)
     # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
@@ -507,14 +509,14 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 # roi = ee.Geometry.Rectangle(
-                #     [8.10470, 47.19934, 8.17412, 47.25292])  # 6221 Rickenbach
+                #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_V1':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
-                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
-                result = step1_processor_pv1.process_PRODUCT_V1(
+                #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
+                result = step1_processor_vhi.process_PRODUCT_V1(
                     roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
