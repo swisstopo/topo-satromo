@@ -213,12 +213,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             .addBands(invertedImage.select(['cs_cdf']).rename('cs_cdf'))
 
         # get the cloud probability
-        clouds = image.select(QA_BAND)
+        clouds = image.select(QA_BAND).multiply(100).toUint8()
 
         # The threshold for masking; values between 0.50 and 0.35 generally work well.
         # Lower values will remove thin clouds, haze, cirrus & shadows.
-        CLOUD_THRESHOLD = 0.4
-        CLOUDSHADOW_THRESHOLD = 0.2
+        CLOUD_THRESHOLD = 40 # casted to 100 from 0.4
+        CLOUDSHADOW_THRESHOLD = 20 # casted to 100 from 0.2
 
         # applying the maximum cloud probability threshold
         isNotCloud = clouds.lt(CLOUD_THRESHOLD)
