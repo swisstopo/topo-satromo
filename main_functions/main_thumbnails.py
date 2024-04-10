@@ -211,12 +211,12 @@ def create_thumbnail(inputfile_name, product):
             # Define color map
             color_map = {
                 (0, 10): (181, 106, 41),    # [0,10] extremely dry - dark brown
-                (10, 20): (206, 133, 64),   # (10,20] severely dry - brown
-                (20, 30): (245, 205, 133),  # (20,30] moderately dry - beige
-                (30, 40): (255, 245, 186),  # (30,40] mild dry - yellow
-                (40, 50): (203, 255, 202),  # (40,50] normal - light green
-                (50, 60): (82, 189, 159),   # (50,60] good - green
-                (60, 100): (4, 112, 176),   # (60,100] excellent - blue
+                (11, 20): (206, 133, 64),   # (10,20] severely dry - brown
+                (21, 30): (245, 205, 133),  # (20,30] moderately dry - beige
+                (31, 40): (255, 245, 186),  # (30,40] mild dry - yellow
+                (41, 50): (203, 255, 202),  # (40,50] normal - light green
+                (51, 60): (82, 189, 159),   # (50,60] good - green
+                (61, 100): (4, 112, 176),   # (60,100] excellent - blue
                 (110, 110): (128, 128, 128)  # 110 no data values- gray
             }
 

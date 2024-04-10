@@ -41,13 +41,13 @@ def determine_run_type():
 
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
-        print("\nType 2 run PUBLISHER: We are on DEV")
+        print("\nType 2 run PUBLISHER: We are on a local machine")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_DEV
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_DEV
         S3_DESTINATION = config.S3_DESTINATION_DEV
     else:
         run_type = 1
-        print("\nType 1 run PUBLISHER: We are on INT")
+        print("\nType 1 run PUBLISHER: We are on Github")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_INT
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_INT
         S3_DESTINATION = config.S3_DESTINATION_INT
@@ -582,7 +582,7 @@ def extract_and_compare_datetime_from_url(url, iso_string):
 
 if __name__ == "__main__":
 
-    # Test if we are on Local DEV Run or if we are on PROD
+    # Test if we are on a local machine or if we are on Github
     determine_run_type()
 
     # Authenticate with GEE and GDRIVE
