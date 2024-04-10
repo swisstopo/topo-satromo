@@ -184,7 +184,8 @@ def create_thumbnail(inputfile_name, product):
             return False
 
     # VHI Use case
-    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("bands-10m.tif"):
+
+    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("forest-10m.tif"):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
@@ -218,7 +219,8 @@ def create_thumbnail(inputfile_name, product):
                 (41, 50): (203, 255, 202),  # (40,50] normal - light green
                 (51, 60): (82, 189, 159),   # (50,60] good - green
                 (61, 100): (4, 112, 176),   # (60,100] excellent - blue
-                (110, 110): (128, 128, 128)  # 110 no data values- gray
+                (110, 110): (128, 128, 128),  # 110 missing data values- gray
+                (255, 255): (255, 255, 255)  # 255 no data values- white
             }
 
             # Load TIFF file
