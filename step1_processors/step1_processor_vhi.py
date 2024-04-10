@@ -27,6 +27,8 @@ from main_functions import main_utils
 # FUNCTIONS
 
 # This function loads the reference NDVI data (statistical value derived per DOY from 1991-2020)
+
+
 def loadNdviRefData(doy):
     """
     Loads the reference NDVI data for a specific day of year (DOY).
@@ -37,8 +39,9 @@ def loadNdviRefData(doy):
     Returns:
         ee.Image: Reference NDVI image adjusted for offset and scale.
     """
-    doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo(); # 1 -> 001
-    asset_name = config.PRODUCT_V1['NDVI_reference_data'] + '/NDVI_Stats_DOY' + doy3
+    doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo()  # 1 -> 001
+    asset_name = config.PRODUCT_V1['NDVI_reference_data'] + \
+        '/NDVI_Stats_DOY' + doy3
     NDVIref = ee.Image(asset_name)
     # back to float
     NDVIref = NDVIref.float()
@@ -52,6 +55,8 @@ def loadNdviRefData(doy):
     return NDVIref
 
 # This function loads the current NDVI data
+
+
 def loadNdviCurrentData(image):
     """
     Loads the current NDVI data from Sentinel-2 imagery.
@@ -83,6 +88,8 @@ def loadNdviCurrentData(image):
     return NDVIj, NDVI_index_list, NDVI_scene_count
 
 # This function loads the reference LST data (statistical value derived per DOY from 2012-2020)
+
+
 def loadLstRefData(doy):
     """
     Loads the reference Land Surface Temperature (LST) data for a specific day of year (DOY).
@@ -93,8 +100,9 @@ def loadLstRefData(doy):
     Returns:
         ee.Image: Reference LST image adjusted for scale.
     """
-    doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo(); # 1 -> 001
-    asset_name = config.PRODUCT_V1['LST_reference_data'] + '/LST_Stats_DOY' + doy3
+    doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo()  # 1 -> 001
+    asset_name = config.PRODUCT_V1['LST_reference_data'] + \
+        '/LST_Stats_DOY' + doy3
     LSTref = ee.Image(asset_name)
     # back to float
     LSTref = LSTref.float()
@@ -105,6 +113,8 @@ def loadLstRefData(doy):
     return LSTref
 
 # Helper function to extract the values from specific bits
+
+
 def bitwiseExtract(input, fromBit, toBit):
     """
     Extracts values from specific bits in an input integer.
@@ -122,6 +132,8 @@ def bitwiseExtract(input, fromBit, toBit):
     return input.rightShift(fromBit).bitwiseAnd(mask)
 
 # function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
+
+
 def maskCloudsAndLowQuality(image):
     """
     Masks clouds and low-quality pixels in a VIIRS dataset.
@@ -141,6 +153,8 @@ def maskCloudsAndLowQuality(image):
     return image
 
 # This function loads the current LST data
+
+
 def loadLstCurrentData(date, d, aoi):
     """
     Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
@@ -157,8 +171,8 @@ def loadLstCurrentData(date, d, aoi):
     start_date = date.advance((-1*d), 'day')
     end_date = date.advance(1, 'day')
     LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
-                    .filterDate(start_date, end_date) \
-                    .filterBounds(aoi)
+        .filterDate(start_date, end_date) \
+        .filterBounds(aoi)
     # apply cloud and low quality masks
     LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
     # Sort the collection by time in descending order
@@ -174,7 +188,7 @@ def loadLstCurrentData(date, d, aoi):
     return LSTj, LST_index_list, LST_scene_count
 
 
-def process_PRODUCT_V1(roi,collection_ready,current_date_str):
+def process_PRODUCT_V1(roi, collection_ready, current_date_str):
     """
     Processes swissEO VHI data for Switzerland.
 
@@ -197,7 +211,7 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
     exportForestDrive = True
     # options: True, False
     workWithPercentiles = True
-    # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used, 
+    # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
     # otherwise the min and max will be used (False)
 
     ##############################
@@ -211,19 +225,20 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
     # To advance the start date by d days to cover the time window defined in 'temporal_coverage'
     d = int(config.PRODUCT_V1['temporal_coverage'])-1
     # get day of year
-    doy = (ee.Number(current_date.getRelative('day', 'year')).add(1).mod(365)).add(365).mod(365)
+    doy = (ee.Number(current_date.getRelative('day', 'year')).add(
+        1).mod(365)).add(365).mod(365)
     start_date = current_date.advance((-1*d), 'day')
     end_date = current_date.advance(1, 'day')
 
-    ###########################/
+    # /
     # PARAMETERS
     alpha = 0.5
-    
+
     if workWithPercentiles is True:
         CI_method = '5th_and_95th_percentile'
     else:
         CI_method = 'min_and_max'
-    
+
     ##############################
     # SPACE
     aoi = roi
@@ -231,17 +246,19 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
     ##############################
     # MASKS
     # Mask for vegetation
-    vegetation_mask = ee.Image('projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
+    vegetation_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
     # Mask for the forest
-    forest_mask = ee.Image('projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
-    
+    forest_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
+
     ##############################
     # DATA
     S2_col = ee.ImageCollection(collection_ready) \
-                    .filterDate(start_date, end_date) \
-                    .filterBounds(aoi) \
-                    .filter(ee.Filter.stringEndsWith('system:index', '10m'))
-    
+        .filterDate(start_date, end_date) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '10m'))
+
     ###########################################
     # PRE-PROCESSING
     # Get information about the available sensor data for the range
@@ -259,22 +276,29 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
 
         # Calculate VCI
         if workWithPercentiles is True:
-            VCI = NDVIj.subtract(NDVIref.select('p05')).divide(NDVIref.select('p95').subtract(NDVIref.select('p05'))).multiply(100).rename('vci')
-            print('--- VCI calculated (with 5th and 95th percentile reference values) ---')
+            VCI = NDVIj.subtract(NDVIref.select('p05')).divide(NDVIref.select(
+                'p95').subtract(NDVIref.select('p05'))).multiply(100).rename('vci')
+            print(
+                '--- VCI calculated (with 5th and 95th percentile reference values) ---')
         else:
-            VCI = NDVIj.subtract(NDVIref.select('min')).divide(NDVIref.select('max').subtract(NDVIref.select('min'))).multiply(100).rename('vci')
+            VCI = NDVIj.subtract(NDVIref.select('min')).divide(NDVIref.select(
+                'max').subtract(NDVIref.select('min'))).multiply(100).rename('vci')
             print('--- VCI calculated (with min and max reference values) ---')
 
-        #Load LST for TCI calculation
+        # Load LST for TCI calculation
         LSTref = loadLstRefData(doy)
-        LSTj, LST_index_list, LST_scene_count = loadLstCurrentData(current_date, d, aoi)
+        LSTj, LST_index_list, LST_scene_count = loadLstCurrentData(
+            current_date, d, aoi)
 
         # Calculate TCI
         if workWithPercentiles is True:
-            TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select('p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
-            print('--- TCI calculated (with 5th and 95th percentile reference values) ---')
+            TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
+                'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
+            print(
+                '--- TCI calculated (with 5th and 95th percentile reference values) ---')
         else:
-            TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select('max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
+            TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
+                'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
             print('--- TCI calculated (with min and max reference values) ---')
 
         # Calculate VHI
@@ -286,7 +310,7 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
 
         # add no data value for when one of the datasets is unavailable
         VHI = VHI.unmask(config.PRODUCT_V1['missing_data'])
-        
+
         # Set data properties
         # Getting swisstopo Processor Version
         processor_version = main_utils.get_github_info()
@@ -320,7 +344,7 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
         VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
         # add the no data value to all masked pixels
         VHI_vegetation = VHI_vegetation.unmask(config.PRODUCT_V1['no_data'])
-        
+
         # mask forest
         VHI_forest = VHI
         VHI_forest = VHI_forest.updateMask(forest_mask.eq(1))
@@ -331,8 +355,6 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
         timestamp = timestamp.strftime('%Y-%m-%dT235959')
 
-
-
         ##############################
         # EXPORT
 
@@ -340,53 +362,51 @@ def process_PRODUCT_V1(roi,collection_ready,current_date_str):
         aoi_exp = aoi
 
         # SWITCH export - vegetation (Asset)
-        task_description = 'VHI_SWISS_' + current_date_str 
+        task_description = 'VHI_SWISS_' + current_date_str
         if exportVegetationAsset is True:
             print('Launching VHI export for vegetation')
             # Export asset
             task = ee.batch.Export.image.toAsset(
-                image = VHI_vegetation.clip(aoi_exp),
-                scale = 10,
-                description = task_description + '_VEGETATION_10m',
-                crs = 'EPSG:2056',
-                region = aoi_exp,
-                maxPixels = 1e10,
-                assetId = config.PRODUCT_V1['step1_collection'] + '/' + task_description + '_VEGETATION_10m',
+                image=VHI_vegetation.clip(aoi_exp),
+                scale=10,
+                description=task_description + '_VEGETATION_10m',
+                crs='EPSG:2056',
+                region=aoi_exp,
+                maxPixels=1e10,
+                assetId=config.PRODUCT_V1['step1_collection'] +
+                    '/' + task_description + '_VEGETATION_10m',
             )
             task.start()
-        
+
         # SWITCH export - forest (Asset)
         if exportForestAsset is True:
             print('Launching VHI export for forests')
             # Export asset
             task = ee.batch.Export.image.toAsset(
-                image = VHI_forest.clip(aoi_exp),
-                scale = 10,
-                description = task_description + '_FOREST_10m',
-                crs = 'EPSG:2056',
-                region = aoi_exp,
-                maxPixels = 1e10,
-                assetId = config.PRODUCT_V1['step1_collection'] + '/' + task_description + '_FOREST_10m',
+                image=VHI_forest.clip(aoi_exp),
+                scale=10,
+                description=task_description + '_FOREST_10m',
+                crs='EPSG:2056',
+                region=aoi_exp,
+                maxPixels=1e10,
+                assetId=config.PRODUCT_V1['step1_collection'] +
+                    '/' + task_description + '_FOREST_10m',
             )
             task.start()
-         
 
         # SWITCH export (Drive)
         if exportVegetationDrive is True:
             # Generate the filename
             filename = config.PRODUCT_V1['product_name'] + \
-                '_mosaic_' + timestamp + '_vegetation_10m'
+                '_mosaic_' + timestamp + '_vegetation-10m'
             main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                                    config.PRODUCT_V1['spatial_scale_export'], VHI_vegetation,
-                                    sensor_stats, current_date_str)
+                                      config.PRODUCT_V1['spatial_scale_export'], VHI_vegetation,
+                                      sensor_stats, current_date_str)
 
         if exportForestDrive is True:
             # Generate the filename
             filename = config.PRODUCT_V1['product_name'] + \
-                '_mosaic_' + timestamp + '_forest_10m'
+                '_mosaic_' + timestamp + '_forest-10m'
             main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                                    config.PRODUCT_V1['spatial_scale_export'], VHI_forest,
-                                    sensor_stats, current_date_str)
-
-
-          
+                                      config.PRODUCT_V1['spatial_scale_export'], VHI_forest,
+                                      sensor_stats, current_date_str)
