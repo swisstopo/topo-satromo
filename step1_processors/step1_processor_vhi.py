@@ -353,7 +353,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y-%m-%dT235959')
+        timestamp = timestamp.strftime('%Y-%m-%dT240000')
 
         ##############################
         # EXPORT
