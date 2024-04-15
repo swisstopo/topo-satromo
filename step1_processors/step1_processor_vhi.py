@@ -336,7 +336,8 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
             'LST_index_list': LST_index_list,
             'LST_scene_count': LST_scene_count,
             'VCI_and_TCI_calculated_with': CI_method,
-            'GEE_api_version': ee_version
+            'GEE_api_version': ee_version,
+            'pixel_size_meter': 10,
         })
 
         # mask vegetation

@@ -575,7 +575,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Band list: {}'.format(band_list_10m))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(band_list_10m).clip(aoi_exp),
+            image=S2_sr.select(band_list_10m).clip(aoi_exp).set('pixel_size_meter', 10),
             scale=10,
             description=task_description + '_10m',
             crs='EPSG:2056',
@@ -594,7 +594,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Band list: {}'.format(band_list_20m))
         # Export COG 20m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(band_list_20m).clip(aoi_exp),
+            image=S2_sr.select(band_list_20m).clip(aoi_exp).set('pixel_size_meter', 20),
             scale=20,
             description=task_description + '_20m',
             crs='EPSG:2056',
