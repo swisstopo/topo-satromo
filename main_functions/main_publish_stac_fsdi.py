@@ -521,7 +521,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     item = raw_item.lower()
     asset = raw_asset.lower()
     os.rename(raw_asset, asset)
-
+    
     if current is not None:
         item_title = collection.replace('ch.swisstopo.', '')
         item = item_title
@@ -576,15 +576,19 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
                 coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
                     *coord) for coord in coordinates_lv95]
 
-                # Date: Convert the string to a datetime object
-                dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
-
                 # Check if raw_item ends with "240000", since python does not recognize the newest version of ISO8601 of October 2022: "An amendment was published in October 2022 featuring minor technical clarifications and attempts to remove ambiguities in definitions. The most significant change, however, was the reintroduction of the "24:00:00" format to refer to the instant at the end of a calendar day."
 
                 if raw_item.endswith('240000'):
+                    raw_item_fix = raw_item[:-6] + '235959'
+                    # Date: Convert the string to a datetime object
+                    dt = datetime.strptime(raw_item_fix, '%Y-%m-%dT%H%M%S')
+
                     # Adjust the formatting accordingly
                     dt_iso8601 = dt.strftime('%Y-%m-%dT23:59:59Z')
                 else:
+                    # Date: Convert the string to a datetime object
+                    dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
+
                     # Convert the datetime object back to a string in the desired format
                     dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
