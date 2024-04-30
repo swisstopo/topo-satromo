@@ -185,8 +185,9 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
         },
         "links": [
             {
-                "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
-                id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
+                "href": "https://map.geo.admin.ch/index.html?layers=WMS||"+title+"||https://wms.geo.admin.ch/?item="+id+"||ch.swisstopo."+product,
+                # "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
+                # id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
                 "rel": "visual"
             },
             {
@@ -521,7 +522,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     item = raw_item.lower()
     asset = raw_asset.lower()
     os.rename(raw_asset, asset)
-    
+
     if current is not None:
         item_title = collection.replace('ch.swisstopo.', '')
         item = item_title
