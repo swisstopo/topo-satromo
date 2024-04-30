@@ -567,7 +567,7 @@ def extract_and_compare_datetime_from_url(url, iso_string):
             datetime_value, '%Y-%m-%dT%H:%M:%SZ')
 
         # Parse the ISO string
-        iso_datetime = datetime.strptime(iso_string, '%Y-%m-%dT%H%M%S')
+        iso_datetime = datetime.strptime(iso_string[:10], '%Y-%m-%d')
 
         # Extract dates from both datetime objects
         extracted_date = extracted_datetime.date()
@@ -643,7 +643,8 @@ if __name__ == "__main__":
 
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
-
+            breakpoint()
+            
             # Get metdatafile by replacing ".tif" by "_metadata.json"
             # metadata_file = file_merged.replace(".tif", "_metadata.json")
             # read metadata from json
