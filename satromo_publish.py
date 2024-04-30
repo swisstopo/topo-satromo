@@ -643,7 +643,7 @@ if __name__ == "__main__":
 
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
-            breakpoint()
+            
             
             # Get metdatafile by replacing ".tif" by "_metadata.json"
             # metadata_file = file_merged.replace(".tif", "_metadata.json")
