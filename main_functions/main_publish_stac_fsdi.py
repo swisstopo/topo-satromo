@@ -275,6 +275,15 @@ def asset_create_title(asset, current):
         # Remove the file extension
         filename_without_extension = text_after_date.rsplit('.', 1)[0]
 
+        # Deal with warnregions: asset name needs to contain the file extension
+        # Extract the file extension
+        file_extension = os.path.splitext(asset)[1]
+
+        # Check if "warnregions" is present in filename_without_extension and if the file extension is ".csv", ".geojson", or ".parquet"
+        if "warnregions" in filename_without_extension and file_extension.lower() in [".csv", ".geojson", ".parquet"]:
+            filename_without_extension = filename_without_extension + \
+                "-"+file_extension.lstrip('.')
+
         # Convert to uppercase
         filename_uppercase = filename_without_extension.upper()
 
@@ -312,11 +321,23 @@ def asset_create_json_payload(id, asset_type, current):
             "title": title,
             "type": "application/json"
         }
+    elif asset_type == "GEOJSON":
+        payload = {
+            "id": id,
+            "title": title,
+            "type": "application/geo+json"
+        }
     elif asset_type == "CSV":
         payload = {
             "id": id,
             "title": title,
             "type": "text/csv"
+        }
+    elif asset_type == "PARQUET":
+        payload = {
+            "id": id,
+            "title": title,
+            "type": "application/vnd.apache.parquet"
         }
     else:
         asset_type == "JPEG"
@@ -544,6 +565,10 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
         asset_type = 'JSON'
     elif extension.lower() == 'jpg':
         asset_type = 'JPEG'
+    elif extension.lower() == 'geojson':
+        asset_type = 'GEOJSON'
+    elif extension.lower() == 'parquet':
+        asset_type = 'PARQUET'
     else:
         asset_type = 'TIF'
 
