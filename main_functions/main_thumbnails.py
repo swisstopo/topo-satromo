@@ -3,7 +3,6 @@ import configuration as config
 import subprocess
 import rasterio
 import numpy as np
-import rasterio
 from rasterio.transform import from_origin
 
 
