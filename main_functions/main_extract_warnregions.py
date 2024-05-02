@@ -1,7 +1,9 @@
 import geopandas as gpd
 import rasterio
 from rasterio.mask import mask
-from rasterio.plot import show
+import shapely
+# from rasterio.plot import show
+import json
 import numpy as np
 import pandas as pd
 """
@@ -29,13 +31,19 @@ raster_url = 'https://data.geo.admin.ch/ch.swisstopo.swisseo_vhi_v100/swisseo_vh
 # missing data values
 missing_values = 110
 
-#date 
-dateISO8601= "2024-03-07t235959"
+# date
+dateISO8601 = "2024-03-07T24:00:00Z"
 
-#filename
-filename="ch.swisstopo.swisseo_vhi_v100_2024-03-07t235959_forest_region-39"
+# filename
+filename = "ch.swisstopo.swisseo_vhi_v100_2024-03-07t240000_forest_region-39"
 
-#----------------------------------------
+# Parameters
+regionnr = "REGION_NR"
+vhimean = "vhi_mean"
+availpercen = "availability_percentage"
+
+
+# ----------------------------------------
 
 # Open the raster file from URL using rasterio
 with rasterio.open(raster_url) as src:
@@ -46,7 +54,7 @@ with rasterio.open(raster_url) as src:
 
         # Extract the geometry of the polygon
         geom = row['geometry']
-        region = row['REGION_NR']
+        region = row[regionnr]
         region_name = row['Name']
         try:
             # Use rasterio to mask the raster with the polygon
@@ -61,7 +69,8 @@ with rasterio.open(raster_url) as src:
             valid_values = values[(values != src.nodata)
                                   & (values != missing_values)]
             # Count the number of cells with the valid values
-            valid_values_count = np.count_nonzero(valid_values)
+            # valid_values_count = np.count_nonzero(valid_values)
+            valid_values_count = valid_values.size
 
             # Store the mean value (or any other statistic you're interested in)
             min_value = np.min(valid_values)
@@ -95,21 +104,52 @@ with rasterio.open(raster_url) as src:
 
 
 # Add raster values and availability percentages to the GeoDataFrame
-gdf['vhi_mean'] = raster_values
-gdf['availability_percentage'] = availability_percentages
+gdf[vhimean] = raster_values
+gdf[availpercen] = availability_percentages
 
 # Save selected columns of the GeoDataFrame to a CSV file
-gdf[['REGION_NR', 'Name', 'vhi_mean', 'availability_percentage']].to_csv(filename + '.csv', index=False)
+
+gdf[[regionnr, vhimean, availpercen]].to_csv(
+    filename + '.csv', index=False)
+
+# Remove the "Name" column from the GeoDataFrame
+gdf.drop(columns=['Name'], inplace=True)
+
+# Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
+gdf[regionnr] = gdf[regionnr].astype('UInt8')
+gdf[vhimean] = gdf[vhimean].astype('UInt8')
+
+# Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
+gdf.geometry = shapely.wkt.loads(shapely.wkt.dumps(gdf.geometry, rounding_precision=0))
+
+# Export the converted GeoDataFrame to a geoparquet file
+gdf.to_parquet(filename+'.parquet', compression="gzip")
 
 # Convert the GeoDataFrame to WGS84 (EPSG:4326)
 gdf_wgs84 = gdf.to_crs(epsg=4326)
 
 # Add a date property to each feature
-gdf_wgs84['date'] = dateISO8601
+# gdf_wgs84['date'] = dateISO8601
+
+# Convert "REGION_NR" and "vhi_mean" columns to integer before exporting to GeoJSON
+gdf_wgs84[regionnr] = gdf_wgs84[regionnr].astype(int)
+gdf_wgs84[vhimean] = gdf_wgs84[vhimean].astype(int)
+
+# Round the coordinates to 5 decimals resulting in approx 0.2-0.5m differences
+gdf_wgs84.geometry = shapely.wkt.loads(shapely.wkt.dumps(gdf_wgs84.geometry, rounding_precision=5))
+
+
+# Construct the GeoJSON dictionary without features
+geojson_dict = {
+    "type": "FeatureCollection",
+    "global_date": dateISO8601,
+    "crs": {"type": "name", "properties": {"name": "https://www.opengis.net/def/crs/OGC/1.3/CRS84"}},
+    "features": gdf_wgs84.__geo_interface__["features"]
+}
+
+# Export the GeoJSON dictionary to a file
+with open(filename+'.geojson', 'w') as outfile:
+    json.dump(geojson_dict, outfile)
 
 # Export the converted GeoDataFrame to a GeoJSON file
-gdf_wgs84.to_file(filename+'.geojson', driver='GeoJSON')
-
-# Export the converted GeoDataFrame to a geoparquet file
-gdf_wgs84.to_parquet(filename+'.parquet', compression="gzip")
-
+# gdf_wgs84.to_file(filename+'.geojson', driver='GeoJSON')
