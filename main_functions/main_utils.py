@@ -80,6 +80,7 @@ def get_product_from_techname(techname):
 
     return var
 
+
 def addINDEX(image, bands, index_name):
     """
     Add an Index (eg NDVI) band to the image based on two bands.
@@ -105,6 +106,7 @@ def addINDEX(image, bands, index_name):
 
     # Return the image with the NDVI band added
     return image_with_index
+
 
 def maskOutside(image, aoi):
     """
@@ -388,7 +390,7 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
 
     Args:
         roi (ee.Geometry): Region of interest for the export.
-        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT240000" for a day 
+        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT235959" for a day 
         productasset (str): Base filename for the exported files.
         productname (str): Product name of the exported files.
         scale (str): Scalenumber in [m] of the exported file

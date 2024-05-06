@@ -604,19 +604,19 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
 
                 # Check if raw_item ends with "240000", since python does not recognize the newest version of ISO8601 of October 2022: "An amendment was published in October 2022 featuring minor technical clarifications and attempts to remove ambiguities in definitions. The most significant change, however, was the reintroduction of the "24:00:00" format to refer to the instant at the end of a calendar day."
 
-                if raw_item.endswith('240000'):
-                    raw_item_fix = raw_item[:-6] + '235959'
-                    # Date: Convert the string to a datetime object
-                    dt = datetime.strptime(raw_item_fix, '%Y-%m-%dT%H%M%S')
+                # if raw_item.endswith('240000'):
+                #     raw_item_fix = raw_item[:-6] + '235959'
+                #     # Date: Convert the string to a datetime object
+                #     dt = datetime.strptime(raw_item_fix, '%Y-%m-%dT%H%M%S')
 
-                    # Adjust the formatting accordingly
-                    dt_iso8601 = dt.strftime('%Y-%m-%dT23:59:59Z')
-                else:
-                    # Date: Convert the string to a datetime object
-                    dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
+                #     # Adjust the formatting accordingly
+                #     dt_iso8601 = dt.strftime('%Y-%m-%dT23:59:59Z')
+                # else:
+                # Date: Convert the string to a datetime object
+                dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
 
-                    # Convert the datetime object back to a string in the desired format
-                    dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                # Convert the datetime object back to a string in the desired format
+                dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
                 payload = item_create_json_payload(
                     item, coordinates_wgs84, dt_iso8601, item_title, geocat_id, current)
