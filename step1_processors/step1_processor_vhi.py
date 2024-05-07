@@ -40,7 +40,7 @@ def loadNdviRefData(doy):
         ee.Image: Reference NDVI image adjusted for offset and scale.
     """
     doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo()  # 1 -> 001
-    asset_name = config.PRODUCT_V1['NDVI_reference_data'] + \
+    asset_name = config.PRODUCT_VHI['NDVI_reference_data'] + \
         '/NDVI_Stats_DOY' + doy3
     NDVIref = ee.Image(asset_name)
     # back to float
@@ -101,7 +101,7 @@ def loadLstRefData(doy):
         ee.Image: Reference LST image adjusted for scale.
     """
     doy3 = ee.String(ee.Number(doy).format('%03d')).getInfo()  # 1 -> 001
-    asset_name = config.PRODUCT_V1['LST_reference_data'] + \
+    asset_name = config.PRODUCT_VHI['LST_reference_data'] + \
         '/LST_Stats_DOY' + doy3
     LSTref = ee.Image(asset_name)
     # back to float
@@ -216,14 +216,14 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
 
     ##############################
     # PRODUCT
-    product_name = config.PRODUCT_V1['product_name']
+    product_name = config.PRODUCT_VHI['product_name']
     print("********* processing {} *********".format(product_name))
 
     ##############################
     # TIME
     current_date = ee.Date(current_date_str)
     # To advance the start date by d days to cover the time window defined in 'temporal_coverage'
-    d = int(config.PRODUCT_V1['temporal_coverage'])-1
+    d = int(config.PRODUCT_VHI['temporal_coverage'])-1
     # get day of year
     doy = (ee.Number(current_date.getRelative('day', 'year')).add(
         1).mod(365)).add(365).mod(365)
@@ -265,7 +265,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
     sensor_stats = main_utils.get_collection_info(S2_col)
 
     # Check if there is new sensor data compared to the stored dataset
-    if main_utils.check_product_update(config.PRODUCT_V1['product_name'], sensor_stats[1]) is True:
+    if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) is True:
         print("new imagery from: " + sensor_stats[1])
 
         ###########################################
@@ -309,7 +309,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
         VHI = VHI.uint8().clamp(0, 100)
 
         # add no data value for when one of the datasets is unavailable
-        VHI = VHI.unmask(config.PRODUCT_V1['missing_data'])
+        VHI = VHI.unmask(config.PRODUCT_VHI['missing_data'])
 
         # Set data properties
         # Getting swisstopo Processor Version
@@ -321,18 +321,18 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
         VHI = VHI.set({
             'doy': doy,
             'alpha': alpha,
-            'temporal_coverage': config.PRODUCT_V1['temporal_coverage'],
-            'missing_data': config.PRODUCT_V1['missing_data'],
-            'no_data': config.PRODUCT_V1['no_data'],
+            'temporal_coverage': config.PRODUCT_VHI['temporal_coverage'],
+            'missing_data': config.PRODUCT_VHI['missing_data'],
+            'no_data': config.PRODUCT_VHI['no_data'],
             'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
             'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
             'collection': collection_ready,
             'system:time_start': current_date.advance((-1*d), 'day').millis(),
             'system:time_end': current_date.millis(),
-            'NDVI_reference_data': config.PRODUCT_V1['NDVI_reference_data'],
+            'NDVI_reference_data': config.PRODUCT_VHI['NDVI_reference_data'],
             'NDVI_index_list': NDVI_index_list,
             'NDVI_scene_count': NDVI_scene_count,
-            'LST_reference_data': config.PRODUCT_V1['LST_reference_data'],
+            'LST_reference_data': config.PRODUCT_VHI['LST_reference_data'],
             'LST_index_list': LST_index_list,
             'LST_scene_count': LST_scene_count,
             'VCI_and_TCI_calculated_with': CI_method,
@@ -344,17 +344,17 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
         VHI_vegetation = VHI
         VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
         # add the no data value to all masked pixels
-        VHI_vegetation = VHI_vegetation.unmask(config.PRODUCT_V1['no_data'])
+        VHI_vegetation = VHI_vegetation.unmask(config.PRODUCT_VHI['no_data'])
 
         # mask forest
         VHI_forest = VHI
         VHI_forest = VHI_forest.updateMask(forest_mask.eq(1))
         # add the no data value to all masked pixels
-        VHI_forest = VHI_forest.unmask(config.PRODUCT_V1['no_data'])
+        VHI_forest = VHI_forest.unmask(config.PRODUCT_VHI['no_data'])
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y-%m-%dT235959')
+        timestamp = timestamp.strftime('%Y-%m-%dT240000')
 
         ##############################
         # EXPORT
@@ -374,7 +374,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
-                assetId=config.PRODUCT_V1['step1_collection'] +
+                assetId=config.PRODUCT_VHI['step1_collection'] +
                     '/' + task_description + '_VEGETATION_10m',
             )
             task.start()
@@ -390,7 +390,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
-                assetId=config.PRODUCT_V1['step1_collection'] +
+                assetId=config.PRODUCT_VHI['step1_collection'] +
                     '/' + task_description + '_FOREST_10m',
             )
             task.start()
@@ -398,16 +398,16 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
         # SWITCH export (Drive)
         if exportVegetationDrive is True:
             # Generate the filename
-            filename = config.PRODUCT_V1['product_name'] + \
+            filename = config.PRODUCT_VHI['product_name'] + \
                 '_mosaic_' + timestamp + '_vegetation-10m'
-            main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                                      config.PRODUCT_V1['spatial_scale_export'], VHI_vegetation,
+            main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI['product_name'],
+                                      config.PRODUCT_VHI['spatial_scale_export'], VHI_vegetation,
                                       sensor_stats, current_date_str)
 
         if exportForestDrive is True:
             # Generate the filename
-            filename = config.PRODUCT_V1['product_name'] + \
+            filename = config.PRODUCT_VHI['product_name'] + \
                 '_mosaic_' + timestamp + '_forest-10m'
-            main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_V1['product_name'],
-                                      config.PRODUCT_V1['spatial_scale_export'], VHI_forest,
+            main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI['product_name'],
+                                      config.PRODUCT_VHI['spatial_scale_export'], VHI_forest,
                                       sensor_stats, current_date_str)
