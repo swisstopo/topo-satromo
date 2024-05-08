@@ -83,17 +83,18 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
+    "no_data": 9999,
     "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
-# V1 – Trockenstress
-PRODUCT_V1 = {
+# VHI – Trockenstress
+PRODUCT_VHI = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
     "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
-    "band_names": [{'NIR': "B8", 'RED': "B4"}],
+    # "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
     "no_data": 255,
     "missing_data": 110,
@@ -113,6 +114,7 @@ PRODUCT_NDVI_MAX = {
     "spatial_scale_export": 10,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX",
+    "no_data": 255,
     # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
@@ -124,6 +126,7 @@ PRODUCT_S2_LEVEL_1C = {
     "spatial_scale_export": 10,  # Meters
     "spatial_scale_export_mask": 60,
     "product_name": "S2_LEVEL_1C",
+    "no_data": 9999,
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
 
@@ -136,6 +139,7 @@ PRODUCT_NDVI_MAX_TOA = {
     "spatial_scale_export": 1,  # Meters
     "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "NDVI-MAX_TOA",
+    "no_data": 255,
     # "step0_collection": "projects/geetest-386915/assets/col_s2_toa"
 }
 
@@ -149,6 +153,7 @@ PRODUCT_L57_LEVEL_2 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l57-sr_v100",
+    "no_data": 9999,
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
 }
 
@@ -162,6 +167,7 @@ PRODUCT_L57_LEVEL_1 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l57-toa_v100",
+    "no_data": 9999,
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
@@ -175,6 +181,7 @@ PRODUCT_L89_LEVEL_2 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l89-sr_v100",
+    "no_data": 9999,
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_SR_SWISS"
 }
 
@@ -188,6 +195,7 @@ PRODUCT_L89_LEVEL_1 = {
     "spatial_scale_export": 30,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_l89-toa_v100",
+    "no_data": 9999,
     # "step0_collection": "projects/satromo-int/assets/COL_LANDSAT_TOA_SWISS"
 }
 
@@ -201,6 +209,7 @@ PRODUCT_S3_LEVEL_1 = {
     "spatial_scale_export": 300,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "product_name": "ch.swisstopo.swisseo_s3-toa_v100",
+    "no_data": 9999,
     # "step0_collection": "projects/satromo-int/assets/COL_S3_TOA_SWISS"
 }
 
