@@ -104,16 +104,15 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                 print(
                     f"  Percentage of availability: {availability_percentage:.1f}%")
             except ValueError:
-                # Handle empty intersection (e.g., assign a default value)
-                raster_values.append(np.nan)
-                availability_percentages.append(np.nan)
+                # Handle empty intersection (assign missing_values)
+                raster_values.append(missing_values)
+                availability_percentages.append(missing_values)
 
     # Add raster values and availability percentages to the GeoDataFrame
     gdf[vhimean] = raster_values
     gdf[availpercen] = availability_percentages
 
     # Save selected columns of the GeoDataFrame to a CSV file
-
     gdf[[regionnr, vhimean, availpercen]].to_csv(
         filename + '.csv', index=False)
 
@@ -123,7 +122,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
     gdf[vhimean] = gdf[vhimean].astype(int)
-    print(gdf.dtypes)
+    #print(gdf.dtypes)
 
     # Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
     gdf.geometry = shapely.wkt.loads(
@@ -134,13 +133,6 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
 
     # Convert the GeoDataFrame to WGS84 (EPSG:4326)
     gdf_wgs84 = gdf.to_crs(epsg=4326)
-
-    # Add a date property to each feature
-    # gdf_wgs84['date'] = dateISO8601
-
-    # Convert "REGION_NR" and "vhi_mean" columns to integer before exporting to GeoJSON
-    # gdf_wgs84[regionnr] = gdf_wgs84[regionnr].astype(int)
-    # gdf_wgs84[vhimean] = gdf_wgs84[vhimean].astype(int)
 
     # Round the coordinates to 5 decimals resulting in approx 0.2-0.5m differences
     gdf_wgs84.geometry = shapely.wkt.loads(
@@ -158,5 +150,4 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
     with open(filename+'.geojson', 'w') as outfile:
         json.dump(geojson_dict, outfile)
 
-    # Export the converted GeoDataFrame to a GeoJSON file
-    # gdf_wgs84.to_file(filename+'.geojson', driver='GeoJSON')
+
