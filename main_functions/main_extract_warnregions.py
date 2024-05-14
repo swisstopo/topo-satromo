@@ -5,7 +5,8 @@ import shapely
 # from rasterio.plot import show
 import json
 import numpy as np
-# import pandas as pd
+import pandas as pd
+# import pytz
 """
 Extract raster statistics for each polygon in a shapefile, calculate the percentage of data availability, and export
 the results to CSV, GeoJSON, and GeoParquet formats.
@@ -22,20 +23,19 @@ Run the script.
 """
 
 # Read the shapefile into a GeoDataFrame
-gdf = gpd.read_file(
-    r"C:\temp\temp\BAFU_Grossregionen_erweitert_mitDoubs_EPSG2056\BAFU_Grossregionen_erweitert_mitDoubs_EPSG2056.shp")
+shape_file = r"C:\temp\topo-satromo\assets\warnregionen_vhi_2056.shp"
 
 # Open the raster file from URL
-raster_url = 'https://data.geo.admin.ch/ch.swisstopo.swisseo_vhi_v100/swisseo_vhi_v100/swisseo_vhi_v100_current_forest_bands-10m.tif'
+raster_url = r"C:\temp\topo-satromo\ch.swisstopo.swisseo_vhi_v100_mosaic_2023-07-13T235959_vegetation-10m.tif"
 
 # missing data values
 missing_values = 110
 
 # date
-dateISO8601 = "2024-03-07T24:00:00Z"
+dateISO8601 = "2024-03-07T23:59:59Z"
 
 # filename
-filename = "ch.swisstopo.swisseo_vhi_v100_2024-03-07t240000_forest_region-39"
+filename = "ch.swisstopo.swisseo_vhi_v100_mosaic_2023-07-13T235959_vegetation-10m"
 
 
 # ----------------------------------------
@@ -44,6 +44,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
     regionnr = "REGION_NR"
     vhimean = "vhi_mean"
     availpercen = "availability_percentage"
+    date_column = "date"
 
     gdf = gpd.read_file(shape_file)
 
@@ -122,14 +123,22 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
     gdf[vhimean] = gdf[vhimean].astype(int)
-    #print(gdf.dtypes)
+    # print(gdf.dtypes)
 
     # Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
     gdf.geometry = shapely.wkt.loads(
         shapely.wkt.dumps(gdf.geometry, rounding_precision=0))
 
+    # Add the date to each region in UTC
+    # gdf[date_column] = datetime.strptime(dateISO8601, "%Y-%m-%dT%H:%M:%SZ")
+    gdf[date_column] = pd.to_datetime(dateISO8601).tz_convert('UTC')
+    # gdf[date_column] = gdf[date_column].astype()
+
     # Export the converted GeoDataFrame to a geoparquet file
     gdf.to_parquet(filename+'.parquet', compression="gzip")
+
+    # Remove the "Name" column from the GeoDataFrame
+    gdf.drop(columns=[date_column], inplace=True)
 
     # Convert the GeoDataFrame to WGS84 (EPSG:4326)
     gdf_wgs84 = gdf.to_crs(epsg=4326)
@@ -149,5 +158,3 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
     # Export the GeoJSON dictionary to a file
     with open(filename+'.geojson', 'w') as outfile:
         json.dump(geojson_dict, outfile)
-
-
