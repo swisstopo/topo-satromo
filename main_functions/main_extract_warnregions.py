@@ -17,15 +17,10 @@ Dependencies:
 - numpy
 
 Usage:
-Ensure all necessary dependencies are installed.
-Update the file paths and parameters as needed.
-Run the script.
-"""
-
-# Read the shapefile into a GeoDataFrame
+# shapefile with warnregions
 shape_file = r"C:\temp\topo-satromo\assets\warnregionen_vhi_2056.shp"
 
-# Open the raster file from URL
+# raster file from URL / file 
 raster_url = r"C:\temp\topo-satromo\ch.swisstopo.swisseo_vhi_v100_mosaic_2023-07-13T235959_vegetation-10m.tif"
 
 # missing data values
@@ -37,14 +32,25 @@ dateISO8601 = "2024-03-07T23:59:59Z"
 # filename
 filename = "ch.swisstopo.swisseo_vhi_v100_mosaic_2023-07-13T235959_vegetation-10m"
 
+Ensure all necessary dependencies are installed.
+Update the file paths and parameters as needed.
+Run the script.
+"""
+
+
+
 
 # ----------------------------------------
 def export(raster_url, shape_file, filename, dateISO8601, missing_values):
-    # Parameters
-    regionnr = "REGION_NR"
+    
+    # Parameters : 
+    regionnr = "REGION_NR" #depend on the  SHP file delivered by FOEN
+    regionname = "Name" #depend on the  SHP file delivered by FOEN
+
     vhimean = "vhi_mean"
     availpercen = "availability_percentage"
     date_column = "date"
+    
 
     gdf = gpd.read_file(shape_file)
 
@@ -58,7 +64,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
             # Extract the geometry of the polygon
             geom = row['geometry']
             region = row[regionnr]
-            region_name = row['Name']
+            region_name = row[regionname]
             try:
                 # Use rasterio to mask the raster with the polygon
                 out_image, out_transform = mask(src, [geom], crop=True)
@@ -118,7 +124,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
         filename + '.csv', index=False)
 
     # Remove the "Name" column from the GeoDataFrame
-    gdf.drop(columns=['Name'], inplace=True)
+    gdf.drop(columns=[regionname], inplace=True)
 
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
