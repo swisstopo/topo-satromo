@@ -2,7 +2,7 @@ name: Run processorStep0
 
 on:
   schedule:
-  - cron:  '0 20 * * *'
+  - cron:  '0 12 * * *'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
   
