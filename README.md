@@ -6,9 +6,10 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 
 ## Disclaimer
 
-**Note: This project is currently in the proof of concept phase and is not intended for operational use.**
+**Note: This project is currently in the commissioning phase and is limited for operational use.**
 
-Access to data:  [STAC BROWSER](https://tinyurl.com/satromo-int)
+- Data description: [Products](https://www.swisstopo.admin.ch/en/satellite-images-swisseo)
+- Access to data: [STAC BROWSER](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100?.language=en)
 
 
 ## Introduction and Project Description
@@ -98,7 +99,7 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 3. moves the product and its persisted information with rclone to S3
 4. creates a static STAC Catalog
 5. updates `tools/last_updates.csv`.
-6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://tinyurl.com/satromo-int) fetches latest version of the STAC catalog
+6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100?.language=en) fetches latest version of the STAC catalog
 
 ## Configuration of products
 
