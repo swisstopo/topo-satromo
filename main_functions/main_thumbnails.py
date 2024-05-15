@@ -3,7 +3,7 @@ import configuration as config
 import subprocess
 import rasterio
 import numpy as np
-import rasterio
+from rasterio.transform import from_origin
 
 
 def apply_overlay(input_file, output_file):
@@ -183,41 +183,37 @@ def create_thumbnail(inputfile_name, product):
             return False
 
     # VHI Use case
-    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("bands-10m.tif"):
+
+    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("forest-10m.tif"):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
         #     "bands-10m.tif", "thumbnail.jpeg")
         thumbnail_name = "thumbnail.jpg"
+
         try:
-
-            src = rasterio.open(inputfile_name)
-            # Define the width of the thumbnail
-            thumbnail_width = 256
-
-            # Calculate the height to maintain aspect ratio
-            aspect_ratio = src.height / src.width
-            thumbnail_height = int(thumbnail_width * aspect_ratio)
-
-            # Read a subset of the data directly from the GeoTIFF
-            data = src.read(out_shape=(
-                src.count, thumbnail_height, thumbnail_width))
-
-            # Create a new GeoTIFF file for the thumbnail
-            output_file = "output_thumbnail.tif"
-            with rasterio.open(output_file, 'w', driver='GTiff', width=thumbnail_width, height=thumbnail_height, count=src.count, dtype=src.dtypes[0], crs=src.crs, transform=from_origin(src.bounds.left, src.bounds.top, src.transform.a, src.transform.e)) as dst:
-                dst.write(data)
+            # Export thumbnail
+            command = [
+                "gdal_translate",
+                "-b", "1",
+                "-of", "GTiff",
+                "-outsize", "256", "256",
+                inputfile_name,
+                "output_thumbnail.tif"
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
 
             # Define color map
             color_map = {
                 (0, 10): (181, 106, 41),    # [0,10] extremely dry - dark brown
-                (10, 20): (206, 133, 64),   # (10,20] severely dry - brown
-                (20, 30): (245, 205, 133),  # (20,30] moderately dry - beige
-                (30, 40): (255, 245, 186),  # (30,40] mild dry - yellow
-                (40, 50): (203, 255, 202),  # (40,50] normal - light green
-                (50, 60): (82, 189, 159),   # (50,60] good - green
-                (60, 100): (4, 112, 176),   # (60,100] excellent - blue
-                (110, 110): (128, 128, 128)  # 110 no data values- gray
+                (11, 20): (206, 133, 64),   # (10,20] severely dry - brown
+                (21, 30): (245, 205, 133),  # (20,30] moderately dry - beige
+                (31, 40): (255, 245, 186),  # (30,40] mild dry - yellow
+                (41, 50): (203, 255, 202),  # (40,50] normal - light green
+                (51, 60): (82, 189, 159),   # (50,60] good - green
+                (61, 100): (4, 112, 176),   # (60,100] excellent - blue
+                (110, 110): (128, 128, 128),  # 110 missing data values- gray
+                (255, 255): (255, 255, 255)  # 255 no data values- white
             }
 
             # Load TIFF file
@@ -240,9 +236,35 @@ def create_thumbnail(inputfile_name, product):
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
                 dst.write(data_rgb)
 
+            # Fill Buffer Switzerland
+            command = [
+                "gdal_rasterize",
+                "-burn", "220", "-burn", "220", "-burn", "220",
+                "-init", "0",
+                "-a_nodata", "0",
+                "-l", "ch_buffer_5000m",
+                config.BUFFER,
+                "-ot", "Byte",
+                "-of", "GTiff",
+                "-ts", "1024", "1024",
+                "output_thumbnailswissfill.tif"
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+
+            # overlay on Switzerland
+            command = [
+                "gdalwarp",
+                "-overwrite",
+                "-dstnodata", "255,255,255",
+                "output_thumbnailswissfill.tif",
+                "output_thumbnailRGB.tif",
+                "output_thumbnailRGB_merged.tif",
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
-                "output_thumbnailRGB.tif", thumbnail_name)
+                "output_thumbnailRGB_merged.tif", thumbnail_name)
 
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")

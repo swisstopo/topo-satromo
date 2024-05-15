@@ -50,6 +50,7 @@ OUTPUT_CRS = "EPSG:2056"
 BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
 OVERVIEW_LAKES = os.path.join("assets", "overview_lakes_2056.shp")
 OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
+WARNREGIONS = os.path.join("assets", "warnregionen_vhi_2056.shp")
 
 # Switzerland border with 10km buffer: [5.78, 45.70, 10.69, 47.89] , Schönbühl [ 7.471940, 47.011335, 7.497431, 47.027602] Martigny [ 7.075402, 46.107098, 7.100894, 46.123639]
 # Defines the initial extent to search for image tiles This is not the final extent is defined by BUFFER
@@ -84,14 +85,19 @@ PRODUCT_S2_LEVEL_2A = {
     "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
-# V1 – Trockenstress ch.swisstopo.swisseo_vhi_v100
-PRODUCT_V1 = {
+# VHI – Trockenstress ch.swisstopo.swisseo_vhi_v100
+PRODUCT_VHI = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
     "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
+    "no_data": 255,
+    "missing_data": 110,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
+    # "step1_collection": 'projects/satromo-prod/assets/VHI_SWISS',
     # "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 

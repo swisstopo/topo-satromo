@@ -120,11 +120,41 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
         .linkCollection(S2_csp, ['cs', 'cs_cdf']) \
         .linkCollection(S2_clouds, ['probability'])
 
+    # Is a scene available for this date -> Yes: continue / No: abort ('No candidate scene')
     image_list_size = S2_toa.size().getInfo()
     if image_list_size == 0:
         write_asset_as_empty(collection, day_to_process, 'No candidate scene')
         return
 
+    # Are all tiles for the overpass available -> Yes: continue / No: abort ('Tile upload incomplete')
+    SENSING_ORBIT_NUMBER = S2_toa.first().get('SENSING_ORBIT_NUMBER').getInfo()
+    if image_list_size < 4 and SENSING_ORBIT_NUMBER == 8:
+        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+    elif image_list_size < 12 and SENSING_ORBIT_NUMBER== 108:
+        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+    elif image_list_size < 11 and SENSING_ORBIT_NUMBER == 65:
+        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+    elif image_list_size < 4 and SENSING_ORBIT_NUMBER == 22:
+        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+        return
+
+    # Get image_list_size for the cloud probability dataset
+    if cloudScorePlus is True:
+        image_list_size_cloud = S2_csp.size().getInfo()
+    else:
+        image_list_size_cloud = S2_clouds.size().getInfo()
+
+    # Are CloudScore+ datasets for all tiles available -> Yes: continue / No: abort ('Cloud probability data missing')
+    if image_list_size_cloud < 4 and SENSING_ORBIT_NUMBER == 8:
+        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+    elif image_list_size_cloud < 12 and SENSING_ORBIT_NUMBER == 108:
+        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+    elif image_list_size_cloud < 11 and SENSING_ORBIT_NUMBER == 65:
+        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+    elif image_list_size_cloud < 4 and SENSING_ORBIT_NUMBER == 22:
+        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+        return
+    
     # JSON EXPORT for each tile
     # image_list = S2_toa.toList(S2_toa.size())
     # for i in range(image_list_size):
@@ -213,12 +243,12 @@ def generate_s2_toa_mosaic_for_single_date(day_to_process: str, collection: str,
             .addBands(invertedImage.select(['cs_cdf']).rename('cs_cdf'))
 
         # get the cloud probability
-        clouds = image.select(QA_BAND)
+        clouds = image.select(QA_BAND).multiply(100).toUint8()
 
         # The threshold for masking; values between 0.50 and 0.35 generally work well.
         # Lower values will remove thin clouds, haze, cirrus & shadows.
-        CLOUD_THRESHOLD = 0.4
-        CLOUDSHADOW_THRESHOLD = 0.2
+        CLOUD_THRESHOLD = 40 # casted to 100 from 0.4
+        CLOUDSHADOW_THRESHOLD = 20 # casted to 100 from 0.2
 
         # applying the maximum cloud probability threshold
         isNotCloud = clouds.lt(CLOUD_THRESHOLD)

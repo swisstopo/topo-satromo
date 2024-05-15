@@ -14,7 +14,7 @@ import platform
 import re
 import requests
 from datetime import datetime
-from main_functions import main_thumbnails, main_publish_stac_fsdi
+from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
 
 # Set the CPL_DEBUG environment variable to enable verbose output
@@ -41,13 +41,13 @@ def determine_run_type():
 
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
-        print("\nType 2 run PUBLISHER: We are on DEV")
+        print("\nType 2 run PUBLISHER: We are on a local machine")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_DEV
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_DEV
         S3_DESTINATION = config.S3_DESTINATION_DEV
     else:
         run_type = 1
-        print("\nType 1 run PUBLISHER: We are on INT")
+        print("\nType 1 run PUBLISHER: We are on Github")
         GDRIVE_SOURCE = config.GDRIVE_SOURCE_INT
         GDRIVE_MOUNT = config.GDRIVE_MOUNT_INT
         S3_DESTINATION = config.S3_DESTINATION_INT
@@ -333,6 +333,12 @@ def write_update_metadata(filename, filemeta):
         metadata[band_name]['SOURCE_COLLECTION'] = filemeta['GEE_ID'] if 'GEE_ID' in filemeta else filemeta['GEE_PROPERTIES']['collection']
         metadata[band_name]['SOURCE_COLLECTION_PROPERTIES'] = filemeta['GEE_PROPERTIES']
         metadata[band_name]['GEE_VERSION'] = filemeta['GEE_VERSION'] if 'GEE_VERSION' in filemeta else None
+        for key in filemeta:
+            # Check if "*WARNREGIONS*" is part of the key
+            if "WARNREGIONS" in key:
+                metadata[key] = {}
+                # Copy the value associated with the matching key to metadata under the key "WARNREGIONS"
+                metadata[key] = filemeta[key]
 
         # Write the updated data back to the JSON file
         with open(file_path, 'w') as json_file:
@@ -567,7 +573,7 @@ def extract_and_compare_datetime_from_url(url, iso_string):
             datetime_value, '%Y-%m-%dT%H:%M:%SZ')
 
         # Parse the ISO string
-        iso_datetime = datetime.strptime(iso_string, '%Y-%m-%dT%H%M%S')
+        iso_datetime = datetime.strptime(iso_string[:10], '%Y-%m-%d')
 
         # Extract dates from both datetime objects
         extracted_date = extracted_datetime.date()
@@ -580,9 +586,31 @@ def extract_and_compare_datetime_from_url(url, iso_string):
         return False
 
 
+def check_substrings_presence(file_merged, substring_to_check, additional_substrings):
+    """
+    Check if the main substring and at least one of the additional substrings are present in the file_merged string.
+
+    Args:
+    - file_merged (str): The string to check.
+    - substring_to_check (str): The main substring to check for.
+    - additional_substrings (list of str): List of additional substrings to check for.
+
+    Returns:
+    - bool: True if the main substring and at least one of the additional substrings are present, False otherwise.
+    """
+    # Check if the main substring is present in the string
+    if substring_to_check in file_merged:
+        # Check if any of the additional substrings are also present
+        additional_substring_found = any(
+            substring in file_merged for substring in additional_substrings)
+        return additional_substring_found
+    else:
+        return False
+
+
 if __name__ == "__main__":
 
-    # Test if we are on Local DEV Run or if we are on PROD
+    # Test if we are on a local machine or if we are on Github
     determine_run_type()
 
     # Authenticate with GEE and GDRIVE
@@ -659,12 +687,57 @@ if __name__ == "__main__":
             main_publish_stac_fsdi.publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
+            # Warnregions:
+            # swisseo-vhi warnregions: create
+
+            # Check if we deal with VHI Vegetation or Forest files
+            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                print("Extracting warnregions stats...")
+                warnregionfilename = metadata['SWISSTOPO']['PRODUCT']+"_"+metadata['SWISSTOPO']['ITEM'] + \
+                    "_" + \
+                    file_merged[file_merged.rfind(
+                        "_") + 1:file_merged.rfind("-")]+"-warnregions"
+
+                # Extracting warnregions
+                main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
+                                                metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", config.PRODUCT_VHI['missing_data'])
+
+                # Pushing  CSV , GEOJSON and PARQUET
+                warnformats = [".csv", ".geojson", ".parquet"]  #
+                for format in warnformats:
+                    main_publish_stac_fsdi.publish_to_stac(
+                        warnregionfilename+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+                    # Define the new metadata entry
+                    new_entry_key = (file_merged[file_merged.rfind(
+                        "_") + 1:file_merged.rfind("-")] + "-warnregions" + format.replace(".", "-")).upper()
+                    new_entry_value = {
+                        "PRODUCT": metadata['SWISSTOPO']['PRODUCT'],
+                        "ITEM": metadata['SWISSTOPO']['ITEM'],
+                        "ASSET": warnregionfilename + format,
+                        "SOURCE": file_merged,
+                        "format": format,
+                        "regionId": "RegionID",
+                        "vhiMean": "VHI Mean Region",
+                        "availabilityPercentage": "percentage of available pixels with information within region"
+                    }
+
+                    # Update the metadata dictionary with the new entry
+                    metadata[new_entry_key] = new_entry_value
+
+                    # Write the updated metadata back to the JSON file
+                    with open(os.path.join(
+                            config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'w') as f:
+                        json.dump(metadata, f)   
+          
+                    
+
             # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
             collection = metadata['SWISSTOPO']['PRODUCT']
             result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                            "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
             if result == True:
                 print("Newest dataset detected: updating CURRENT")
+                
                 file_merged_current = re.sub(
                     r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
                 # Rename the file
@@ -682,9 +755,33 @@ if __name__ == "__main__":
                 # Rename the file back
                 os.rename(file_merged_current, file_merged)
 
+                # Pushing Warnregions CSV , GEOJSON and PARQUET 
+                if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                    # create filepath
+                    warnregionfilename_current = re.sub(
+                            r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
+                    for format in warnformats:
+                        
+                        # Rename the file
+                        os.rename(warnregionfilename+format, warnregionfilename_current+format)
+                        
+                        # Publish  current dataset to stac
+                        main_publish_stac_fsdi.publish_to_stac(
+                        warnregionfilename_current+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
+                        # Rename the file back
+                        os.rename(warnregionfilename_current+format, warnregionfilename+format)
+
+
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+            
+            # Pushing Warnregions CSV , GEOJSON and PARQUET 
+            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:                       
+                for format in warnformats:
+                    move_files_with_rclone(
+                warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
             # Upload and move thumbnail if a thumbnail is required
             if thumbnail is not False:

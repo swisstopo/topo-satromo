@@ -185,8 +185,9 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
         },
         "links": [
             {
-                "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
-                id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
+                "href": "https://map.geo.admin.ch/index.html?layers=WMS||"+title+"||https://wms.geo.admin.ch/?item="+id+"||ch.swisstopo."+product,
+                # "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
+                # id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
                 "rel": "visual"
             },
             {
@@ -274,6 +275,15 @@ def asset_create_title(asset, current):
         # Remove the file extension
         filename_without_extension = text_after_date.rsplit('.', 1)[0]
 
+        # Deal with warnregions: asset name needs to contain the file extension
+        # Extract the file extension
+        file_extension = os.path.splitext(asset)[1]
+
+        # Check if "warnregions" is present in filename_without_extension and if the file extension is ".csv", ".geojson", or ".parquet"
+        if "warnregions" in filename_without_extension and file_extension.lower() in [".csv", ".geojson", ".parquet"]:
+            filename_without_extension = filename_without_extension + \
+                "-"+file_extension.lstrip('.')
+
         # Convert to uppercase
         filename_uppercase = filename_without_extension.upper()
 
@@ -311,11 +321,23 @@ def asset_create_json_payload(id, asset_type, current):
             "title": title,
             "type": "application/json"
         }
+    elif asset_type == "GEOJSON":
+        payload = {
+            "id": id,
+            "title": title,
+            "type": "application/geo+json"
+        }
     elif asset_type == "CSV":
         payload = {
             "id": id,
             "title": title,
             "type": "text/csv"
+        }
+    elif asset_type == "PARQUET":
+        payload = {
+            "id": id,
+            "title": title,
+            "type": "application/vnd.apache.parquet"
         }
     else:
         asset_type == "JPEG"
@@ -543,6 +565,10 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
         asset_type = 'JSON'
     elif extension.lower() == 'jpg':
         asset_type = 'JPEG'
+    elif extension.lower() == 'geojson':
+        asset_type = 'GEOJSON'
+    elif extension.lower() == 'parquet':
+        asset_type = 'PARQUET'
     else:
         asset_type = 'TIF'
 
@@ -576,6 +602,16 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
                 coordinates_wgs84 = [transformer_lv95_to_wgs84.transform(
                     *coord) for coord in coordinates_lv95]
 
+                # Check if raw_item ends with "240000", since python does not recognize the newest version of ISO8601 of October 2022: "An amendment was published in October 2022 featuring minor technical clarifications and attempts to remove ambiguities in definitions. The most significant change, however, was the reintroduction of the "24:00:00" format to refer to the instant at the end of a calendar day."
+
+                # if raw_item.endswith('240000'):
+                #     raw_item_fix = raw_item[:-6] + '235959'
+                #     # Date: Convert the string to a datetime object
+                #     dt = datetime.strptime(raw_item_fix, '%Y-%m-%dT%H%M%S')
+
+                #     # Adjust the formatting accordingly
+                #     dt_iso8601 = dt.strftime('%Y-%m-%dT23:59:59Z')
+                # else:
                 # Date: Convert the string to a datetime object
                 dt = datetime.strptime(raw_item, '%Y-%m-%dT%H%M%S')
 
