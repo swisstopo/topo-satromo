@@ -50,6 +50,7 @@ OUTPUT_CRS = "EPSG:2056"
 BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
 OVERVIEW_LAKES = os.path.join("assets", "overview_lakes_2056.shp")
 OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
+WARNREGIONS = os.path.join("assets", "warnregionen_vhi_2056.shp")
 
 # Switzerland border with 10km buffer: [5.78, 45.70, 10.69, 47.89] , Schönbühl [ 7.471940, 47.011335, 7.497431, 47.027602] Martigny [ 7.075402, 46.107098, 7.100894, 46.123639]
 # Defines the initial extent to search for image tiles This is not the final extent is defined by BUFFER
