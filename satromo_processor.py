@@ -471,15 +471,14 @@ if __name__ == "__main__":
     current_date_str = previous_date.strftime('%Y-%m-%d')
     print("Processing :", current_date_str)
 
-    # For debugging
 
+    # # For debugging
 
-    current_date_str = "2023-08-30"
+    # current_date_str = "2023-08-30"
 
-
-    # print("*****************************\n")
-    print("using a manual set Date: " + current_date_str)
-    # print("*****************************\n")
+    # # print("*****************************\n")
+    # print("using a manual set Date: " + current_date_str)
+    # # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
@@ -512,11 +511,11 @@ if __name__ == "__main__":
                 #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
                 result = process_S2_LEVEL_2A(roi)
 
-            elif product_to_be_processed == 'PRODUCT_V1':
+            elif product_to_be_processed == 'PRODUCT_VHI':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
                 #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
-                result = step1_processor_vhi.process_PRODUCT_V1(
+                result = step1_processor_vhi.process_PRODUCT_VHI(
                     roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
