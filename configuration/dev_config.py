@@ -25,6 +25,7 @@ GDRIVE_SOURCE_DEV = "geedrivetest:"
 GDRIVE_MOUNT_DEV = r'Y:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
+
 # GITHUB
 GDRIVE_SOURCE_INT = "geedriveINT:"
 GDRIVE_MOUNT_INT = "localgdrive"
@@ -84,7 +85,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress
@@ -100,8 +101,19 @@ PRODUCT_VHI = {
     "missing_data": 110,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
-    #"step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    #"step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+}
+
+# MSG – MeteoSchweiz
+PRODUCT_MSG = {
+    #
+    "image_collection": "METEOSCHWEIZ/MSG",  # this is  placeholder, needed for the step0 function,
+    "temporal_coverage": 7,  # Days
+    "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
+    "no_data": 255,
+    "missing_data": 110,
+    'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
 }
 
 # TEST datasets
@@ -251,6 +263,10 @@ step0 = {
     },
     'projects/satromo-int/assets/COL_S3_TOA_SWISS': {
         'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/LST_SWISS': {
+        'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
 

@@ -471,24 +471,27 @@ if __name__ == "__main__":
     current_date_str = previous_date.strftime('%Y-%m-%d')
     print("Processing :", current_date_str)
 
-
     # # For debugging
 
-    # current_date_str = "2023-08-30"
+    current_date_str = "2024-04-04"
 
-    # # print("*****************************\n")
-    # print("using a manual set Date: " + current_date_str)
-    # # print("*****************************\n")
-
+    # print("*****************************\n")
+    print("using a manual set Date: " + current_date_str)
+    # print("*****************************\n")
 
     current_date = ee.Date(current_date_str)
 
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+
+    # Retrieve the step0 information from the config object and store it in a dictionary
     step0_product_dict = get_step0_dict()
+    # Print the dictionary containing collection names and their details
     print(step0_product_dict)
 
+    # Process the step0 collections to determine which ones are ready for processing
     collections_ready_for_processors = step0_main(
         step0_product_dict, current_date_str)
+    # Print the list of collections that are ready for processing
     print(collections_ready_for_processors)
 
     for collection_ready in collections_ready_for_processors:
