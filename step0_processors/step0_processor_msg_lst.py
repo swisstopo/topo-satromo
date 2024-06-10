@@ -55,7 +55,7 @@ def determine_run_type():
 
     if os.path.exists(config.GDRIVE_SECRETS):
         run_type = 2
-        GCS_MOUNT = config.GCS_MOUNT_DEV
+
         # Read the service account key file
         with open(os.path.join("secrets", "geetest-credentials.secret"), "r") as f:
             data = json.load(f)
@@ -68,8 +68,7 @@ def determine_run_type():
         print("\nType 2 run PROCESSOR: We are on a local machine")
     else:
         run_type = 1
-        GCS_MOUNT = config.GCS_MOUNT_INT
-        GCS_SOURCE = config.GCS_SOURCE_INT
+
         print("\nType 1 run PROCESSOR: We are on GitHub")
 
     # Test if GEE initialization is successful
