@@ -108,12 +108,23 @@ PRODUCT_VHI = {
 # MSG – MeteoSchweiz
 PRODUCT_MSG = {
     #
-    "image_collection": "METEOSCHWEIZ/MSG",  # this is  placeholder, needed for the step0 function,
+    # this is  placeholder, needed for the step0 function,
+    "image_collection": "METEOSCHWEIZ/MSG",
     "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
-    "no_data": 255,
-    "missing_data": 110,
+    "no_data": 0,
     'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
+}
+
+# MSG – MeteoSchweiz: only used for repreocessing
+PRODUCT_MSG_CLIMA = {
+    #
+    # this is  placeholder, needed for the step0 function,
+    "image_collection": "METEOSCHWEIZ/MSG",
+    "temporal_coverage": 7,  # Days
+    "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
+    "no_data": 0,
+    'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
 
 # TEST datasets
@@ -268,8 +279,11 @@ step0 = {
     'projects/satromo-int/assets/LST_SWISS': {
         'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-int/assets/LST_CLIMA_SWISS': {
+        'step0_function': 'step0_processor_msg_lst_clima.generate_msg_lst_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
     }
-
 }
 
 

@@ -400,8 +400,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         print(f"Error uploading file to GCS: {e}")
 
     # Define the asset name for Earth Engine
-    asset_name = config.PRODUCT_MSG['step0_collection']+"/"+asset_prefix+day_to_process + \
-        "T"+str(LST_hour)+"0000"+'_bands-1721m'
+    asset_name = config.PRODUCT_MSG_CLIMA['step0_collection']+"/"+asset_prefix+day_to_process + \
+        "T"+str(LST_hour)+"0000"+'_bands-4415m'
 
     # Load the GeoTIFF file as an Earth Engine Image
     image = ee.Image.loadGeoTIFF(
@@ -423,7 +423,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         # Assuming single timestamp Convert to milliseconds End timestamp
         'system:time_end': int(date_time.timestamp()) * 1000,
         # Set the name of the image
-        'system:name': asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-1721m',
+        'system:name': asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-4415m',
         # Set the date
         'date': day_to_process,
         # HourMin Sec
@@ -440,7 +440,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         'date_created': info_raw_file['global_attributes']['date_created'],
         # Set the no data value, you can add more properties like baselines  etc
         # '_FillValue': str(info_raw_file['variables']['LST_PMW']['attributes']['_FillValue'])
-        'no_data': str(config.PRODUCT_MSG["no_data"])
+        'no_data': str(config.PRODUCT_MSG_CLIMA["no_data"])
     })
 
     # Check if the asset already exists
@@ -471,7 +471,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
             # Continue with your code here
             pass
             print("upload finished:" + asset_prefix+day_to_process +
-                  "T"+str(LST_hour)+"0000"+'_bands-1721m')
+                  "T"+str(LST_hour)+"0000"+'_bands-4415m')
 
             # delete file on GCS
             blob.delete()

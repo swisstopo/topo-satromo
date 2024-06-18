@@ -14,6 +14,7 @@ from step0_functions import get_step0_dict, step0_main
 from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi
 from main_functions import main_utils
 import pandas as pd
+from google.cloud import storage
 
 
 def determine_run_type():
@@ -473,7 +474,7 @@ if __name__ == "__main__":
 
     # # For debugging
 
-    current_date_str = "2024-04-04"
+    current_date_str = "2024-04-06"
 
     # print("*****************************\n")
     print("using a manual set Date: " + current_date_str)
@@ -562,6 +563,16 @@ if __name__ == "__main__":
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_s3_toa.process_S3_LEVEL_1(
                     roi, current_date)
+
+            elif product_to_be_processed == 'PRODUCT_MSG_CLIMA':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
+                result = "PRODUCT_MSG_CLIMA:  step0 only"
+
+            elif product_to_be_processed == 'PRODUCT_MSG':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
+                result = "PRODUCT_MSG:  step0 only"
 
             else:
                 raise BrokenPipeError('Inconsitent configuration')
