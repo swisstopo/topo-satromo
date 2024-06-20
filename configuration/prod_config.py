@@ -9,9 +9,9 @@ GITHUB_OWNER = "swisstopo"
 GITHUB_REPO = "topo-satromo"
 
 # Secrets
-GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials.secret")
+GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials-int.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
-FSDI_SECRETS = os.path.join("secrets", "stac_fsdi.json")
+FSDI_SECRETS = os.path.join("secrets", "stac_fsdi-prod.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -20,12 +20,12 @@ EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
 # Local Machine
-GDRIVE_SOURCE_DEV = "geedrivetest:"
+GDRIVE_SOURCE_DEV = "geedriveINT:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
-GDRIVE_MOUNT_DEV = r'Y:\\'
+GDRIVE_MOUNT_DEV = r'G:\\'
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
-#  GITHUB 
+#  GITHUB
 GDRIVE_SOURCE_INT = "geedrivePROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")

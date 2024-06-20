@@ -472,14 +472,27 @@ if __name__ == "__main__":
     current_date_str = previous_date.strftime('%Y-%m-%d')
     print("Processing :", current_date_str)
 
-    # # For debugging
-
-    current_date_str = "2024-04-06"
+    # For debugging
+    # --------------
+    current_date_str = "2024-06-12"
 
     # print("*****************************\n")
     print("using a manual set Date: " + current_date_str)
     # print("*****************************\n")
 
+    # For CLI
+    # --------------
+    # satromo_processor.py
+    from configuration import arg_date_str
+
+    # Check if current_date_str is set by the command line
+    if arg_date_str:
+
+        # Use the default date
+        current_date_str = arg_date_str
+        print(f'Using command line set date: {arg_date_str}')
+
+    # Define date to be used
     current_date = ee.Date(current_date_str)
 
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)

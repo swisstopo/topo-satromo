@@ -85,7 +85,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress
@@ -113,7 +113,7 @@ PRODUCT_MSG = {
     "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
+    #'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
@@ -124,7 +124,7 @@ PRODUCT_MSG_CLIMA = {
     "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
+    #'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
 
 # TEST datasets
