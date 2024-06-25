@@ -591,11 +591,18 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
 
     # define the export aoi
+    # mask the zero values outside the satellite footprint
+    # Pixels are not zeros, return zeros
+    zeros = S2_sr.Not()
+    # Pixels are zeros, return ones
+    ones = zeros.Not()
+    # Vectorize the ones mask image
+    vectorized_ones = ones.reduceToVectors()
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
     aoi_img = S2_sr.geometry()
     # therefore it is clipped with rectangle to keep the geometry simple
     # the alternative clip with aoi_CH would be computationally heavier
-    aoi_exp = aoi_img.intersection(aoi_CH_simplified)  # alternativ': aoi_CH
+    aoi_exp = aoi_img.intersection(aoi_CH_simplified).intersection(vectorized_ones)  # alternativ': aoi_CH
 
     # SWITCH export
     if export10mBands is True:
