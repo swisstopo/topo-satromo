@@ -48,7 +48,7 @@ OUTPUT_CRS = "EPSG:2056"
 
 # Desired buffer in m width around ROI, e.g., 25000, this defines the final extent
 # TODO: check if needed in context with step0
-BUFFER = os.path.join("assets", "ch_buffer_5000m.shp") 
+BUFFER = os.path.join("assets", "ch_buffer_5000m.shp")
 OVERVIEW_LAKES = os.path.join("assets", "overview_lakes_2056.shp")
 OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
 WARNREGIONS = os.path.join("assets", "warnregionen_vhi_2056.shp")
@@ -113,7 +113,7 @@ PRODUCT_MSG = {
     "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    #'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
@@ -124,7 +124,7 @@ PRODUCT_MSG_CLIMA = {
     "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    #'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
 
 # TEST datasets
