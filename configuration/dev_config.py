@@ -48,7 +48,7 @@ OUTPUT_CRS = "EPSG:2056"
 
 # Desired buffer in m width around ROI, e.g., 25000, this defines the final extent
 # TODO: check if needed in context with step0
-BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
+BUFFER = os.path.join("assets", "ch_buffer_5000m.shp") 
 OVERVIEW_LAKES = os.path.join("assets", "overview_lakes_2056.shp")
 OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
 WARNREGIONS = os.path.join("assets", "warnregionen_vhi_2056.shp")
