@@ -701,15 +701,19 @@ if __name__ == "__main__":
 
             print(filename+" is ready to process")
 
-            # merge files
-            file_merged = merge_files_with_gdal_warp(filename)
-
-            # Get metdatafile by replacing ".tif" by "_metadata.json"
-            # metadata_file = file_merged.replace(".tif", "_metadata.json")
             # read metadata from json
             with open(os.path.join(
-                    config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
+                    config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
                 metadata = json.load(f)
+            
+
+            # Set the buffer based on orbit
+            config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
+                metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
+            breakpoint()
+            
+            # merge files
+            file_merged = merge_files_with_gdal_warp(filename)
 
             # check if there is a need to create thumbnail , if yes create it
             thumbnail = main_thumbnails.create_thumbnail(
