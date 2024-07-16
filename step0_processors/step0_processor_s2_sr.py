@@ -92,7 +92,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Terrain - very precise digital surface  model in a 10 m resolution
     # source: https://code.earthengine.google.com/ccfa64fe9827c93e2986e693983332e2
     # processing:The shadow masks are  combined into a single image with multiple bands as asset per DOY.
-    terrain_shadow_collection = "projects/satromo-prod/assets/col/TERRAINSHADOW_SWISS"
+    terrain_shadow_collection = "projects/satromo-prod/assets/col/TERRAINSHADOW_SWISS/"
 
     ##############################
     # SATELLITE DATA
