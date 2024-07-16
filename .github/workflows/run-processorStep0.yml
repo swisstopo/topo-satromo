@@ -28,7 +28,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt      
-    
+            
+    - name: install gdal
+      run: |
+        sudo add-apt-repository ppa:ubuntugis/ppa
+        sudo apt-get update
+        sudo apt-get install gdal-bin
+        sudo apt-get install libgdal-dev
+        
     - name: Run Python script
       run: |
         python satromo_processor.py prod_config.py
