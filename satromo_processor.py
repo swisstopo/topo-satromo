@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    current_date_str = "2024-06-19"
+    current_date_str = "2023-07-13"
 
     # print("*****************************\n")
     print("using a manual set Date: " + current_date_str)
@@ -527,8 +527,8 @@ if __name__ == "__main__":
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 # roi = ee.Geometry.Rectangle(
                 #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
-                roi = ee.Geometry.Rectangle(
-                    [7.938447, 47.514378, 8.127522, 47.610846])
+                # roi = ee.Geometry.Rectangle(
+                #     [7.938447, 47.514378, 8.127522, 47.610846])
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_VHI':

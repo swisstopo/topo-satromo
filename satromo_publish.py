@@ -705,13 +705,14 @@ if __name__ == "__main__":
             with open(os.path.join(
                     config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
                 metadata = json.load(f)
-            
 
-            # Set the buffer based on orbit
-            config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
-                metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
-            breakpoint()
-            
+            # Set the buffer based on orbit or use Switzerland wide buffer
+            if 'GEE_PROPERTIES' in metadata and 'SENSING_ORBIT_NUMBER' in metadata['GEE_PROPERTIES']:
+                config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
+                    metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
+            else:
+                config.BUFFER = os.path.join("assets", "ch_buffer_5000m.shp")
+
             # merge files
             file_merged = merge_files_with_gdal_warp(filename)
 

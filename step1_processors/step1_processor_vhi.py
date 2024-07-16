@@ -188,7 +188,7 @@ def loadLstCurrentData(date, d, aoi):
     return LSTj, LST_index_list, LST_scene_count
 
 
-def process_PRODUCT_V1(roi, collection_ready, current_date_str):
+def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     """
     Processes swissEO VHI data for Switzerland.
 
@@ -354,7 +354,7 @@ def process_PRODUCT_V1(roi, collection_ready, current_date_str):
 
         # Define item Name
         timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y-%m-%dT240000')
+        timestamp = timestamp.strftime('%Y-%m-%dT235959')
 
         ##############################
         # EXPORT
