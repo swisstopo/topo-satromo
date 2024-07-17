@@ -101,8 +101,8 @@ PRODUCT_VHI = {
     "missing_data": 110,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
-    # "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # MSG – MeteoSchweiz

@@ -47,7 +47,7 @@ OUTPUT_CRS = "EPSG:2056"
 
 # Desired buffer in m width around ROI, e.g., 25000, this defines the final extent
 # TODO: check if needed in context with step0
-BUFFER = os.path.join("tools", "ch_buffer_5000m.shp")
+BUFFER = os.path.join("assets", "ch_buffer_5000m.shp")
 OVERVIEW_LAKES = os.path.join("assets", "overview_lakes_2056.shp")
 OVERVIEW_RIVERS = os.path.join("assets", "overview_rivers_2056.shp")
 WARNREGIONS = os.path.join("assets", "warnregionen_vhi_2056.shp")
@@ -82,6 +82,7 @@ PRODUCT_S2_LEVEL_2A = {
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
+    "no_data": 9999,
     "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
@@ -101,6 +102,17 @@ PRODUCT_VHI = {
     # "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
+# MSG – MeteoSchweiz
+PRODUCT_MSG = {
+    #
+    # this is  placeholder, needed for the step0 function,
+    "image_collection": "METEOSCHWEIZ/MSG",
+    "temporal_coverage": 7,  # Days
+    "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
+    "no_data": 0,
+    # 'step0_collection': 'projects/satromo-prod/assets/col/VHI_SWISS'
+}
+
 
 # B custom COLLECTION
 # ********************
@@ -117,6 +129,10 @@ step0 = {
     # 'projects/satromo-exolabs/assets/col_s2_toa': {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
+    # },
+    # 'projects/satromo-int/assets/LST_SWISS': {
+    #     'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
+    #     # cleaning_older_than: 2 # entry used to clean assets
     # },
     'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
