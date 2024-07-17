@@ -151,6 +151,70 @@ A new function specifically designed for each personal collections is stored in 
 (If you don't need a new step0 processor function, you certainly don't need a new collection...)
 Create the new function in a new file located in step0_processors folder.
 
+## Single Scene Processing via Command Line
+
+### Use Case:
+For cases where certain data was not computed on production for some reason (e.g., missing cloud mask etc.). These instructions are suitable for processing scenes via command line on the local machine using an INT or PROD account from GEE with a local version of the code and writing to PROD of STAC and GEE ASSETS.
+
+### Prerequisites
+
+- **Installation**
+  Install according to the instructions in the GitHub repository.
+
+- **Copy MAIN**
+  It is recommended to copy/check out MAIN with Github to ensure consistency in data processing.
+
+- **Objective**
+  The goal is to process a day, e.g., 2024-06-12, for a product.
+
+- **Configure prod_config.py**
+  Configure prod_config.py so that in case of Windows:
+    - Use GEE INT geetest-credentials-int.secret
+    - Set GDRIVE_SOURCE_DEV = "geedriveINT:"
+    - Set GDRIVE_MOUNT_DEV = r'G:\\'
+    - Ensure corresponding drives are mounted
+
+- **Delete Assets**
+  Delete affected (damaged) assets in GEE step0_collection before recalculating step0.
+
+- **Remove empty_step0.csv asset entry for date**
+  Delete all 'no candidate' entries for products in tools\empty_step0.csv if they are to be recalculated.
+
+- **Set Date**
+  Set "LastSceneDate" of the respective product before the date you want to process, e.g., before 2024-06-12, in tools/last_updates.txt.
+
+- **Start Venv Environment**
+  Start and activate the virtual environment:
+    - Open Command Prompt
+    - Change directory where satromo folder is located 
+      ```
+      c:
+      cd C:\temp\topo-satromo (as an example)
+      .venv\Scripts\activate
+      ```
+
+### Execution
+
+1. For June 12, 2024, process the products as defined in prod_config.py:
+```
+(.venv) C:\temp\topo-satromo>python satromo_processor.py prod_config.py 2024-06-12
+```
+
+2. GEE Asset creation complete and Start Export
+Check after about 60 minutes, if the corresponding assets (x2) are present in GEE.
+```
+(.venv) C:\temp\topo-satromo>python satromo_processor.py prod_config.py 2024-06-12
+```
+
+3. Start Publish Export
+Check after about 60 minutes, if the corresponding files (6x4) are present in Google Drive, or keep running the job below.
+```
+(.venv) C:\temp\topo-satromo>python satromo_publish.py prod_config.py
+```
+
+### Update step0_empty_assets.csv List on GitHub
+
+Update the step0_empty_assets.csv directly on GitHub PROD: https://github.com/swisstopo/topo-satromo/blob/main/tools/step0_empty_assets.csv
 
 ## Technologies
 

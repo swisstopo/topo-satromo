@@ -14,6 +14,7 @@ from step0_functions import get_step0_dict, step0_main
 from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi
 from main_functions import main_utils
 import pandas as pd
+from google.cloud import storage
 
 
 def determine_run_type():
@@ -471,24 +472,40 @@ if __name__ == "__main__":
     current_date_str = previous_date.strftime('%Y-%m-%d')
     print("Processing :", current_date_str)
 
+    # For debugging
+    # --------------
+    # current_date_str = "2023-07-15"
 
-    # # For debugging
-
-    # current_date_str = "2023-08-30"
-
-    # # print("*****************************\n")
+    # print("*****************************\n")
     # print("using a manual set Date: " + current_date_str)
-    # # print("*****************************\n")
+    # print("*****************************\n")
 
+    # For CLI
+    # --------------
+    # satromo_processor.py
+    from configuration import arg_date_str
 
+    # Check if current_date_str is set by the command line
+    if arg_date_str:
+
+        # Use the default date
+        current_date_str = arg_date_str
+        print(f'Using command line set date: {arg_date_str}')
+
+    # Define date to be used
     current_date = ee.Date(current_date_str)
 
     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+
+    # Retrieve the step0 information from the config object and store it in a dictionary
     step0_product_dict = get_step0_dict()
+    # Print the dictionary containing collection names and their details
     print(step0_product_dict)
 
+    # Process the step0 collections to determine which ones are ready for processing
     collections_ready_for_processors = step0_main(
         step0_product_dict, current_date_str)
+    # Print the list of collections that are ready for processing
     print(collections_ready_for_processors)
 
     for collection_ready in collections_ready_for_processors:
@@ -510,6 +527,8 @@ if __name__ == "__main__":
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 # roi = ee.Geometry.Rectangle(
                 #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
+                # roi = ee.Geometry.Rectangle(
+                #     [7.938447, 47.514378, 8.127522, 47.610846])
                 result = process_S2_LEVEL_2A(roi)
 
             elif product_to_be_processed == 'PRODUCT_VHI':
@@ -559,6 +578,16 @@ if __name__ == "__main__":
                 #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
                 result = step1_processor_s3_toa.process_S3_LEVEL_1(
                     roi, current_date)
+
+            elif product_to_be_processed == 'PRODUCT_MSG_CLIMA':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
+                result = "PRODUCT_MSG_CLIMA:  step0 only"
+
+            elif product_to_be_processed == 'PRODUCT_MSG':
+                # roi = ee.Geometry.Rectangle(
+                #     [9.49541, 47.22246, 9.55165, 47.26374,])  # Liechtenstein
+                result = "PRODUCT_MSG:  step0 only"
 
             else:
                 raise BrokenPipeError('Inconsitent configuration')

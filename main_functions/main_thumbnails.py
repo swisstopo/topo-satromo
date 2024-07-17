@@ -4,6 +4,68 @@ import subprocess
 import rasterio
 import numpy as np
 from rasterio.transform import from_origin
+from shapely.geometry import shape
+import fiona
+
+import os
+import subprocess
+import fiona
+from shapely.geometry import shape
+
+
+def fill_buffer_switzerland(shapefile_dir, shapefile_name, target_width):
+    """
+    Creates a raster file from the given shapefile with a buffer around Switzerland.
+
+    Args:
+    shapefile_dir (str): The directory where the shapefile is located.
+    shapefile_name (str): The name of the shapefile.
+    target_width (int): The target width of the output raster.
+
+    Returns:
+    None
+
+    Example usage:
+    fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
+    """
+    # Path to your shapefile
+    shapefile_path = os.path.join(shapefile_dir, shapefile_name)
+
+    # Open the shapefile and read the first feature to get its geometry
+    with fiona.open(shapefile_path, 'r') as shp:
+        first_feature = next(iter(shp))
+        geom = shape(first_feature['geometry'])
+
+    # Calculate bounding box dimensions (width and height)
+    minx, miny, maxx, maxy = geom.bounds
+    orig_width = maxx - minx
+    orig_height = maxy - miny
+
+    # Calculate corresponding height to maintain aspect ratio
+    target_height = int(orig_height / orig_width * target_width)
+
+    # Prepare the command for gdal_rasterize
+    command = [
+        "gdal_rasterize",
+        "-burn", "220", "-burn", "220", "-burn", "220",
+        "-init", "255",
+        "-l", shapefile_name.replace(".shp", ""),
+        shapefile_path,
+        "-ot", "Byte",
+        "-of", "GTiff",
+        "-ts", str(target_width), str(target_height),
+        "output_thumbnailswissfill.tif"
+    ]
+
+    # Execute the command
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
+
+    # Check and print the command output
+    if result.returncode == 0:
+        print("Rasterization successful!")
+    else:
+        print(f"Error: {result.stderr}")
 
 
 def apply_overlay(input_file, output_file):
@@ -117,24 +179,12 @@ def create_thumbnail(inputfile_name, product):
             subprocess.run(command, check=True, capture_output=True, text=True)
 
             # Fill Buffer Switzerland
-            command = [
-                "gdal_rasterize",
-                "-burn", "220", "-burn", "220", "-burn", "220",
-                "-init", "0",
-                "-a_nodata", "0",
-                "-l", "ch_buffer_5000m",
-                config.BUFFER,
-                "-ot", "Byte",
-                "-of", "GTiff",
-                "-ts", "1024", "1024",
-                "output_thumbnailswissfill.tif"
-            ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
 
             # Set 0 values to nodata
             command = [
                 "gdal_translate",
-                "-a_nodata", "0,0,0",
+                # "-a_nodata", "0,0,0", #This step is only needed of you have additional data with nodata
                 "output_thumbnailRGB_scaled255.tif",
                 "output_thumbnailRGB_scaled255nodata.tif"
             ]
@@ -144,7 +194,7 @@ def create_thumbnail(inputfile_name, product):
             command = [
                 "gdalwarp",
                 "-overwrite",
-                "-dstnodata", "0",
+                "-dstnodata", "255",
                 "output_thumbnailswissfill.tif",
                 "output_thumbnailRGB_scaled255nodata.tif",
                 "output_thumbnailRGB_scaled255nodata_merged.tif"
@@ -237,19 +287,7 @@ def create_thumbnail(inputfile_name, product):
                 dst.write(data_rgb)
 
             # Fill Buffer Switzerland
-            command = [
-                "gdal_rasterize",
-                "-burn", "220", "-burn", "220", "-burn", "220",
-                "-init", "0",
-                "-a_nodata", "0",
-                "-l", "ch_buffer_5000m",
-                config.BUFFER,
-                "-ot", "Byte",
-                "-of", "GTiff",
-                "-ts", "1024", "1024",
-                "output_thumbnailswissfill.tif"
-            ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
 
             # overlay on Switzerland
             command = [

@@ -13,6 +13,7 @@ import glob
 import platform
 import re
 import requests
+import time
 from datetime import datetime
 from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
@@ -169,6 +170,8 @@ def download_and_delete_file(file):
 
 def move_files_with_rclone(source, destination, move=True):
     """
+    #TO DO : is obsolote, we need to delete file, no backup needed on INT S3 location
+
     Move files using the rclone command.
 
     Parameters:
@@ -181,24 +184,36 @@ def move_files_with_rclone(source, destination, move=True):
     # Run rclone command to move files
     # See hint https://forum.rclone.org/t/s3-rclone-v-1-52-0-or-after-permission-denied/21961/2
 
-    if run_type == 2:
-        rclone = os.path.join("secrets", "rclone")
-        rclone_conf = os.path.join("secrets", "rclone.conf")
-    else:
-        rclone = "rclone"
-        rclone_conf = "rclone.conf"
-    if move == True:
-        command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
-                   source, destination]
-    else:
-        command = [rclone, "copy", "--config", rclone_conf, "--s3-no-check-bucket",
-                   source, destination]
-    subprocess.run(command, check=True)
+    # Uncomment below for backup
+    # ..........................
 
+    # if run_type == 2:
+    #     rclone = os.path.join("secrets", "rclone")
+    #     rclone_conf = os.path.join("secrets", "rclone.conf")
+    # else:
+    #     rclone = "rclone"
+    #     rclone_conf = "rclone.conf"
+
+    # if move == True:
+    #     command = [rclone, "move", "--config", rclone_conf, "--s3-no-check-bucket",
+    #                source, destination]
+    # else:
+    #     command = [rclone, "copy", "--config", rclone_conf, "--s3-no-check-bucket",
+    #                source, destination]
+    # subprocess.run(command, check=True)
+
+    # if move == True:
+    #      print("SUCCESS: moved " + source + " to " + destination)
+    # else:
+    #      print("SUCCESS: copied " + source + " to " + destination)
+
+    # Comment below for backup
+    # ..........................
     if move == True:
-        print("SUCCESS: moved " + source + " to " + destination)
+        os.remove(source)
+        print("SUCCESS: deleted " + source)
     else:
-        print("SUCCESS: copied " + source + " to " + destination)
+        print("keeping file:"+source)
 
 
 def merge_files_with_gdal_warp(source):
@@ -366,6 +381,23 @@ def write_update_metadata(filename, filemeta):
             os.rename(file_merged_current, file_path)
 
 
+def delete_gdrive(file):
+    # Attempt to delete the file with retries, since gdrive once in a while returns a error 500
+    for attempt in range(3):  # Try up to 3 times
+        try:
+            file.Delete()
+            print(f"File {file['title']} DELETED on Google Drive.")
+            break  # Exit the loop if the deletion was successful
+        except Exception as e:
+            print(
+                f"Attempt {attempt + 1} to delete file {file['title']} failed with error: {e}")
+            if attempt < 2:  # If not the last attempt, wait before retrying
+                time.sleep(8)  # Wait for 5 seconds before retrying
+            else:
+                print(
+                    f"Failed to delete file {file['title']} after 3 attempts.")
+
+
 def clean_up_gdrive(filename):
     """
     Deletes files in Google Drive that match the given filename.Writes Metadata of processing results
@@ -403,9 +435,8 @@ def clean_up_gdrive(filename):
             file_product, file_item = extract_product_and_item(
                 file_task_status['description'])
 
-            # Delete the file
-            file.Delete()
-            print(f"File {file['title']} DELETED on Google Drive.")
+            # Delete file on gdrive with muliple attempt
+            delete_gdrive(file)
 
             # Add DATA GEE PROCESSING info to stats
             write_file(file_task_status, config.GEE_COMPLETED_TASKS)
@@ -619,8 +650,9 @@ if __name__ == "__main__":
     # empty temp files on GDrive
     file_list = drive.ListFile({'q': "trashed=true"}).GetList()
     for file in file_list:
-        file.Delete()
-        print('GDRIVE TRASH: Deleted file: %s' % file['title'])
+        # Delete file on gdrive with muliple attempt
+        delete_gdrive(file)
+        # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
 
     # Read the status file
     with open(config.GEE_RUNNING_TASKS, "r") as f:
@@ -669,15 +701,20 @@ if __name__ == "__main__":
 
             print(filename+" is ready to process")
 
-            # merge files
-            file_merged = merge_files_with_gdal_warp(filename)
-
-            # Get metdatafile by replacing ".tif" by "_metadata.json"
-            # metadata_file = file_merged.replace(".tif", "_metadata.json")
             # read metadata from json
             with open(os.path.join(
-                    config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'r') as f:
+                    config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
                 metadata = json.load(f)
+
+            # Set the buffer based on orbit or use Switzerland wide buffer
+            if 'GEE_PROPERTIES' in metadata and 'SENSING_ORBIT_NUMBER' in metadata['GEE_PROPERTIES']:
+                config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
+                    metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
+            else:
+                config.BUFFER = os.path.join("assets", "ch_buffer_5000m.shp")
+
+            # merge files
+            file_merged = merge_files_with_gdal_warp(filename)
 
             # check if there is a need to create thumbnail , if yes create it
             thumbnail = main_thumbnails.create_thumbnail(
@@ -727,9 +764,7 @@ if __name__ == "__main__":
                     # Write the updated metadata back to the JSON file
                     with open(os.path.join(
                             config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'w') as f:
-                        json.dump(metadata, f)   
-          
-                    
+                        json.dump(metadata, f)
 
             # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
             collection = metadata['SWISSTOPO']['PRODUCT']
@@ -737,7 +772,7 @@ if __name__ == "__main__":
                                                            "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
             if result == True:
                 print("Newest dataset detected: updating CURRENT")
-                
+
                 file_merged_current = re.sub(
                     r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
                 # Rename the file
@@ -755,33 +790,34 @@ if __name__ == "__main__":
                 # Rename the file back
                 os.rename(file_merged_current, file_merged)
 
-                # Pushing Warnregions CSV , GEOJSON and PARQUET 
+                # Pushing Warnregions CSV , GEOJSON and PARQUET
                 if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
                     # create filepath
                     warnregionfilename_current = re.sub(
-                            r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
+                        r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
                     for format in warnformats:
-                        
+
                         # Rename the file
-                        os.rename(warnregionfilename+format, warnregionfilename_current+format)
-                        
+                        os.rename(warnregionfilename+format,
+                                  warnregionfilename_current+format)
+
                         # Publish  current dataset to stac
                         main_publish_stac_fsdi.publish_to_stac(
-                        warnregionfilename_current+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+                            warnregionfilename_current+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
 
                         # Rename the file back
-                        os.rename(warnregionfilename_current+format, warnregionfilename+format)
-
+                        os.rename(warnregionfilename_current +
+                                  format, warnregionfilename+format)
 
             # move file to INT STAC : in case reproejction is done here: move file_reprojected
             move_files_with_rclone(
                 file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
-            
-            # Pushing Warnregions CSV , GEOJSON and PARQUET 
-            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:                       
+
+            # Pushing Warnregions CSV , GEOJSON and PARQUET
+            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
                 for format in warnformats:
                     move_files_with_rclone(
-                warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+                        warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
             # Upload and move thumbnail if a thumbnail is required
             if thumbnail is not False:
@@ -808,6 +844,7 @@ if __name__ == "__main__":
     # empty temp files on GDrive
     file_list = drive.ListFile({'q': "trashed=true"}).GetList()
     for file in file_list:
-        file.Delete()
-        print('GDRIVE TRASH: Deleted file: %s' % file['title'])
+        # Delete file on gdrive with muliple attempt
+        delete_gdrive(file)
+        # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
     print("PUBLISH Process done.")

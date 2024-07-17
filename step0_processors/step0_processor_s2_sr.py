@@ -35,7 +35,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # options: True, False - defines if the CloudScore+ dataset should be used (if False': s2cloudless)
     cloudScorePlus = True
     # options: True, False - defines if a cast shadow mask is applied
-    terrainShadowDetection = True
+    terrainShadowDetection = False
+    # options: True, False - defines if a cast shadow mask is applied from the precalculated mask
+    terrainShadowDetectionPrecalculated = True
     # options': True, False - defines if individual scenes get mosaiced to an image swath
     swathMosaic = True
     # options': True, False - defines if the coregistration is applied
@@ -80,12 +82,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # processing: GDAL merge and warp (reproject) to epsg32632
     S2_gri = ee.Image("projects/satromo-prod/assets/res/S2_GRI_CH_epsg32632")
 
-    # SwissALTI3d - very precise digital terrain model in a 10 m resolution
-    # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
-    # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
-    # processing: resampling both to 10 m resolution, GDAL merge of SwissALTI3d on DHM25, GDAL warp (reproject) to epsg32632
+    # swissSURFACE3D- very precise digital Surface model in a 10 m resolution
+    # source: https://www.swisstopo.admin.ch/de/hoehenmodell-swisssurface3d (inside CH) and the area at "Meiringen" and outside CH was filled with https://www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download
+    # source: https://www.swisstopo.admin.ch/de/hoehenmodell-swissaltiregio
+    # processing: by F. Gandor in FME
     DEM_sa3d = ee.Image(
-        "projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
+        "projects/satromo-prod/assets/res/SS3DR_SA3DRegio_10m_20kmBuffer_epsg32632")
+
+    # Terrain - very precise digital surface  model in a 10 m resolution
+    # source: https://code.earthengine.google.com/ccfa64fe9827c93e2986e693983332e2
+    # processing:The shadow masks are  combined into a single image with multiple bands as asset per DOY.
+    terrain_shadow_collection = "projects/satromo-prod/assets/col/TERRAINSHADOW_SWISS/"
 
     ##############################
     # SATELLITE DATA
@@ -116,18 +123,21 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # Are all tiles for the overpass available -> Yes: continue / No: abort ('Tile upload incomplete')
     SENSING_ORBIT_NUMBER = S2_sr.first().get('SENSING_ORBIT_NUMBER').getInfo()
     if image_list_size < 4 and SENSING_ORBIT_NUMBER == 8:
-        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
-        return # exit if condition met
+        write_asset_as_empty(collection, day_to_process,
+                             'Tile upload incomplete')
+        return  # exit if condition met
     if image_list_size < 11 and SENSING_ORBIT_NUMBER == 108:
-        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+        write_asset_as_empty(collection, day_to_process,
+                             'Tile upload incomplete')
         return
     if image_list_size < 11 and SENSING_ORBIT_NUMBER == 65:
-        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+        write_asset_as_empty(collection, day_to_process,
+                             'Tile upload incomplete')
         return
     if image_list_size < 4 and SENSING_ORBIT_NUMBER == 22:
-        write_asset_as_empty(collection, day_to_process, 'Tile upload incomplete')
+        write_asset_as_empty(collection, day_to_process,
+                             'Tile upload incomplete')
         return
-
 
     # Get image_list_size for the cloud probability dataset
     if cloudScorePlus is True:
@@ -137,19 +147,22 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
     # Are CloudScore+ datasets for all tiles available -> Yes: continue / No: abort ('Cloud probability data missing')
     if image_list_size_cloud < 4 and SENSING_ORBIT_NUMBER == 8:
-        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+        write_asset_as_empty(collection, day_to_process,
+                             'Cloud probability data missing')
         return
     if image_list_size_cloud < 11 and SENSING_ORBIT_NUMBER == 108:
-        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+        write_asset_as_empty(collection, day_to_process,
+                             'Cloud probability data missing')
         return
     if image_list_size_cloud < 11 and SENSING_ORBIT_NUMBER == 65:
-        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+        write_asset_as_empty(collection, day_to_process,
+                             'Cloud probability data missing')
         return
     if image_list_size_cloud < 4 and SENSING_ORBIT_NUMBER == 22:
-        write_asset_as_empty(collection, day_to_process, 'Cloud probability data missing')
+        write_asset_as_empty(collection, day_to_process,
+                             'Cloud probability data missing')
         return
-    
-    
+
     # image_list = S2_sr.toList(S2_sr.size())
     # for i in range(image_list_size):
     #     image = ee.Image(image_list.get(i))
@@ -246,9 +259,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # The threshold for masking; values between 0.50 and 0.35 generally work well.
         # Lower values will remove thin clouds, haze, cirrus & shadows.
-        CLOUD_THRESHOLD = 40 # casted to 100 from 0.4
-        CLOUDSHADOW_THRESHOLD = 20 # casted to 100 from 0.2
-
+        CLOUD_THRESHOLD = 40  # casted to 100 from 0.4
+        CLOUDSHADOW_THRESHOLD = 20  # casted to 100 from 0.2
 
         # applying the maximum cloud probability threshold
         isNotCloud = clouds.lt(CLOUD_THRESHOLD)
@@ -371,6 +383,56 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         return image
 
+    # This  adds terrain shadows from precalcuated terrain
+    def addTerrainShadow_predefined(image, start_date, terrain_shadow_collection, S2_sr):
+
+        # Define the day of year
+        doy = ee.Date(start_date).getRelative('day', 'year').add(1)
+
+        # Get the date string and create an ee.Date object
+        date_string = ee.Date(start_date).format('YYYY-MM-dd').getInfo()
+        midnight_date = ee.Date(date_string)
+
+        # Get the ee.Date object in UNIX TIME
+        midnight_unix = midnight_date.millis()
+
+        # Load the terrain shadow image for the DOY
+        terrain_shadow_asset = ee.Image(
+            terrain_shadow_collection + str(doy.getInfo()))
+
+        # Extract Unix time from the first image in the Sentinel-2 collection
+        sysindex = S2_sr.first()
+        index = sysindex.get('system:index').getInfo()
+
+        date_time_part = ee.String(index).split('_').get(0)
+        date_time_part_without_t = ee.String(date_time_part).replace('T', '')
+        date = ee.Date.parse('yyyyMMddHHmmss', date_time_part_without_t)
+        unix_time = ee.Number(date.millis()).subtract(midnight_unix)
+
+        # Extract band names from the asset and remove the prefix "shadow_"
+        band_names = terrain_shadow_asset.bandNames().map(
+            lambda band_name: ee.String(band_name).replace('shadow_', ''))
+
+        # Find the band with the smallest difference in Unix time
+        def find_closest_band(current, previous):
+            current_time = ee.Number.parse(current)
+            previous_time = ee.Number.parse(previous)
+            current_diff = current_time.subtract(unix_time).abs()
+            previous_diff = previous_time.subtract(unix_time).abs()
+            return ee.Algorithms.If(current_diff.lt(previous_diff), current, previous)
+
+        closest_band_name = ee.String(band_names.iterate(
+            find_closest_band, band_names.get(0)))
+
+        band_image = terrain_shadow_asset.select(
+            'shadow_' + closest_band_name.getInfo())
+        band_image = band_image.rename('terrainShadowMask')
+
+        # Add the terrain shadow mask band to the input image
+        image = image.addBands(band_image)
+
+        return image
+
     # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
     def addMaskedPixelCount(image):
         # counter the umber of pixel that are masked by cloud or shadows
@@ -419,8 +481,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Clip the image to the outer bounds
         return image.clip(buffered_geometry)
 
-
     # This function masks all bands to the same extent as the 20 m and 60 m bands
+
     def maskEdges(s2_img):
         return s2_img.updateMask(
             s2_img.select('B8A').mask().updateMask(s2_img.select('B9').mask()))
@@ -455,6 +517,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('--- Terrain shadow detection applied ---')
         # apply the terrain shadow function
         S2_sr = S2_sr.map(addTerrainShadow)
+
+    if terrainShadowDetectionPrecalculated is True:
+        print('--- Terrain shadow from precalculated shadow applied  ---')
+        # apply the terrain shadows
+        S2_sr = S2_sr.map(lambda image: addTerrainShadow_predefined(
+            image, start_date, terrain_shadow_collection, S2_sr))
 
     # MOSAIC
     # This step mosaics overlapping Sentinel-2 tiles acquired on the same day
@@ -591,11 +659,23 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         'DATA_SOURCE', "Contains modified Copernicus Sentinel data "+day_to_process[:4])
 
     # define the export aoi
+
+    # # mask the zero values outside the satellite footprint
+    # # Pixels are not zeros, return zeros
+    # zeros = S2_sr.Not()
+    # # Pixels are zeros, return ones
+    # ones = zeros.Not()
+    # # Vectorize the ones mask image
+    # vectorized_ones = ones.reduceToVectors()
+
     # the full mosaic image geometry covers larger areas outside Switzerland that are not needed
+
     aoi_img = S2_sr.geometry()
     # therefore it is clipped with rectangle to keep the geometry simple
     # the alternative clip with aoi_CH would be computationally heavier
     aoi_exp = aoi_img.intersection(aoi_CH_simplified)  # alternativ': aoi_CH
+    # aoi_exp = aoi_img.intersection(aoi_CH_simplified).intersection(
+    #     vectorized_ones)  # alternativ': aoi_CH
 
     # SWITCH export
     if export10mBands is True:
@@ -613,7 +693,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Band list: {}'.format(band_list_10m))
         # Export COG 10m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(band_list_10m).clip(aoi_exp).set('pixel_size_meter', 10),
+            image=S2_sr.select(band_list_10m).clip(
+                aoi_exp).set('pixel_size_meter', 10),
             scale=10,
             description=task_description + '_10m',
             crs='EPSG:2056',
@@ -632,7 +713,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         print('Band list: {}'.format(band_list_20m))
         # Export COG 20m bands
         task = ee.batch.Export.image.toAsset(
-            image=S2_sr.select(band_list_20m).clip(aoi_exp).set('pixel_size_meter', 20),
+            image=S2_sr.select(band_list_20m).clip(
+                aoi_exp).set('pixel_size_meter', 20),
             scale=20,
             description=task_description + '_20m',
             crs='EPSG:2056',

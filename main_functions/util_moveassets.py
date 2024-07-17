@@ -68,16 +68,20 @@ with open(asset_list, 'r') as file:
 asset_names = [name.strip() for name in asset_names]
 
 # Define the Earth Engine username for the source account
-source_username = "wulf"
+
 
 # Define the Earth Engine username for the destination account
-destination_username = "satromo-prod"
+destination_username = "satromo-int"
 
 # Copy each asset from the source to the destination
 for asset_name in asset_names:
     # Construct the source and destination asset paths
-    source_asset = "users/{}/SATROMO/{}".format(source_username, asset_name)
-    destination_asset = 'projects/{}/assets/res/{}'.format(
+    # source_asset = "users/{}/SATROMO/{}".format(source_username, asset_name)
+    source_asset = "projects/geetest-386915/assets/terrain_shadow/{}".format(
+        asset_name)
+    # destination_asset = 'projects/{}/assets/res/{}'.format(
+    #     destination_username, asset_name)
+    destination_asset = 'projects/{}/assets/TERRAINSHADOW_SWISS/{}'.format(
         destination_username, asset_name)
 
     # Copy the asset from the source to the destination
