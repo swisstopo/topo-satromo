@@ -828,10 +828,10 @@ if __name__ == "__main__":
 
             # clean up GDrive and local drive, move JSON to STAC
             # Test if we are on a local machine or if we are on Github: Redo, since GDRIVE might have a timeout
-            determine_run_type()
+            #determine_run_type()
 
             # Authenticate with GEE and GDRIVE
-            initialize_gee_and_drive()
+            #initialize_gee_and_drive()
             
             # os.remove(file_merged)
             clean_up_gdrive(filename)
