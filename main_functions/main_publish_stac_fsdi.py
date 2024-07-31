@@ -107,9 +107,8 @@ def initialize_fsdi():
         password = os.environ.get(
             'STAC_PASSWORD', config_data["FSDI"]["password"])
 
-    # INT (github action)
+    # PROD (github action)
     else:
-        # TODO add PROD PW in GA and in config when going live
         user = os.environ['FSDI_STAC_USER']
         password = os.environ['FSDI_STAC_PASSWORD']
 

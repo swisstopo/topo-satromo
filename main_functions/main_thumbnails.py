@@ -61,11 +61,11 @@ def fill_buffer_switzerland(shapefile_dir, shapefile_name, target_width):
     result = subprocess.run(command, check=True,
                             capture_output=True, text=True)
 
-    # Check and print the command output
-    if result.returncode == 0:
-        print("Rasterization successful!")
-    else:
-        print(f"Error: {result.stderr}")
+    # # Check and print the command output
+    # if result.returncode == 0:
+    #     print("Rasterization successful!")
+    # else:
+    #     print(f"Error: {result.stderr}")
 
 
 def apply_overlay(input_file, output_file):
