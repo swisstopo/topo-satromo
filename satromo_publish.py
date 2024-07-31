@@ -147,6 +147,54 @@ def initialize_gee_and_drive():
     else:
         print("GEE initialization FAILED")
 
+def initialize_drive():
+    """
+    Re-Initialize Google Drive since it times out.
+
+    This function authenticates  Google Drive either using a service account key file
+    or GitHub secrets depending on the run type.
+
+    Returns:
+    None
+    """
+
+    scopes = ["https://www.googleapis.com/auth/drive"]
+
+    if run_type == 2:
+        # Initialize  Google Drive using service account key file
+
+        # Authenticate using the service account key file
+        with open(config.GDRIVE_SECRETS, "r") as f:
+            service_account_key = json.load(f)
+
+        # Authenticate Google Drive
+        gauth = GoogleAuth()
+        gauth.service_account_file = config.GDRIVE_SECRETS
+        gauth.service_account_email = service_account_key["client_email"]
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            gauth.service_account_file, scopes=scopes
+        )
+
+
+    else:
+        # Initialize Google Drive using GitHub secrets
+
+        # Authenticate using the provided secrets from GitHub Actions
+        gauth = GoogleAuth()
+        google_client_secret = json.loads(
+            os.environ.get('GOOGLE_CLIENT_SECRET'))
+        gauth.service_account_email = google_client_secret["client_email"]
+        gauth.service_account_file = "keyfile.json"
+        with open(gauth.service_account_file, "w") as f:
+            f.write(json.dumps(google_client_secret))
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            gauth.service_account_file, scopes=scopes
+        )
+
+
+    # Create the Google Drive client
+    global drive
+    drive = GoogleDrive(gauth)
 
 def download_and_delete_file(file):
     """
@@ -827,11 +875,11 @@ if __name__ == "__main__":
                     thumbnail, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
             # clean up GDrive and local drive, move JSON to STAC
-            # Test if we are on a local machine or if we are on Github: Redo, since GDRIVE might have a timeout
-            #determine_run_type()
+            # Re-Test if we are on a local machine or if we are on Github: Redo, since GDRIVE might have a timeout
+            determine_run_type()
 
-            # Authenticate with GEE and GDRIVE
-            #initialize_gee_and_drive()
+            # Authenticate GDRIVE
+            initialize_drive()
             
             # os.remove(file_merged)
             clean_up_gdrive(filename)
