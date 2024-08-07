@@ -428,6 +428,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         'date': day_to_process,
         # HourMin Sec
         'hour': str(LST_hour),
+        # Orig filename
+        'orig_filename': os.path.basename(data_import_url),
         # Set the date
         'spacecraft_name': info_raw_file['global_attributes']['platform'],
         # Set the date

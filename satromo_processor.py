@@ -474,11 +474,11 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    # current_date_str = "2023-07-15"
+    current_date_str = "2020-01-05"
 
-    # print("*****************************\n")
-    # print("using a manual set Date: " + current_date_str)
-    # print("*****************************\n")
+    print("*****************************\n")
+    print("using a manual set Date: " + current_date_str)
+    print("*****************************\n")
 
     # For CLI
     # --------------
