@@ -121,7 +121,7 @@ PRODUCT_MSG_CLIMA = {
     #
     # this is  placeholder, needed for the step0 function,
     "image_collection": "METEOSCHWEIZ/MSG",
-    "temporal_coverage": 7,  # Days
+    "temporal_coverage": 365,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
     'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
