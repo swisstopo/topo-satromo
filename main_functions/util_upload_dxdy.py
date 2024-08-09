@@ -1,10 +1,12 @@
 import ee
 import os
+import argparse
 import numpy as np
 from datetime import datetime, timezone
 from pydrive.auth import GoogleAuth
 import json
 import time
+import subprocess
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
 import re
@@ -29,8 +31,12 @@ Content:
     - Configures and processes the image within Google Earth Engine.
     - Manages metadata, checks for existing assets, and starts task execution for upload to GEE colleaction as asset.
 
-Functions:
+Example:
 ----------
+python util_upload_dxdy.py -d "/path/to/your/dx file.tif"
+
+python main_functions\util_upload_dxdy.py -d "C:\temp\temp\2023-10\S2-L2A-mosaic_2023-10-14T103919_registration_swiss-10m_dx.tif"
+
 """
 
 
@@ -113,14 +119,15 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
     file_name = os.path.basename(day_to_process)
 
     # Timestamp
-    timestamp = re.search(r'(\d{4}-\d{2}-\d{2}t\d{6})',
+    timestamp = re.search(r'(\d{4}-\d{2}-\d{2}T\d{6})',
                           file_name).group(0).upper()
 
     # EPSG traget colllection: shoudl be EPSG:32632
-    epsg = 'EPSG:2056'
+    epsg = 'EPSG:32632'
 
     # assetname
-    asset_name = re.sub(r'.*?(s2-sr.*)\.tif', r'\1', file_name)
+    # asset_name = re.sub(r'.*?(s2-sr.*)\.tif', r'\1', file_name)
+    asset_name = "S2-SR_mosaic_"+timestamp+"_registration-10m"
 
     # GCS Google cloud storage bucket
     bucket_name = "s2_sr_registration_swiss"
@@ -132,12 +139,39 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
     wait_for_upload = True
 
     # Switch to delete local file
-    delete_local = False
+    delete_local = True
 
     # CONFIGURATION END
     # --------------------
 
     print("processing DXDY of: "+timestamp)
+
+    # Merging the corresponding DX and DY into one file
+
+    command = ["gdalbuildvrt",
+               "-separate",
+               asset_name+".vrt",
+               day_to_process,
+               day_to_process.replace('_dx', '_dy')
+               ]
+    # print(command)
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
+    # print(result)
+
+    command = ["gdal_translate",
+               "-of", "COG",
+               #    "-co", "TILING_SCHEME=GoogleMapsCompatible",
+               "-co", "COMPRESS=DEFLATE",
+               "-co", "PREDICTOR=2",
+               "-co", "NUM_THREADS=ALL_CPUS",
+               asset_name+".vrt",
+               asset_name+".tif",
+               ]
+    # print(command)
+    result = subprocess.run(command, check=True,
+                            capture_output=True, text=True)
+    # print(result)
 
     # check if we are on a local machine or on github
     determine_run_type()
@@ -147,17 +181,20 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
 
     # Upload the file to the bucket
     try:
-        blob = bucket.blob(file_name)
+        blob = bucket.blob(asset_name+".tif")
         blob.upload_from_filename(
-            day_to_process)
-        print("SUCCESS: uploaded to gs://"+bucket_name+file_name)
+            asset_name+".tif")
+        print("SUCCESS: uploaded to gs://"+bucket_name+"/"+asset_name+".tif")
+        
+        # delete file on GCS
+        print("Starting export task "+asset_name+" to GEE ...")
     except Exception as e:
         # Handle any exceptions raised during the upload process
         print(f"ERROR: uploading file to GCS: {e}")
 
     # Load the GeoTIFF file as an Earth Engine Image
     image = ee.Image.loadGeoTIFF(
-        f"gs://{bucket_name}/"+file_name)
+        f"gs://{bucket_name}/"+asset_name+".tif")
 
     # rename band
     image = image.rename(band_names)
@@ -175,13 +212,17 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
         # Assuming single timestamp Convert to milliseconds End timestamp
         'system:time_end': int(date_time.timestamp()) * 1000,
         # Set the name of the image
-        'system:name': file_name,
+        'system:name': asset_name+".tif",
         # Set the date
         'date': timestamp,
         # Method
-        'method': "AEROSICS",
+        'method': "AROSICS",
         # Version
         'product_version': "v1.0.0",
+        # Arosics orig_name X
+        'orig_file_dx': file_name,
+        # Arosics orig_name Y
+        'orig_file_dy': file_name.replace('_dx', '_dy'),
     })
 
     # Check if the asset already exists
@@ -210,8 +251,8 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
         # Check the export task status:
         # If bulk upload is required: no while loop is required, you need to parse thet stats in dict and then check for FAILED tasks
         while task.active():
-            print("Export task is still active. Waiting...")
-            time.sleep(5)  # Check status every 5 seconds
+            print("Export task "+asset_name+" is still active. Waiting...")
+            time.sleep(60)  # Check status every 5 seconds
 
         # If the task is completed, continue with cleaning up GCS
         if task.status()['state'] == 'COMPLETED':
@@ -222,14 +263,18 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
             # delete file on GCS
             blob.delete()
 
+ 
+
         # If the task has failed, print the error message
         elif task.status()['state'] == 'FAILED':
             error_message = task.status()['error_message']
-            print("ERROR: Export task failed with error message:", error_message)
+            print("ERROR: Export task "+asset_name +
+                  " failed with error message:", error_message)
 
     # remove the local file
     if delete_local is True:
-        os.remove(day_to_process)
+        os.remove(asset_name+".tif")
+        os.remove(asset_name+".vrt")
     else:
         pass
 
@@ -238,9 +283,19 @@ if __name__ == "__main__":
     global config_GDRIVE_SECRETS
     config_GDRIVE_SECRETS = r'C:\temp\topo-satromo\secrets\geetest-credentials-int.secret'
 
-    # Uncomment for testing
-    day_to_process = r'C:\temp\temp\ch.swisstopo.swisseo_s2-sr_v100_mosaic_2024-05-10t102021_registration-10m.tif'
-    collection = "projects/satromo-int/assets/COL_S2_SR_DXYDY"
-    # End Uncomment for testing
+    # Define the default path for `day_to_process`
+    default_day_to_process = os.path.join(
+        'C:', 'temp', 'temp', '2023-10', 'S2-L2A-mosaic_2023-10-24T104019_registration_swiss-10m_dx.tif')
+    collection = "projects/satromo-int/assets/COL_S2_SR_DXDY"
 
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description="Process DX DY for upload.")
+    parser.add_argument('-d', '--day', type=str, default=default_day_to_process,
+                        help="Path to the dx file. Defaults to the file defined in the code.")
+    args = parser.parse_args()
+
+    # Use the argument if provided, otherwise fall back to the default
+    day_to_process = args.day
+
+    # Call the function with the appropriate day_to_process value
     upload_dx_dy_mosaic_for_single_date(day_to_process, collection)
