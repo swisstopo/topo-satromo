@@ -35,7 +35,7 @@ Example:
 ----------
 python util_upload_dxdy.py -d "/path/to/your/dx file.tif"
 
-python main_functions\util_upload_dxdy.py -d "C:\temp\temp\2023-10\S2-L2A-mosaic_2023-10-14T103919_registration_swiss-10m_dx.tif"
+
 
 """
 
@@ -185,7 +185,7 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
         blob.upload_from_filename(
             asset_name+".tif")
         print("SUCCESS: uploaded to gs://"+bucket_name+"/"+asset_name+".tif")
-        
+
         # delete file on GCS
         print("Starting export task "+asset_name+" to GEE ...")
     except Exception as e:
@@ -262,8 +262,6 @@ def upload_dx_dy_mosaic_for_single_date(day_to_process: str, collection: str) ->
 
             # delete file on GCS
             blob.delete()
-
- 
 
         # If the task has failed, print the error message
         elif task.status()['state'] == 'FAILED':
