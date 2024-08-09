@@ -41,7 +41,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # options': True, False - defines if individual scenes get mosaiced to an image swath
     swathMosaic = True
     # options': True, False - defines if the coregistration is applied
-    coRegistration = True
+    coRegistration = False
+    # options': True, False - defines if the coregistration is applied
+    coRegistrationPrecalculated = True
 
     # Export switches
     # options': True, 'False - defines if 10-m-bands are exported': 'B2','B3','B4','B8'
@@ -93,6 +95,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # source: https://code.earthengine.google.com/ccfa64fe9827c93e2986e693983332e2
     # processing:The shadow masks are  combined into a single image with multiple bands as asset per DOY.
     terrain_shadow_collection = "projects/satromo-prod/assets/col/TERRAINSHADOW_SWISS/"
+
+    # DX DY - Precalculated DX DY shifts
+    # source: https://github.com/SARcycle/AROSICS/
+    # processing: The DX DY are  combined into a single image with multiple bands as asset per DATE.
+    dxdy_collection = "projects/satromo-int/assets/COL_S2_SR_DXDY"
 
     ##############################
     # SATELLITE DATA
@@ -640,11 +647,88 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         return registered
 
+    def S2regprecalcFunc(image, day, collection):
+
+        # Load the collction
+        dxdy_coll = ee.ImageCollection(collection)
+
+        # Define the precise start and end timestamps for '2023-10-01'
+        start_datetime = day+'T00:00:00'
+        end_datetime = day+'T23:59:59'
+
+        # Filter the collection by the precise date and time range
+        filtered_collection = dxdy_coll.filterDate(
+            start_datetime, end_datetime)
+
+        # Get the first image that meets the criteria
+        dxdy = filtered_collection.first()
+
+        # Check if the image exists
+        if dxdy:
+            # Get the image ID
+            dxdy_id = dxdy.get('system:id').getInfo()
+            print('-> dxdy ID:', dxdy_id)
+        else:
+            print('ERROR: No precalculated dxdy  found for the specified date.')
+
+        # Extract relevant displacement parameters
+        # Select the bands 'reg_dx' and 'reg_dy' and divide by 100
+        displacement = dxdy.select(['reg_dx', 'reg_dy']).divide(100)
+
+        # Extract relevant displacement parameters
+        reg_dx = dxdy.select('reg_dx')
+        reg_dy = dxdy.select('reg_dy')
+        reg_confidence = dxdy.select(
+            'reg_dy').rename('reg_confidence')
+        reg_confidence = reg_confidence.multiply(0).round().toUint8() # TODO This band is not needed change whole processing chain since now all are 0, till the export
+
+        # # Use bicubic resampling during registration.
+        # imageOrig = image.resample('bicubic')
+
+        # # Choose to register using only the 'R' band.
+        # imageRedBand = imageOrig.select('B4')
+
+        # # Determine the displacement by matching only the 'R' bands.
+        # displacement = imageRedBand.displacement(
+        #     referenceImage=S2_gri,
+        #     maxOffset=10,
+        #     patchWidth=300,
+        #     stiffness=8
+        # )
+
+        # # Extract relevant displacement parameters
+        # reg_dx = displacement.select('dx').rename('reg_dx')
+        # reg_dx = reg_dx.multiply(100).round().toInt16()
+        # reg_dy = displacement.select('dy').rename('reg_dy')
+        # reg_dy = reg_dy.multiply(100).round().toInt16()
+        # reg_confidence = displacement.select(
+        #     'confidence').rename('reg_confidence')
+        # reg_confidence = reg_confidence.multiply(100).round().toUint8()
+
+        # Compute image offset and direction.
+        reg_offset = reg_dx.hypot(reg_dy).rename('reg_offset')
+        reg_angle = reg_dx.atan2(reg_dy).rename('reg_offsetAngle')
+
+        # Use the computed displacement to register all original bands.
+        registered = image.displace(displacement) \
+            .addBands(reg_dx) \
+            .addBands(reg_dy) \
+            .addBands(reg_confidence) \
+            .addBands(reg_offset) \
+            .addBands(reg_angle)
+
+        return registered
+
     # SWITCH
     if coRegistration is True:
         print('--- Image swath co-registration applied ---')
         # apply the registration function
         S2_sr = S2regFunc(S2_sr)
+    if coRegistrationPrecalculated is True:
+        print('--- Image swath co-registration from precalculated dx dy is applied ---')
+        # apply the registration function
+
+        S2_sr = S2regprecalcFunc(S2_sr, day_to_process, dxdy_collection)
 
     ##############################
     # EXPORT
