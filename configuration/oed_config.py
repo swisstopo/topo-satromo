@@ -79,13 +79,13 @@ PRODUCT_S2_LEVEL_2A = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
-    "temporal_coverage": 30,  # Days
+    "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/geetest-386915/assets/col_s2_sr"
 }
 
 # VHI – Trockenstress
@@ -252,7 +252,7 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+    'projects/geetest-386915/assets/col_s2_sr': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
