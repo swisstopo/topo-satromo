@@ -572,11 +572,27 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # Getting swisstopo Processor Version
         processor_version = main_utils.get_github_info()
+
+        # Set TerrainShadow Properties
+        if terrainShadowDetectionPrecalculated:
+            terrainshadow_method = terrain_shadow_collection
+        else:
+            terrainshadow_method = 'ee.Terrain.hillShadow'
+
+        # Set TerrainShadow Properties
+        if coRegistrationPrecalculated:
+            coreg_method = dxdy_collection
+        else:
+            coreg_method = 'GEE displacement'
+
+
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
             .set('system:time_end', time_end) \
             .set('index_list', index_list) \
             .set('scene_count', scene_count) \
+            .set('COREGISTRATION', coreg_method) \
+            .set('TERRAIN_SHADOW', terrainshadow_method) \
             .set('SWISSTOPO_PROCESSOR', processor_version['GithubLink']) \
             .set('SWISSTOPO_RELEASE_VERSION', processor_version['ReleaseVersion'])
 
