@@ -12,7 +12,7 @@ from rasterio.transform import from_bounds
 from datetime import datetime
 import pyproj
 import re
-
+import time
 import configuration as config
 
 """
@@ -361,19 +361,53 @@ def create_asset(stac_asset_url, payload):
     Returns:
         bool: True if the creation was successful, False otherwise.
     """
-    response = requests.put(
-        url=stac_asset_url,
-        auth=(user, password),
-        # auth=HTTPBasicAuth(user, password),
-        # proxies={"https": proxy.guess_proxy()},
-        # verify=False,
-        json=payload
-    )
-    if response.status_code // 200 == 1:
-        return True
-    else:
-        print(response.json())
+    # Maximum number of retries
+    max_retries = 3
+    # Delay between retries in seconds
+    delay = 20
+    # Flag to indicate success or failure
+    success = False
+
+    for attempt in range(max_retries):
+        try:
+            # Send PUT request
+            response = requests.put(
+                url=stac_asset_url,
+                auth=(user, password),
+                json=payload
+            )
+
+            # Check the status code
+            if response.status_code == 200 or response.status_code == 201:
+                try:
+                    # Try to decode the JSON response
+                    data = response.json()
+                    print(data)
+                    success = True
+                    break
+                except requests.exceptions.JSONDecodeError as e:
+                    print("Error decoding JSON:", e)
+                    print("Response content:", response.text)
+            else:
+                print(
+                    f"Attempt {attempt + 1}: Received status code {response.status_code}")
+                print("Response content:", response.text)
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {delay} seconds...")
+                    time.sleep(delay)
+
+        except requests.exceptions.RequestException as e:
+            # Handle other request-related exceptions
+            print(f"An error occurred: {e}")
+            if attempt < max_retries - 1:
+                print(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+
+    if not success:
+        print("Failed to receive a successful response after multiple attempts.")
         return False
+
+    return True
 
 
 def upload_asset_multipart(stac_asset_filename, stac_asset_url, part_size=part_size_mb * 1024 ** 2):
