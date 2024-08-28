@@ -769,6 +769,7 @@ if __name__ == "__main__":
                 file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
             # upload file to FSDI STAC
+            
             main_publish_stac_fsdi.publish_to_stac(
                 file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 

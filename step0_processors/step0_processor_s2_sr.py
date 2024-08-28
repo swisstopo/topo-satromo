@@ -99,7 +99,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # DX DY - Precalculated DX DY shifts
     # source: https://github.com/SARcycle/AROSICS/
     # processing: The DX DY are  combined into a single image with multiple bands as asset per DATE.
-    dxdy_collection = "projects/satromo-int/assets/COL_S2_SR_DXDY"
+    dxdy_collection = "projects/satromo-432405/assets/COL_S2_SR_DXDY"
 
     ##############################
     # SATELLITE DATA
@@ -585,7 +585,6 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         else:
             coreg_method = 'GEE displacement'
 
-
         # set the extracted properties to the mosaic
         mosaic = mosaic.set('system:time_start', time_start) \
             .set('system:time_end', time_end) \
@@ -696,7 +695,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         reg_dy = dxdy.select('reg_dy')
         reg_confidence = dxdy.select(
             'reg_dy').rename('reg_confidence')
-        reg_confidence = reg_confidence.multiply(0).round().toUint8() # TODO This band is not needed change whole processing chain since now all are 0, till the export
+        # TODO This band is not needed change whole processing chain since now all are 0, till the export
+        reg_confidence = reg_confidence.multiply(0).round().toUint8()
 
         # # Use bicubic resampling during registration.
         # imageOrig = image.resample('bicubic')
