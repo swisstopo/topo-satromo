@@ -382,7 +382,7 @@ def create_asset(stac_asset_url, payload):
                 try:
                     # Try to decode the JSON response
                     data = response.json()
-                    print(data)
+                    #print(data)
                     success = True
                     break
                 except requests.exceptions.JSONDecodeError as e:
