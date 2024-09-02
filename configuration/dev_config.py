@@ -19,10 +19,15 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
+# Set GDRIVE Type: GCS for Google Cloud Storage and DRIVE for Google Drive
+GDRIVE_TYPE = "DRIVE"
+# Set GCS Bucket name of Google Cloud Storage
+GCLOUD_BUCKET = "satromo_export"
 # Local Machine
 GDRIVE_SOURCE_DEV = "geedrivetest:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 GDRIVE_MOUNT_DEV = r'Y:\\'
+# GDRIVE_MOUNT_DEV = r'M:\\satromo_export' #for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 
@@ -79,7 +84,7 @@ PRODUCT_S2_LEVEL_2A = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
-    "temporal_coverage": 30,  # Days
+    "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     # Meters # TODO: check if needed in context with step0
     "spatial_scale_export_mask": 10,

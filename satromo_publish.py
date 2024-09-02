@@ -16,6 +16,7 @@ import requests
 import time
 from datetime import datetime
 from collections import defaultdict
+from google.cloud import storage
 from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
 
@@ -85,6 +86,11 @@ def initialize_gee_and_drive():
 
         rclone_config_file = config.RCLONE_SECRETS
         google_secret_file = config.GDRIVE_SECRETS
+
+        # TODO GCS: later move below so it works as well on GITHUB
+        global storage_client
+        storage_client = storage.Client.from_service_account_json(
+            gauth.service_account_file)
     else:
         # Initialize GEE and Google Drive using GitHub secrets
 
@@ -463,8 +469,20 @@ def clean_up_gdrive(filename):
     # }).GetList()
     # The  approach above does not work if there are a lot of files
 
-    filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
-    file_list = [file for file in filtered_files if filename in file['title']]
+    # TODO GCS HERE:: List forl all files
+    if config.GDRIVE_TYPE != "GCS":
+        filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
+        file_list = [
+            file for file in filtered_files if filename in file['title']]
+    else:
+        # TODO GCS HERE:: List forl all files
+        # initialize_bucket(bucket_name)
+        bucket = storage_client.bucket(config.GCLOUD_BUCKET)
+        blobs = bucket.list_blobs()
+        file_list = []
+        for blob in blobs:
+            if filename in blob.name:
+                file_list.append(blob.name)
 
     # Check if the file is found
     if len(file_list) > 0:
@@ -473,7 +491,10 @@ def clean_up_gdrive(filename):
         for file in file_list:
 
             # Get the current Task id
-            file_on_drive = file['title']
+            if config.GDRIVE_TYPE != "GCS":
+                file_on_drive = file['title']
+            else:
+                file_on_drive = file
             file_task_id = extract_value_from_csv(
                 config.GEE_RUNNING_TASKS, file_on_drive.replace(".tif", ""), "Filename", "Task ID")
 
@@ -485,7 +506,16 @@ def clean_up_gdrive(filename):
                 file_task_status['description'])
 
             # Delete file on gdrive with muliple attempt
-            delete_gdrive(file)
+            if config.GDRIVE_TYPE != "GCS":
+                delete_gdrive(file)
+            else:
+                # Get the blob (file) object
+                blob = bucket.blob(file)
+
+                # Delete the blob
+                blob.delete()
+
+                print(f"File {file} deleted from bucket.")
 
             # Add DATA GEE PROCESSING info to stats
             write_file(file_task_status, config.GEE_COMPLETED_TASKS)
@@ -697,11 +727,12 @@ if __name__ == "__main__":
     initialize_gee_and_drive()
 
     # empty temp files on GDrive
-    file_list = drive.ListFile({'q': "trashed=true"}).GetList()
-    for file in file_list:
-        # Delete file on gdrive with muliple attempt
-        delete_gdrive(file)
-        # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
+    if config.GDRIVE_TYPE != "GCS":
+        file_list = drive.ListFile({'q': "trashed=true"}).GetList()
+        for file in file_list:
+            # Delete file on gdrive with muliple attempt
+            delete_gdrive(file)
+            # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
 
     # Read the status file
     with open(config.GEE_RUNNING_TASKS, "r") as f:
@@ -774,6 +805,7 @@ if __name__ == "__main__":
                 # Check overall completion status of all assets for date. We have 5 assets for each date
 
                 if all_assets == 5:
+                    print(" ... checking status of asset: "+filename)
                     print(" --> ",
                           group[0].split('_mosaic_')[1].split('T')[0], "all assets exported and READY ...")
 
