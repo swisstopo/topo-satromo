@@ -717,6 +717,31 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
     else:
         return False
 
+def check_asset_size(filename):
+    """
+    Checks the asset size of the product defined in the configuration 
+
+    Args:
+    - filename (str): The filename containing the product name to match.
+
+    Returns:
+    - asset_size (int or None): The needed asset size if a matching product is found,
+                                otherwise None.
+    """
+    # Iterate through all items in the config file
+    for product_name in dir(config):
+        # Get the product dictionary
+        product_info = getattr(config, product_name)
+
+        # Check if it's a dictionary and has the 'product_name' key
+        if isinstance(product_info, dict) and 'product_name' in product_info:
+            if product_info['product_name'] in filename:
+                # Return the expected asset size
+                return product_info['asset_size']
+
+    print("No matching product found in the configuration.")
+    return None  # Return None if no matching product is found
+
 
 if __name__ == "__main__":
 
@@ -802,9 +827,9 @@ if __name__ == "__main__":
             if all_completed:
                 all_assets = all_assets + 1
 
-                # Check overall completion status of all assets for date. We have 5 assets for each date
-
-                if all_assets == 5:
+                # Check overall completion status of all assets for date.
+                asset_size = check_asset_size(filename)
+                if all_assets == asset_size:
                     print(" ... checking status of asset: "+filename)
                     print(" --> ",
                           group[0].split('_mosaic_')[1].split('T')[0], "all assets exported and READY ...")
