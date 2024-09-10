@@ -27,8 +27,6 @@ from main_functions import main_utils
 # FUNCTIONS
 
 # This function loads the reference NDVI data (statistical value derived per DOY from 1991-2020)
-
-
 def loadNdviRefData(doy):
     """
     Loads the reference NDVI data for a specific day of year (DOY).
@@ -55,8 +53,6 @@ def loadNdviRefData(doy):
     return NDVIref
 
 # This function loads the current NDVI data
-
-
 def loadNdviCurrentData(image):
     """
     Loads the current NDVI data from Sentinel-2 imagery.
@@ -112,52 +108,79 @@ def loadLstRefData(doy):
     LSTref = LSTref.divide(scale)
     return LSTref
 
-# Helper function to extract the values from specific bits
+# # Helper function to extract the values from specific bits
+# def bitwiseExtract(input, fromBit, toBit):
+#     """
+#     Extracts values from specific bits in an input integer.
 
+#     Args:
+#         input (ee.Number): Input integer.
+#         fromBit (int): Starting bit position.
+#         toBit (int): Ending bit position.
 
-def bitwiseExtract(input, fromBit, toBit):
-    """
-    Extracts values from specific bits in an input integer.
+#     Returns:
+#         ee.Number: Extracted value.
+#     """
+#     maskSize = ee.Number(1).add(toBit).subtract(fromBit)
+#     mask = ee.Number(1).leftShift(maskSize).subtract(1)
+#     return input.rightShift(fromBit).bitwiseAnd(mask)
 
-    Args:
-        input (ee.Number): Input integer.
-        fromBit (int): Starting bit position.
-        toBit (int): Ending bit position.
+# # function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
+# def maskCloudsAndLowQuality(image):
+#     """
+#     Masks clouds and low-quality pixels in a VIIRS dataset.
 
-    Returns:
-        ee.Number: Extracted value.
-    """
-    maskSize = ee.Number(1).add(toBit).subtract(fromBit)
-    mask = ee.Number(1).leftShift(maskSize).subtract(1)
-    return input.rightShift(fromBit).bitwiseAnd(mask)
+#     Args:
+#         image (ee.Image): VIIRS image.
 
-# function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
+#     Returns:
+#         ee.Image: Masked image.
+#     """
+#     # extract the quality band
+#     QC = image.select('QC')
+#     # only keep pixels from the input image where
+#     # Bits 0-1 = 0 (Pixel produced, good quality, no further QA info necessary)
+#     qaMask = bitwiseExtract(QC, 0, 1).eq(0)
+#     image = image.updateMask(qaMask)
+#     return image
 
+# # This function loads the current LST data from VIIRS imagery
+# def loadLstCurrentData(date, d, aoi):
+#     """
+#     Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
+#     Takes the most recent pixels from the ee.ImageCollection.
 
-def maskCloudsAndLowQuality(image):
-    """
-    Masks clouds and low-quality pixels in a VIIRS dataset.
+#     Args:
+#         date (ee.Date): Date of interest.
+#         d (int): Number of days to cover in the time window.
+#         aoi (ee.Geometry): Area of interest.
 
-    Args:
-        image (ee.Image): VIIRS image.
-
-    Returns:
-        ee.Image: Masked image.
-    """
-    # extract the quality band
-    QC = image.select('QC')
-    # only keep pixels from the input image where
-    # Bits 0-1 = 0 (Pixel produced, good quality, no further QA info necessary)
-    qaMask = bitwiseExtract(QC, 0, 1).eq(0)
-    image = image.updateMask(qaMask)
-    return image
+#     Returns:
+#         Tuple[ee.Image, str, int]: Tuple containing LST image, index list, and scene count.
+#     """
+#     start_date = date.advance((-1*d), 'day')
+#     end_date = date.advance(1, 'day')
+#     LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
+#         .filterDate(start_date, end_date) \
+#         .filterBounds(aoi)
+#     # apply cloud and low quality masks
+#     LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
+#     # Sort the collection by time in descending order
+#     sortedCollection = LST_col_masked.sort('system:time_start', False)
+#     # Create list with indices of all used data
+#     LST_index_list = sortedCollection.aggregate_array('system:index')
+#     LST_index_list = LST_index_list.join(',')
+#     LST_scene_count = sortedCollection.size()
+#     # Create a mosaic using the latest pixel values
+#     latestMosaic = sortedCollection.mosaic()
+#     # Select LST for the mosaic
+#     LSTj = latestMosaic.select('LST_1KM').rename('lst')
+#     return LSTj, LST_index_list, LST_scene_count
 
 # This function loads the current LST data
-
-
 def loadLstCurrentData(date, d, aoi):
     """
-    Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
+    Loads the current Land Surface Temperature (LST) data from Meteosat data.
     Takes the most recent pixels from the ee.ImageCollection.
 
     Args:
@@ -170,21 +193,23 @@ def loadLstCurrentData(date, d, aoi):
     """
     start_date = date.advance((-1*d), 'day')
     end_date = date.advance(1, 'day')
-    LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
+    LST_col = ee.ImageCollection("projects/satromo-prod/assets/col/LST_SWISS") \
         .filterDate(start_date, end_date) \
         .filterBounds(aoi)
-    # apply cloud and low quality masks
-    LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
+
     # Sort the collection by time in descending order
-    sortedCollection = LST_col_masked.sort('system:time_start', False)
+    sortedCollection = LST_col.sort('system:time_start', False)
     # Create list with indices of all used data
     LST_index_list = sortedCollection.aggregate_array('system:index')
     LST_index_list = LST_index_list.join(',')
     LST_scene_count = sortedCollection.size()
     # Create a mosaic using the latest pixel values
     latestMosaic = sortedCollection.mosaic()
-    # Calculate NDVI for the mosaic
-    LSTj = latestMosaic.select('LST_1KM').rename('lst')
+    # Select LST for the mosaic
+    LST_mosaic = latestMosaic.select('LST_PMW').rename('lst')
+    # Divide by the scale
+    scale = ee.Number(100)
+    LSTj = LST_mosaic.divide(scale)
     return LSTj, LST_index_list, LST_scene_count
 
 
