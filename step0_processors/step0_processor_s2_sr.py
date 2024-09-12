@@ -675,6 +675,13 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         filtered_collection = dxdy_coll.filterDate(
             start_datetime, end_datetime)
 
+        # Is a dx dy available for this date -> Yes: continue / No: abort ('No dx dy available')
+        image_list_size = filtered_collection.size().getInfo()
+        if image_list_size == 0:
+            write_asset_as_empty(
+                collection, day, 'No dx dy available')
+            return
+
         # Get the first image that meets the criteria
         dxdy = filtered_collection.first()
 

@@ -90,7 +90,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress
@@ -105,10 +105,10 @@ PRODUCT_VHI = {
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
-    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
-    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    # 'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
+    # 'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
+    # "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # MSG – MeteoSchweiz
