@@ -27,6 +27,8 @@ from main_functions import main_utils
 # FUNCTIONS
 
 # This function loads the reference NDVI data (statistical value derived per DOY from 1991-2020)
+
+
 def loadNdviRefData(doy):
     """
     Loads the reference NDVI data for a specific day of year (DOY).
@@ -53,6 +55,8 @@ def loadNdviRefData(doy):
     return NDVIref
 
 # This function loads the current NDVI data
+
+
 def loadNdviCurrentData(image):
     """
     Loads the current NDVI data from Sentinel-2 imagery.
@@ -178,6 +182,8 @@ def loadLstRefData(doy):
 #     return LSTj, LST_index_list, LST_scene_count
 
 # This function loads the current LST data
+
+
 def loadLstCurrentData(date, d, aoi):
     """
     Loads the current Land Surface Temperature (LST) data from Meteosat data.
@@ -289,9 +295,8 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     # Get information about the available sensor data for the range
     sensor_stats = main_utils.get_collection_info(S2_col)
 
-    # Check if there is new sensor data compared to the stored dataset
-    if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) is True:
-        print("new imagery from: " + sensor_stats[1])
+    if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) or main_utils.is_date_in_empty_asset_list(collection_ready, current_date_str):
+        print("new/latest imagery from: " + sensor_stats[1])
 
         ###########################################
         # PROCESSING
