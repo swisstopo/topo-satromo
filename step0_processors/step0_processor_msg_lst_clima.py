@@ -16,13 +16,14 @@ import time
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
 
-# Processing pipeline for daily LandSurfce  mosaics over Switzerland.
+# Processing pipeline for MONTHLY NETCDF for daily LandSurfce  mosaics over Switzerland.
 
 ##############################
 # INTRODUCTION
 # This script provides a tool to Access and upload Landsurface (LST) data over Switzerland to GEE.
-# It uses CMS SAF data provided by  MeteoSwiss  LST to be stored as SATROMO assets and
-# to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
+# It uses CMS SAF data provided by  MeteoSwiss  LST as
+# ->  MONTHLY FILES
+# to be stored as SATROMO assets and to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
 # available to all users free of charge and with no conditions to use. If you wish to use these products,
 # EUMETSAT's copyright credit must be shown by displaying the words "Copyright (c) (2022) EUMETSAT" under/in
 # each of these SAF Products used in a project or shown in a publication or website.
@@ -334,10 +335,10 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     raw_filename = modified_date_str[:6] + "01"+"000000.nc"
 
     # MFG
-    # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # MSG
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # UTC Hour of LST
     LST_hour = 11
@@ -469,7 +470,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Export the image to the asset folder
     task = ee.batch.Export.image.toAsset(
-        image, assetId=asset_name)  # force Enable overwrite
+        image, assetId=asset_name,
+        description=task_description)  # force Enable overwrite
     task.start()
 
     if wait_for_upload is True:
