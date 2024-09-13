@@ -31,7 +31,7 @@ def is_date_in_empty_asset_list(collection, check_date_str):
 
         # Check if any rows match the criteria
         if len(df_selection) > 0:
-            print('Date is in empty_asset_list')
+            print(check_date_str+' is in empty_asset_list for '+collection)
             return True
         else:
             return False
