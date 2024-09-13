@@ -13,7 +13,7 @@ cligj==0.7.2
 colorama==0.4.6
 earthengine-api==0.1.395
 fiona>=1.10b2
-geopandas==0.14.3
+geopandas==0.14.4
 google-api-core==2.11.0
 google-api-python-client==2.88.0
 google-auth==2.19.1
