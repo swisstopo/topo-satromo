@@ -353,6 +353,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # CONFIGURATION END
     # --------------------
 
+
+    # Convert the string to an ee.Date object
+
     # Send a HEAD request to check if the file exists
     try:
         # Send a HEAD request to check if the file exists
@@ -409,7 +412,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         print(f"Error uploading file to GCS: {e}")
 
     # Define the asset name for Earth Engine
-    asset_name = config.PRODUCT_MSG['step0_collection']+"/"+asset_prefix+day_to_process + \
+    asset_name = config.PRODUCT_VHI['LST_current_data']+"/"+asset_prefix+day_to_process + \
         "T"+str(LST_hour)+"0000"+'_bands-1721m'
 
     # Load the GeoTIFF file as an Earth Engine Image
@@ -451,7 +454,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         'date_created': info_raw_file['global_attributes']['date_created'],
         # Set the no data value, you can add more properties like baselines  etc
         # '_FillValue': str(info_raw_file['variables']['LST_PMW']['attributes']['_FillValue'])
-        'no_data': str(config.PRODUCT_MSG["no_data"])
+        'no_data': str(config.PRODUCT_MSG_CLIMA["no_data"])
     })
 
     # Check if the asset already exists
@@ -497,3 +500,4 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # remove the local file
     os.remove("MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
     os.remove(raw_filename)
+    return True

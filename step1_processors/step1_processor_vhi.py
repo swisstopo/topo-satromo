@@ -1,7 +1,10 @@
 import ee
 import datetime
+from datetime import timedelta
 import configuration as config
 from main_functions import main_utils
+from step0_processors.step0_utils import write_asset_as_empty
+from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for_single_date
 
 # Processing pipeline for daily vegetation health index (VHI) mosaics over Switzerland
 
@@ -199,7 +202,7 @@ def loadLstCurrentData(date, d, aoi):
     """
     start_date = date.advance((-1*d), 'day')
     end_date = date.advance(1, 'day')
-    LST_col = ee.ImageCollection("projects/satromo-prod/assets/col/LST_SWISS") \
+    LST_col = ee.ImageCollection(config.PRODUCT_VHI['LST_current_data']) \
         .filterDate(start_date, end_date) \
         .filterBounds(aoi)
 
@@ -231,6 +234,16 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     Returns:
         None
     """
+
+    ##############################
+    # MASKS
+    # Mask for vegetation
+    vegetation_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
+    # Mask for the forest
+    forest_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
+
     ##############################
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
@@ -244,6 +257,10 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
     # otherwise the min and max will be used (False)
+
+    ##############################
+    # SPACE
+    aoi = roi
 
     ##############################
     # PRODUCT
@@ -271,31 +288,74 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         CI_method = 'min_and_max'
 
     ##############################
-    # SPACE
-    aoi = roi
-
-    ##############################
-    # MASKS
-    # Mask for vegetation
-    vegetation_mask = ee.Image(
-        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
-    # Mask for the forest
-    forest_mask = ee.Image(
-        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
-
-    ##############################
-    # DATA
+    # Sentinel S2 SR Data
     S2_col = ee.ImageCollection(collection_ready) \
         .filterDate(start_date, end_date) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '10m'))
 
     ###########################################
-    # PRE-PROCESSING
-    # Get information about the available sensor data for the range
-    sensor_stats = main_utils.get_collection_info(S2_col)
+    # Test PRE conditions
 
+    # TEST LST: LST Asset avilable? We first check if we have the neccessary termporal coverage
+
+    LST_col = ee.ImageCollection(config.PRODUCT_VHI['LST_current_data']) \
+        .filterDate(start_date, end_date)
+    LST_count = LST_col.size().getInfo()
+
+    # If wee don't have LST coverage we start to process it for each day
+    if LST_count != config.PRODUCT_VHI['temporal_coverage']:
+
+        # Function to check if an asset exists for a given date
+        def check_asset_exists(date):
+            next_date = date.advance(1, 'day')
+            filtered_col = LST_col.filterDate(date, next_date)
+            count = filtered_col.size().getInfo()
+            return count > 0
+
+        # Check each day
+        check_date = start_date
+
+        while check_date.millis().getInfo() <= end_date.millis().getInfo():
+            if not check_asset_exists(check_date):
+                print(
+                    '... starting import of LST for '+check_date.format('YYYY-MM-dd').getInfo()+" from MeteoSwiss raw data")
+                result = generate_msg_lst_mosaic_for_single_date(check_date.format('YYYY-MM-dd').getInfo(
+                ), config.PRODUCT_VHI['LST_current_data'], "LST-"+check_date.format('YYYY-MM-dd').getInfo())
+                if result == False:
+                    print('Cutting asset create for VHI ' +
+                          current_date_str + ': missing LST Data')
+                    return
+
+            check_date = check_date.advance(1, 'day')
+
+    # TEST VHI GEE: VHI GEE Asset already exists ?? then skip
+    VHI_col = ee.ImageCollection(config.PRODUCT_VHI['step1_collection']) \
+        .filterMetadata('system:index', 'contains', current_date_str) \
+        .filterBounds(aoi)
+    VHI_count = VHI_col.size().getInfo()
+    if VHI_count == 2:
+        print(current_date_str+' is already in ' +
+              config.PRODUCT_VHI['step1_collection'])
+        return
+
+    # TEST VHI empty asset? VHI in empty_asset list? then skip
+    if main_utils.is_date_in_empty_asset_list(config.PRODUCT_VHI['step1_collection'], current_date_str):
+        return
+
+    # Get information about the available sensor data for the range
+    # Get the number of images in the filtered collection
+    image_count = S2_col.size().getInfo()
+
+    if image_count == 0:
+        write_asset_as_empty(
+            config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
+        return
+
+    # TEST only Process if newer than last product update OR no S2 SR fro specific date is in empty list
+    sensor_stats = main_utils.get_collection_info(S2_col)
     if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) or main_utils.is_date_in_empty_asset_list(collection_ready, current_date_str):
+
         print("new/latest imagery from: " + sensor_stats[1])
 
         ###########################################

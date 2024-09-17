@@ -27,7 +27,7 @@ GCLOUD_BUCKET = "satromo_export"
 GDRIVE_SOURCE_DEV = "geedrivetest:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 # GDRIVE_MOUNT_DEV = r'Y:\\' #for DRIVE
-GDRIVE_MOUNT_DEV = r'M:\\satromo_export' #for GCS
+GDRIVE_MOUNT_DEV = r'M:\\satromo_export'  # for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 
@@ -105,22 +105,24 @@ PRODUCT_VHI = {
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
-    # 'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    # 'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
-    # "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    # "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
+    # prod:'projects/satromo-prod/assets/col/LST_SWISS',
+    'LST_current_data': 'projects/satromo-int/assets/LST_CLIMA_SWISS',
+    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
-# MSG – MeteoSchweiz
-PRODUCT_MSG = {
-    #
-    # this is  placeholder, needed for the step0 function,
-    "image_collection": "METEOSCHWEIZ/MSG",
-    "temporal_coverage": 7,  # Days
-    "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
-    "no_data": 0,
-    # 'step0_collection': 'projects/satromo-int/assets/LST_SWISS'
-}
+# # MSG – MeteoSchweiz
+# PRODUCT_MSG = {
+#     #
+#     # this is  placeholder, needed for the step0 function,
+#     "image_collection": "METEOSCHWEIZ/MSG",
+#     "temporal_coverage": 7,  # Days
+#     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
+#     "no_data": 0,
+#     'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
+# }
 
 # MSG – MeteoSchweiz: only used for repreocessing
 PRODUCT_MSG_CLIMA = {
