@@ -38,19 +38,16 @@ Run the script.
 """
 
 
-
-
 # ----------------------------------------
 def export(raster_url, shape_file, filename, dateISO8601, missing_values):
-    
-    # Parameters : 
-    regionnr = "REGION_NR" #depend on the  SHP file delivered by FOEN
-    regionname = "Name" #depend on the  SHP file delivered by FOEN
+
+    # Parameters :
+    regionnr = "REGION_NR"  # depend on the  SHP file delivered by FOEN
+    regionname = "Name"  # depend on the  SHP file delivered by FOEN
 
     vhimean = "vhi_mean"
     availpercen = "availability_percentage"
     date_column = "date"
-    
 
     gdf = gpd.read_file(shape_file)
 
@@ -104,12 +101,12 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                     availability_percentage_rounded)
 
                 # Print statistics
-                print(f"Region {region}: {region_name}")
-                print(f"  Min value: {min_value}")
-                print(f"  Max value: {max_value}")
-                print(f"  Mean value: {mean_value_rounded}")
-                print(
-                    f"  Percentage of availability: {availability_percentage:.1f}%")
+                # print(f"Region {region}: {region_name}")
+                # print(f"  Min value: {min_value}")
+                # print(f"  Max value: {max_value}")
+                # print(f"  Mean value: {mean_value_rounded}")
+                # print(
+                #     f"  Percentage of availability: {availability_percentage:.1f}%")
             except ValueError:
                 # Handle empty intersection (assign missing_values)
                 raster_values.append(missing_values)
