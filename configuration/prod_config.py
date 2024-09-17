@@ -103,7 +103,7 @@ PRODUCT_VHI = {
     "missing_data": 110,
     "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
     "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
