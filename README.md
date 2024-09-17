@@ -235,7 +235,7 @@ Update the step0_empty_assets.csv directly on GitHub PROD: https://github.com/sw
     - [ ] M1 Vitalität – NDMI Anomalien
     - [ ] N2 Veränderung – NDVI Anomalien
     - [ ] B2 Natürliche Störungen – NBR
-    - [ ] V1 Vegetation Health Index
+    - [X] V1 Vegetation Health Index
 
 ## Contributing
 
