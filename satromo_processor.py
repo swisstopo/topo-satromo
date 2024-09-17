@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    # current_date_str = "2023-07-15"
+    # current_date_str = "2024-09-13"
 
     # print("*****************************\n")
     # print("using a manual set Date: " + current_date_str)
@@ -512,6 +512,7 @@ if __name__ == "__main__":
         print('Collection ready: {}'.format(collection_ready))
         for product_to_be_processed in step0_product_dict[collection_ready][0]:
             print('Launching product {}'.format(product_to_be_processed))
+
             if product_to_be_processed == 'PRODUCT_NDVI_MAX':  # TODO Needs to be checked if needed
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 result = process_NDVI_MAX(roi)
@@ -592,6 +593,6 @@ if __name__ == "__main__":
             else:
                 raise BrokenPipeError('Inconsitent configuration')
 
-            print("Result:", result)
+            # print("Result:", result)
 
 print("Processing done!")

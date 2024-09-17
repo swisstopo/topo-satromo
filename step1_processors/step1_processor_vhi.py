@@ -1,7 +1,10 @@
 import ee
 import datetime
+from datetime import timedelta
 import configuration as config
 from main_functions import main_utils
+from step0_processors.step0_utils import write_asset_as_empty
+from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for_single_date
 
 # Processing pipeline for daily vegetation health index (VHI) mosaics over Switzerland
 
@@ -112,52 +115,81 @@ def loadLstRefData(doy):
     LSTref = LSTref.divide(scale)
     return LSTref
 
-# Helper function to extract the values from specific bits
+# # Helper function to extract the values from specific bits
+# def bitwiseExtract(input, fromBit, toBit):
+#     """
+#     Extracts values from specific bits in an input integer.
 
+#     Args:
+#         input (ee.Number): Input integer.
+#         fromBit (int): Starting bit position.
+#         toBit (int): Ending bit position.
 
-def bitwiseExtract(input, fromBit, toBit):
-    """
-    Extracts values from specific bits in an input integer.
+#     Returns:
+#         ee.Number: Extracted value.
+#     """
+#     maskSize = ee.Number(1).add(toBit).subtract(fromBit)
+#     mask = ee.Number(1).leftShift(maskSize).subtract(1)
+#     return input.rightShift(fromBit).bitwiseAnd(mask)
 
-    Args:
-        input (ee.Number): Input integer.
-        fromBit (int): Starting bit position.
-        toBit (int): Ending bit position.
+# # function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
+# def maskCloudsAndLowQuality(image):
+#     """
+#     Masks clouds and low-quality pixels in a VIIRS dataset.
 
-    Returns:
-        ee.Number: Extracted value.
-    """
-    maskSize = ee.Number(1).add(toBit).subtract(fromBit)
-    mask = ee.Number(1).leftShift(maskSize).subtract(1)
-    return input.rightShift(fromBit).bitwiseAnd(mask)
+#     Args:
+#         image (ee.Image): VIIRS image.
 
-# function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
+#     Returns:
+#         ee.Image: Masked image.
+#     """
+#     # extract the quality band
+#     QC = image.select('QC')
+#     # only keep pixels from the input image where
+#     # Bits 0-1 = 0 (Pixel produced, good quality, no further QA info necessary)
+#     qaMask = bitwiseExtract(QC, 0, 1).eq(0)
+#     image = image.updateMask(qaMask)
+#     return image
 
+# # This function loads the current LST data from VIIRS imagery
+# def loadLstCurrentData(date, d, aoi):
+#     """
+#     Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
+#     Takes the most recent pixels from the ee.ImageCollection.
 
-def maskCloudsAndLowQuality(image):
-    """
-    Masks clouds and low-quality pixels in a VIIRS dataset.
+#     Args:
+#         date (ee.Date): Date of interest.
+#         d (int): Number of days to cover in the time window.
+#         aoi (ee.Geometry): Area of interest.
 
-    Args:
-        image (ee.Image): VIIRS image.
-
-    Returns:
-        ee.Image: Masked image.
-    """
-    # extract the quality band
-    QC = image.select('QC')
-    # only keep pixels from the input image where
-    # Bits 0-1 = 0 (Pixel produced, good quality, no further QA info necessary)
-    qaMask = bitwiseExtract(QC, 0, 1).eq(0)
-    image = image.updateMask(qaMask)
-    return image
+#     Returns:
+#         Tuple[ee.Image, str, int]: Tuple containing LST image, index list, and scene count.
+#     """
+#     start_date = date.advance((-1*d), 'day')
+#     end_date = date.advance(1, 'day')
+#     LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
+#         .filterDate(start_date, end_date) \
+#         .filterBounds(aoi)
+#     # apply cloud and low quality masks
+#     LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
+#     # Sort the collection by time in descending order
+#     sortedCollection = LST_col_masked.sort('system:time_start', False)
+#     # Create list with indices of all used data
+#     LST_index_list = sortedCollection.aggregate_array('system:index')
+#     LST_index_list = LST_index_list.join(',')
+#     LST_scene_count = sortedCollection.size()
+#     # Create a mosaic using the latest pixel values
+#     latestMosaic = sortedCollection.mosaic()
+#     # Select LST for the mosaic
+#     LSTj = latestMosaic.select('LST_1KM').rename('lst')
+#     return LSTj, LST_index_list, LST_scene_count
 
 # This function loads the current LST data
 
 
 def loadLstCurrentData(date, d, aoi):
     """
-    Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
+    Loads the current Land Surface Temperature (LST) data from Meteosat data.
     Takes the most recent pixels from the ee.ImageCollection.
 
     Args:
@@ -170,21 +202,23 @@ def loadLstCurrentData(date, d, aoi):
     """
     start_date = date.advance((-1*d), 'day')
     end_date = date.advance(1, 'day')
-    LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
+    LST_col = ee.ImageCollection(config.PRODUCT_VHI['LST_current_data']) \
         .filterDate(start_date, end_date) \
         .filterBounds(aoi)
-    # apply cloud and low quality masks
-    LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
+
     # Sort the collection by time in descending order
-    sortedCollection = LST_col_masked.sort('system:time_start', False)
+    sortedCollection = LST_col.sort('system:time_start', False)
     # Create list with indices of all used data
     LST_index_list = sortedCollection.aggregate_array('system:index')
     LST_index_list = LST_index_list.join(',')
     LST_scene_count = sortedCollection.size()
     # Create a mosaic using the latest pixel values
     latestMosaic = sortedCollection.mosaic()
-    # Calculate NDVI for the mosaic
-    LSTj = latestMosaic.select('LST_1KM').rename('lst')
+    # Select LST for the mosaic
+    LST_mosaic = latestMosaic.select('LST_PMW').rename('lst')
+    # Divide by the scale
+    scale = ee.Number(100)
+    LSTj = LST_mosaic.divide(scale)
     return LSTj, LST_index_list, LST_scene_count
 
 
@@ -200,6 +234,16 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     Returns:
         None
     """
+
+    ##############################
+    # MASKS
+    # Mask for vegetation
+    vegetation_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
+    # Mask for the forest
+    forest_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
+
     ##############################
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
@@ -213,6 +257,10 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
     # otherwise the min and max will be used (False)
+
+    ##############################
+    # SPACE
+    aoi = roi
 
     ##############################
     # PRODUCT
@@ -240,33 +288,75 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         CI_method = 'min_and_max'
 
     ##############################
-    # SPACE
-    aoi = roi
-
-    ##############################
-    # MASKS
-    # Mask for vegetation
-    vegetation_mask = ee.Image(
-        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_vegetation_epsg32632')
-    # Mask for the forest
-    forest_mask = ee.Image(
-        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
-
-    ##############################
-    # DATA
+    # Sentinel S2 SR Data
     S2_col = ee.ImageCollection(collection_ready) \
         .filterDate(start_date, end_date) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '10m'))
 
     ###########################################
-    # PRE-PROCESSING
-    # Get information about the available sensor data for the range
-    sensor_stats = main_utils.get_collection_info(S2_col)
+    # Test PRE conditions
 
-    # Check if there is new sensor data compared to the stored dataset
-    if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) is True:
-        print("new imagery from: " + sensor_stats[1])
+    # TEST LST: LST Asset avilable? We first check if we have the neccessary termporal coverage
+
+    LST_col = ee.ImageCollection(config.PRODUCT_VHI['LST_current_data']) \
+        .filterDate(start_date, end_date)
+    LST_count = LST_col.size().getInfo()
+
+    # If wee don't have LST coverage we start to process it for each day
+    if LST_count != config.PRODUCT_VHI['temporal_coverage']:
+
+        # Function to check if an asset exists for a given date
+        def check_asset_exists(date):
+            next_date = date.advance(1, 'day')
+            filtered_col = LST_col.filterDate(date, next_date)
+            count = filtered_col.size().getInfo()
+            return count > 0
+
+        # Check each day
+        check_date = start_date
+
+        while check_date.millis().getInfo() <= end_date.millis().getInfo():
+            if not check_asset_exists(check_date):
+                print(
+                    '... starting import of LST for '+check_date.format('YYYY-MM-dd').getInfo()+" from MeteoSwiss raw data")
+                result = generate_msg_lst_mosaic_for_single_date(check_date.format('YYYY-MM-dd').getInfo(
+                ), config.PRODUCT_VHI['LST_current_data'], "LST-"+check_date.format('YYYY-MM-dd').getInfo())
+                if result == False:
+                    print('Cutting asset create for VHI ' +
+                          current_date_str + ': missing LST Data')
+                    return
+
+            check_date = check_date.advance(1, 'day')
+
+    # TEST VHI GEE: VHI GEE Asset already exists ?? then skip
+    VHI_col = ee.ImageCollection(config.PRODUCT_VHI['step1_collection']) \
+        .filterMetadata('system:index', 'contains', current_date_str) \
+        .filterBounds(aoi)
+    VHI_count = VHI_col.size().getInfo()
+    if VHI_count == 2:
+        print(current_date_str+' is already in ' +
+              config.PRODUCT_VHI['step1_collection'])
+        return
+
+    # TEST VHI empty asset? VHI in empty_asset list? then skip
+    if main_utils.is_date_in_empty_asset_list(config.PRODUCT_VHI['step1_collection'], current_date_str):
+        return
+
+    # Get information about the available sensor data for the range
+    # Get the number of images in the filtered collection
+    image_count = S2_col.size().getInfo()
+
+    if image_count == 0:
+        write_asset_as_empty(
+            config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
+        return
+
+    # TEST only Process if newer than last product update OR no S2 SR fro specific date is in empty list
+    sensor_stats = main_utils.get_collection_info(S2_col)
+    if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) or main_utils.is_date_in_empty_asset_list(collection_ready, current_date_str):
+
+        print("new/latest imagery from: " + sensor_stats[1])
 
         ###########################################
         # PROCESSING

@@ -15,6 +15,8 @@ import re
 import requests
 import time
 from datetime import datetime
+from collections import defaultdict
+from google.cloud import storage
 from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
 
@@ -84,6 +86,11 @@ def initialize_gee_and_drive():
 
         rclone_config_file = config.RCLONE_SECRETS
         google_secret_file = config.GDRIVE_SECRETS
+
+        # TODO GCS: later move below so it works as well on GITHUB
+        global storage_client
+        storage_client = storage.Client.from_service_account_json(
+            gauth.service_account_file)
     else:
         # Initialize GEE and Google Drive using GitHub secrets
 
@@ -147,6 +154,7 @@ def initialize_gee_and_drive():
     else:
         print("GEE initialization FAILED")
 
+
 def initialize_drive():
     """
     Re-Initialize Google Drive since it times out.
@@ -175,7 +183,6 @@ def initialize_drive():
             gauth.service_account_file, scopes=scopes
         )
 
-
     else:
         # Initialize Google Drive using GitHub secrets
 
@@ -191,10 +198,10 @@ def initialize_drive():
             gauth.service_account_file, scopes=scopes
         )
 
-
     # Create the Google Drive client
     global drive
     drive = GoogleDrive(gauth)
+
 
 def download_and_delete_file(file):
     """
@@ -309,7 +316,7 @@ def merge_files_with_gdal_warp(source):
     # print(command)
     result = subprocess.run(command, check=True,
                             capture_output=True, text=True)
-    print(result)
+    # print(result)
 
     # run gdal translate
     command = ["gdalwarp",
@@ -333,7 +340,7 @@ def merge_files_with_gdal_warp(source):
     # print(command)
     result = subprocess.run(command, check=True,
                             capture_output=True, text=True)
-    print(result)
+    # print(result)
 
     # For Debugging uncomment  below
     # print("Standard Output:")
@@ -462,8 +469,20 @@ def clean_up_gdrive(filename):
     # }).GetList()
     # The  approach above does not work if there are a lot of files
 
-    filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
-    file_list = [file for file in filtered_files if filename in file['title']]
+    # TODO GCS HERE:: List forl all files
+    if config.GDRIVE_TYPE != "GCS":
+        filtered_files = drive.ListFile({"q": "trashed=false"}).GetList()
+        file_list = [
+            file for file in filtered_files if filename in file['title']]
+    else:
+        # TODO GCS HERE:: List forl all files
+        # initialize_bucket(bucket_name)
+        bucket = storage_client.bucket(config.GCLOUD_BUCKET)
+        blobs = bucket.list_blobs()
+        file_list = []
+        for blob in blobs:
+            if filename in blob.name:
+                file_list.append(blob.name)
 
     # Check if the file is found
     if len(file_list) > 0:
@@ -472,7 +491,10 @@ def clean_up_gdrive(filename):
         for file in file_list:
 
             # Get the current Task id
-            file_on_drive = file['title']
+            if config.GDRIVE_TYPE != "GCS":
+                file_on_drive = file['title']
+            else:
+                file_on_drive = file
             file_task_id = extract_value_from_csv(
                 config.GEE_RUNNING_TASKS, file_on_drive.replace(".tif", ""), "Filename", "Task ID")
 
@@ -484,7 +506,16 @@ def clean_up_gdrive(filename):
                 file_task_status['description'])
 
             # Delete file on gdrive with muliple attempt
-            delete_gdrive(file)
+            if config.GDRIVE_TYPE != "GCS":
+                delete_gdrive(file)
+            else:
+                # Get the blob (file) object
+                blob = bucket.blob(file)
+
+                # Delete the blob
+                blob.delete()
+
+                print(f"File {file} deleted from bucket.")
 
             # Add DATA GEE PROCESSING info to stats
             write_file(file_task_status, config.GEE_COMPLETED_TASKS)
@@ -686,6 +717,31 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
     else:
         return False
 
+def check_asset_size(filename):
+    """
+    Checks the asset size of the product defined in the configuration 
+
+    Args:
+    - filename (str): The filename containing the product name to match.
+
+    Returns:
+    - asset_size (int or None): The needed asset size if a matching product is found,
+                                otherwise None.
+    """
+    # Iterate through all items in the config file
+    for product_name in dir(config):
+        # Get the product dictionary
+        product_info = getattr(config, product_name)
+
+        # Check if it's a dictionary and has the 'product_name' key
+        if isinstance(product_info, dict) and 'product_name' in product_info:
+            if product_info['product_name'] in filename:
+                # Return the expected asset size
+                return product_info['asset_size']
+
+    print("No matching product found in the configuration.")
+    return None  # Return None if no matching product is found
+
 
 if __name__ == "__main__":
 
@@ -696,11 +752,12 @@ if __name__ == "__main__":
     initialize_gee_and_drive()
 
     # empty temp files on GDrive
-    file_list = drive.ListFile({'q': "trashed=true"}).GetList()
-    for file in file_list:
-        # Delete file on gdrive with muliple attempt
-        delete_gdrive(file)
-        # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
+    if config.GDRIVE_TYPE != "GCS":
+        file_list = drive.ListFile({'q': "trashed=true"}).GetList()
+        for file in file_list:
+            # Delete file on gdrive with muliple attempt
+            delete_gdrive(file)
+            # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
 
     # Read the status file
     with open(config.GEE_RUNNING_TASKS, "r") as f:
@@ -717,175 +774,213 @@ if __name__ == "__main__":
 
     unique_filenames = list(unique_filenames)
 
-    # Check  if each quandrant is complete then process
-    # Iterate over unique filenames
+    # Step 1: Group by date
+    grouped_files = defaultdict(list)
+
     for filename in unique_filenames:
+        # Extract the date part
+        date_part = filename.split('_mosaic_')[1].split('T')[0]
+        # Group the filenames by date
+        grouped_files[date_part].append(filename)
 
-        # Keep track of completion status
-        all_completed = True
-        # You need to change this if we have more than 4 quadrants
-        for quadrant_num in range(1, 5):
-            # Construct the filename with the quadrant
-            full_filename = filename + "quadrant" + str(quadrant_num)
+    # Step 2: Create the unique_filename_day list
+    unique_filename_day = list(grouped_files.values())
 
-            # Find the corresponding task ID in the lines list
-            task_id = None
-            for line in lines[1:]:
-                if full_filename in line:
-                    task_id = line.strip().split(",")[0]
-                    break
+    # Step 3: Loop through unique_filename_day, Start the processing and remove groups from unique_filename
+    for group in unique_filename_day:
+        print("Date:",
+              group[0].split('_mosaic_')[1].split('T')[0], "checking export status")
 
-            if task_id:
-                # Check task status
-                task_status = ee.data.getTaskStatus(task_id)[0]
+        # Check  if each quandrant is complete then process
+        # Iterate over unique filenames
 
-            if task_status["state"] != "COMPLETED":
-                # Task is not completed
-                all_completed = False
-                print(f"{full_filename} - {task_status['state']}")
+        # Set asset counter to 0
+        all_assets = 0
+        for filename in group:
 
-        # Check overall completion status
-        if all_completed:
+            # Keep track of completion status
+            all_completed = True
 
-            print(filename+" is ready to process")
+            # You need to change this if we have more than 4 quadrants
+            for quadrant_num in range(1, 5):
+                # Construct the filename with the quadrant
+                full_filename = filename + "quadrant" + str(quadrant_num)
 
-            # read metadata from json
-            with open(os.path.join(
-                    config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
-                metadata = json.load(f)
+                # Find the corresponding task ID in the lines list
+                task_id = None
+                for line in lines[1:]:
+                    if full_filename in line:
+                        task_id = line.strip().split(",")[0]
+                        break
 
-            # Set the buffer based on orbit or use Switzerland wide buffer
-            if 'GEE_PROPERTIES' in metadata and 'SENSING_ORBIT_NUMBER' in metadata['GEE_PROPERTIES']:
-                config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
-                    metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
-            else:
-                config.BUFFER = os.path.join("assets", "ch_buffer_5000m.shp")
+                if task_id:
+                    # Check task status
+                    task_status = ee.data.getTaskStatus(task_id)[0]
 
-            # merge files
-            file_merged = merge_files_with_gdal_warp(filename)
+                if task_status["state"] != "COMPLETED":
+                    # Task is not completed
+                    all_completed = False
+                    print(f"{full_filename} - {task_status['state']}")
 
-            # check if there is a need to create thumbnail , if yes create it
-            thumbnail = main_thumbnails.create_thumbnail(
-                file_merged, metadata['SWISSTOPO']['PRODUCT'])
+            # Check overall completion status of files
 
-            # upload file to FSDI STAC
-            main_publish_stac_fsdi.publish_to_stac(
-                file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+            if all_completed:
+                all_assets = all_assets + 1
 
-            # Warnregions:
-            # swisseo-vhi warnregions: create
+                # Check overall completion status of all assets for date.
+                asset_size = check_asset_size(filename)
+                if all_assets == asset_size:
+                    print(" ... checking status of asset: "+filename)
+                    print(" --> ",
+                          group[0].split('_mosaic_')[1].split('T')[0], "all assets exported and READY ...")
 
-            # Check if we deal with VHI Vegetation or Forest files
-            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
-                print("Extracting warnregions stats...")
-                warnregionfilename = metadata['SWISSTOPO']['PRODUCT']+"_"+metadata['SWISSTOPO']['ITEM'] + \
-                    "_" + \
-                    file_merged[file_merged.rfind(
-                        "_") + 1:file_merged.rfind("-")]+"-warnregions"
+                    for filename in group:
 
-                # Extracting warnregions
-                main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
-                                                metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", config.PRODUCT_VHI['missing_data'])
+                        print(filename+" starting processing ... ")
 
-                # Pushing  CSV , GEOJSON and PARQUET
-                warnformats = [".csv", ".geojson", ".parquet"]  #
-                for format in warnformats:
-                    main_publish_stac_fsdi.publish_to_stac(
-                        warnregionfilename+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
-                    # Define the new metadata entry
-                    new_entry_key = (file_merged[file_merged.rfind(
-                        "_") + 1:file_merged.rfind("-")] + "-warnregions" + format.replace(".", "-")).upper()
-                    new_entry_value = {
-                        "PRODUCT": metadata['SWISSTOPO']['PRODUCT'],
-                        "ITEM": metadata['SWISSTOPO']['ITEM'],
-                        "ASSET": warnregionfilename + format,
-                        "SOURCE": file_merged,
-                        "format": format,
-                        "regionId": "RegionID",
-                        "vhiMean": "VHI Mean Region",
-                        "availabilityPercentage": "percentage of available pixels with information within region"
-                    }
+                        # read metadata from json
+                        with open(os.path.join(
+                                config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
+                            metadata = json.load(f)
 
-                    # Update the metadata dictionary with the new entry
-                    metadata[new_entry_key] = new_entry_value
+                        # Set the buffer based on orbit or use Switzerland wide buffer
+                        if 'GEE_PROPERTIES' in metadata and 'SENSING_ORBIT_NUMBER' in metadata['GEE_PROPERTIES']:
+                            config.BUFFER = os.path.join("assets", "ch_buffer_5000m_2056_" + str(
+                                metadata['GEE_PROPERTIES']['SENSING_ORBIT_NUMBER']) + ".shp")
+                        else:
+                            config.BUFFER = os.path.join(
+                                "assets", "ch_buffer_5000m.shp")
 
-                    # Write the updated metadata back to the JSON file
-                    with open(os.path.join(
-                            config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'w') as f:
-                        json.dump(metadata, f)
+                        # merge files
 
-            # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
-            collection = metadata['SWISSTOPO']['PRODUCT']
-            result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
-                                                           "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
-            if result == True:
-                print("Newest dataset detected: updating CURRENT")
+                        file_merged = merge_files_with_gdal_warp(filename)
 
-                file_merged_current = re.sub(
-                    r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
-                # Rename the file
-                os.rename(file_merged, file_merged_current)
+                        # check if there is a need to create thumbnail , if yes create it
+                        thumbnail = main_thumbnails.create_thumbnail(
+                            file_merged, metadata['SWISSTOPO']['PRODUCT'])
 
-                # Publish  current dataset to stac
-                main_publish_stac_fsdi.publish_to_stac(
-                    file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+                        # upload file to FSDI STAC
 
-                # Publish  current thumbnail if a thumbnail is required
-                if thumbnail is not False:
-                    main_publish_stac_fsdi.publish_to_stac(
-                        thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
-
-                # Rename the file back
-                os.rename(file_merged_current, file_merged)
-
-                # Pushing Warnregions CSV , GEOJSON and PARQUET
-                if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
-                    # create filepath
-                    warnregionfilename_current = re.sub(
-                        r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
-                    for format in warnformats:
-
-                        # Rename the file
-                        os.rename(warnregionfilename+format,
-                                  warnregionfilename_current+format)
-
-                        # Publish  current dataset to stac
                         main_publish_stac_fsdi.publish_to_stac(
-                            warnregionfilename_current+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+                            file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
-                        # Rename the file back
-                        os.rename(warnregionfilename_current +
-                                  format, warnregionfilename+format)
+                        # Warnregions:
+                        # swisseo-vhi warnregions: create
 
-            # move file to INT STAC : in case reproejction is done here: move file_reprojected
-            move_files_with_rclone(
-                file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+                        # Check if we deal with VHI Vegetation or Forest files
+                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                            print("Extracting warnregions stats...")
+                            warnregionfilename = metadata['SWISSTOPO']['PRODUCT']+"_"+metadata['SWISSTOPO']['ITEM'] + \
+                                "_" + \
+                                file_merged[file_merged.rfind(
+                                    "_") + 1:file_merged.rfind("-")]+"-warnregions"
 
-            # Pushing Warnregions CSV , GEOJSON and PARQUET
-            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
-                for format in warnformats:
-                    move_files_with_rclone(
-                        warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+                            # Extracting warnregions
+                            main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
+                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", config.PRODUCT_VHI['missing_data'])
 
-            # Upload and move thumbnail if a thumbnail is required
-            if thumbnail is not False:
-                main_publish_stac_fsdi.publish_to_stac(
-                    thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
-                move_files_with_rclone(
-                    thumbnail, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+                            # Pushing  CSV , GEOJSON and PARQUET
+                            warnformats = [".csv", ".geojson", ".parquet"]  #
+                            for format in warnformats:
+                                main_publish_stac_fsdi.publish_to_stac(
+                                    warnregionfilename+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+                                # Define the new metadata entry
+                                new_entry_key = (file_merged[file_merged.rfind(
+                                    "_") + 1:file_merged.rfind("-")] + "-warnregions" + format.replace(".", "-")).upper()
+                                new_entry_value = {
+                                    "PRODUCT": metadata['SWISSTOPO']['PRODUCT'],
+                                    "ITEM": metadata['SWISSTOPO']['ITEM'],
+                                    "ASSET": warnregionfilename + format,
+                                    "SOURCE": file_merged,
+                                    "format": format,
+                                    "regionId": "RegionID",
+                                    "vhiMean": "VHI Mean Region",
+                                    "availabilityPercentage": "percentage of available pixels with information within region"
+                                }
 
-            # clean up GDrive and local drive, move JSON to STAC
-            # Re-Test if we are on a local machine or if we are on Github: Redo, since GDRIVE might have a timeout
-            determine_run_type()
+                                # Update the metadata dictionary with the new entry
+                                metadata[new_entry_key] = new_entry_value
 
-            # Authenticate GDRIVE
-            initialize_drive()
-            
-            # os.remove(file_merged)
-            clean_up_gdrive(filename)
+                                # Write the updated metadata back to the JSON file
+                                with open(os.path.join(
+                                        config.PROCESSING_DIR, file_merged.replace(".tif", "_metadata.json")), 'w') as f:
+                                    json.dump(metadata, f)
 
-        else:
-            print(filename+" is NOT ready to process")
+                        # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
+                        collection = metadata['SWISSTOPO']['PRODUCT']
+                        result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
+                                                                       "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
+                        if result == True:
+                            print("Newest dataset detected: updating CURRENT")
+
+                            file_merged_current = re.sub(
+                                r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', file_merged)
+                            # Rename the file
+                            os.rename(file_merged, file_merged_current)
+
+                            # Publish  current dataset to stac
+                            main_publish_stac_fsdi.publish_to_stac(
+                                file_merged_current, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
+                            # Publish  current thumbnail if a thumbnail is required
+                            if thumbnail is not False:
+                                main_publish_stac_fsdi.publish_to_stac(
+                                    thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
+                            # Rename the file back
+                            os.rename(file_merged_current, file_merged)
+
+                            # Pushing Warnregions CSV , GEOJSON and PARQUET
+                            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                                # create filepath
+                                warnregionfilename_current = re.sub(
+                                    r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
+                                for format in warnformats:
+
+                                    # Rename the file
+                                    os.rename(warnregionfilename+format,
+                                              warnregionfilename_current+format)
+
+                                    # Publish  current dataset to stac
+                                    main_publish_stac_fsdi.publish_to_stac(
+                                        warnregionfilename_current+format, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'], current=True)
+
+                                    # Rename the file back
+                                    os.rename(warnregionfilename_current +
+                                              format, warnregionfilename+format)
+
+                        # move file to INT STAC : in case reproejction is done here: move file_reprojected
+                        move_files_with_rclone(
+                            file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+
+                        # Pushing Warnregions CSV , GEOJSON and PARQUET
+                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                            for format in warnformats:
+                                move_files_with_rclone(
+                                    warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+
+                        # Upload and move thumbnail if a thumbnail is required
+                        if thumbnail is not False:
+                            main_publish_stac_fsdi.publish_to_stac(
+                                thumbnail, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
+                            move_files_with_rclone(
+                                thumbnail, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
+
+                        # clean up GDrive and local drive, move JSON to STAC
+                        # Re -Test if we are on a local machine or if we are on Github: Redo, since GDRIVE might have a timeout
+                        determine_run_type()
+
+                        # Authenticate with GDRIVE
+                        initialize_drive()
+
+                        # os.remove(file_merged)
+                        clean_up_gdrive(filename)
+
+                        # Remove each filename from the original list
+                        unique_filenames.remove(filename)
+
+                else:
+                    print(" ... checking status of asset: "+filename)
 
     # delete consolidated META file
     [os.remove(file) for file in glob.glob("*_metadata.json")]

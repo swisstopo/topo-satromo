@@ -19,10 +19,15 @@ GEE_COMPLETED_TASKS = os.path.join("tools", "completed_tasks.csv")
 EMPTY_ASSET_LIST = os.path.join("tools", "step0_empty_assets.csv")
 PROCESSING_DIR = "processing"
 LAST_PRODUCT_UPDATES = os.path.join("tools", "last_updates.csv")
+# Set GDRIVE Type: GCS for Google Cloud Storage and DRIVE for Google Drive
+GDRIVE_TYPE = "DRIVE"
+# Set GCS Bucket name of Google Cloud Storage
+GCLOUD_BUCKET = "satromo_export"
 # Local Machine
 GDRIVE_SOURCE_DEV = "geedriveINT:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 GDRIVE_MOUNT_DEV = r'G:\\'
+# GDRIVE_MOUNT_DEV = r'M:\\satromo_export' # for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 #  GITHUB
@@ -79,7 +84,7 @@ PRODUCT_S2_LEVEL_2A = {
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
-    # Meters # TODO: check if needed in context with step0
+    "asset_size": 5,
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
@@ -96,21 +101,23 @@ PRODUCT_VHI = {
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
     "no_data": 255,
     "missing_data": 110,
+    "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/2012-2020_LST_SWISS',
-    # "step1_collection": 'projects/satromo-prod/assets/VHI_SWISS',
-    # "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
+    "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
+    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
-# MSG – MeteoSchweiz
-PRODUCT_MSG = {
+# MSG – MeteoSchweiz: only used for repreocessing
+PRODUCT_MSG_CLIMA = {
     #
     # this is  placeholder, needed for the step0 function,
     "image_collection": "METEOSCHWEIZ/MSG",
-    "temporal_coverage": 7,  # Days
+    "temporal_coverage": 1,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    # 'step0_collection': 'projects/satromo-prod/assets/col/VHI_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
 
 

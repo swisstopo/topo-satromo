@@ -16,13 +16,14 @@ import time
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
 
-# Processing pipeline for daily LandSurfce  mosaics over Switzerland.
+# Processing pipeline for MONTHLY NETCDF for daily LandSurfce  mosaics over Switzerland.
 
 ##############################
 # INTRODUCTION
 # This script provides a tool to Access and upload Landsurface (LST) data over Switzerland to GEE.
-# It uses CMS SAF data provided by  MeteoSwiss  LST to be stored as SATROMO assets and
-# to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
+# It uses CMS SAF data provided by  MeteoSwiss  LST as
+# ->  MONTHLY FILES
+# to be stored as SATROMO assets and to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
 # available to all users free of charge and with no conditions to use. If you wish to use these products,
 # EUMETSAT's copyright credit must be shown by displaying the words "Copyright (c) (2022) EUMETSAT" under/in
 # each of these SAF Products used in a project or shown in a publication or website.
@@ -153,11 +154,18 @@ def get_netcdf_info(file_path, epoch_time=None):
         }
 
     # If epoch_time is provided and found in the file, get the variables for that time
+
     if time_index is not None:
         time_variables = {}
         for var_name in dataset.variables:
             var = dataset.variables[var_name]
-            var_data = var[time_index].tolist()
+            if 'time' in var.dimensions:
+                # Find the correct index in all dimensions
+                index = tuple(time_index if dim == 'time' else slice(None)
+                              for dim in var.dimensions)
+                var_data = var[index].tolist()
+            else:
+                var_data = var[:].tolist()  # Non-time variables
             time_variables[var_name] = {
                 'dimensions': var.dimensions,
                 'shape': var.shape,
@@ -311,7 +319,7 @@ def export_netcdf_band_to_geotiff(file_path, time_value, output_tiff):
 
 def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
     """
-    Generates a MSG LST mosaic for a single date and uploads it to Google Cloud Storage and Google Earth Engine.
+    Generates a MSG MFG LST mosaic for a single date and uploads it to Google Cloud Storage and Google Earth Engine.
 
     Args:
         day_to_process (str): The date to process (format: YYYY-MM-DD).
@@ -322,8 +330,15 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # --------------------
 
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
-    raw_filename = day_to_process.replace("-", "")+"000000.nc"
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/dev/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    modified_date_str = day_to_process.replace("-", "")
+    # Replace the day part (DD) with "01"
+    raw_filename = modified_date_str[:6] + "01"+"000000.nc"
+
+    # MFG
+    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
+
+    # MSG
+    # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # UTC Hour of LST
     LST_hour = 11
@@ -335,7 +350,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     bucket_name = "viirs_lst_meteoswiss"
 
     # GEE asset NAME prefix
-    asset_prefix = "MSG_METEOSWISS_mosaic_"
+    asset_prefix = "M_METEOSWISS_mosaic_"
 
     # Switch to Wait till upload is complete
     # if set to false, The deletion of the file on GCS (delete blob) has to be implemented yet
@@ -374,7 +389,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Create the TIFF dataset
     export_netcdf_band_to_geotiff(
-        raw_filename, epochtime, "MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+        raw_filename, epochtime, "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
 
     # Get the metdata for the epoch
     info_raw_file = get_netcdf_info(raw_filename, epoch_time=epochtime)
@@ -386,26 +401,26 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     bucket = storage_client.bucket(bucket_name)
 
     # upload local file to GCS
-    # gs_path = upload_to_gcs("MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif", "MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+    # gs_path = upload_to_gcs("M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif", "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
     # Upload the file to the bucket
     try:
-        blob = bucket.blob("MSG_LST_"+day_to_process +
+        blob = bucket.blob("M_LST_"+day_to_process +
                            "T"+str(LST_hour)+"0000.tif")
         blob.upload_from_filename(
-            "MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
-        print(f"File MSG_LST_"+day_to_process+"T"+str(LST_hour) +
-              "0000.tif uploaded to gs://"+bucket_name+"/MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+            "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+        print(f"File M_LST_"+day_to_process+"T"+str(LST_hour) +
+              "0000.tif uploaded to gs://"+bucket_name+"/M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
     except Exception as e:
         # Handle any exceptions raised during the upload process
         print(f"Error uploading file to GCS: {e}")
 
     # Define the asset name for Earth Engine
     asset_name = config.PRODUCT_MSG_CLIMA['step0_collection']+"/"+asset_prefix+day_to_process + \
-        "T"+str(LST_hour)+"0000"+'_bands-4415m'
+        "T"+str(LST_hour)+"0000"+'_bands-02d'
 
     # Load the GeoTIFF file as an Earth Engine Image
     image = ee.Image.loadGeoTIFF(
-        f"gs://{bucket_name}/MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+        f"gs://{bucket_name}/M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
 
     # rename band
     image = image.rename([band_name])
@@ -423,11 +438,13 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         # Assuming single timestamp Convert to milliseconds End timestamp
         'system:time_end': int(date_time.timestamp()) * 1000,
         # Set the name of the image
-        'system:name': asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-4415m',
+        'system:name': asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-02d',
         # Set the date
         'date': day_to_process,
         # HourMin Sec
         'hour': str(LST_hour),
+        # Orig filename
+        'orig_filename': os.path.basename(data_import_url),
         # Set the date
         'spacecraft_name': info_raw_file['global_attributes']['platform'],
         # Set the date
@@ -453,7 +470,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Export the image to the asset folder
     task = ee.batch.Export.image.toAsset(
-        image, assetId=asset_name)  # force Enable overwrite
+        image, assetId=asset_name,
+        description=task_description)  # force Enable overwrite
     task.start()
 
     if wait_for_upload is True:
@@ -471,7 +489,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
             # Continue with your code here
             pass
             print("upload finished:" + asset_prefix+day_to_process +
-                  "T"+str(LST_hour)+"0000"+'_bands-4415m')
+                  "T"+str(LST_hour)+"0000"+'_bands-02d')
 
             # delete file on GCS
             blob.delete()
@@ -482,5 +500,5 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
             print("Export task failed with error message:", error_message)
 
     # remove the local file
-    os.remove("MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+    os.remove("M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
     os.remove(raw_filename)

@@ -16,13 +16,14 @@ import time
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
 
-# Processing pipeline for daily LandSurfce  mosaics over Switzerland.
+# Processing pipeline for DAILY NETCDF for daily LandSurfce  mosaics over Switzerland.
 
 ##############################
 # INTRODUCTION
 # This script provides a tool to Access and upload Landsurface (LST) data over Switzerland to GEE.
-# It uses CMS SAF data provided by  MeteoSwiss  LST to be stored as SATROMO assets and
-# to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
+# It uses CMS SAF data provided by  MeteoSwiss  LST as
+# ->  DAILY FILES
+# to be stored as SATROMO assets and  to calculate VCI and TCI and combine them to the VHI. The CM SAF data are owned by EUMETSAT and are
 # available to all users free of charge and with no conditions to use. If you wish to use these products,
 # EUMETSAT's copyright credit must be shown by displaying the words "Copyright (c) (2022) EUMETSAT" under/in
 # each of these SAF Products used in a project or shown in a publication or website.
@@ -321,9 +322,17 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # CONFIGURATION START
     # --------------------
 
+    # WORKING WITH 1 FILE PER DAY (operational delivery)
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
     raw_filename = day_to_process.replace("-", "")+"000000.nc"
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/dev/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+
+    # WORKING WITH 1 FILE PER MONTH (one time delivery)
+    # modified_date_str = day_to_process.replace("-", "")
+    # Replace the day part (DD) with "01"
+    # raw_filename = modified_date_str[:6] + "01"+"000000.nc"
+
+    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.globalstrahlung-monatlich/landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # UTC Hour of LST
     LST_hour = 11
@@ -343,6 +352,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # CONFIGURATION END
     # --------------------
+
+
+    # Convert the string to an ee.Date object
 
     # Send a HEAD request to check if the file exists
     try:
@@ -400,7 +412,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         print(f"Error uploading file to GCS: {e}")
 
     # Define the asset name for Earth Engine
-    asset_name = config.PRODUCT_MSG['step0_collection']+"/"+asset_prefix+day_to_process + \
+    asset_name = config.PRODUCT_VHI['LST_current_data']+"/"+asset_prefix+day_to_process + \
         "T"+str(LST_hour)+"0000"+'_bands-1721m'
 
     # Load the GeoTIFF file as an Earth Engine Image
@@ -428,6 +440,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         'date': day_to_process,
         # HourMin Sec
         'hour': str(LST_hour),
+        # Orig filename
+        'orig_filename': os.path.basename(data_import_url),
         # Set the date
         'spacecraft_name': info_raw_file['global_attributes']['platform'],
         # Set the date
@@ -440,7 +454,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         'date_created': info_raw_file['global_attributes']['date_created'],
         # Set the no data value, you can add more properties like baselines  etc
         # '_FillValue': str(info_raw_file['variables']['LST_PMW']['attributes']['_FillValue'])
-        'no_data': str(config.PRODUCT_MSG["no_data"])
+        'no_data': str(config.PRODUCT_MSG_CLIMA["no_data"])
     })
 
     # Check if the asset already exists
@@ -453,7 +467,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Export the image to the asset folder
     task = ee.batch.Export.image.toAsset(
-        image, assetId=asset_name)  # force Enable overwrite
+        image,
+        assetId=asset_name,
+        description=task_description)  # force Enable overwrite
     task.start()
 
     if wait_for_upload is True:
@@ -484,3 +500,4 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # remove the local file
     os.remove("MSG_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
     os.remove(raw_filename)
+    return True

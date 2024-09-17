@@ -6,9 +6,8 @@ import os
 # Assuming configuration.py is in ../configuration directory
 
 
-config = r'C:\temp\topo-satromo\secrets\xxx.secret'
+config = r'C:\temp\topo-satromo\secrets\geetest-credentials-int.secret'
 asset_list = r'C:\temp\topo-satromo\main_functions\asset_list.txt'
-
 
 def initialize_gee_and_drive():
     """
@@ -67,20 +66,11 @@ with open(asset_list, 'r') as file:
 # Remove whitespace and newline characters from the asset names
 asset_names = [name.strip() for name in asset_names]
 
-# Define the Earth Engine username for the destination account
-destination_username = "satromo-prod"
-
-# Copy each asset from the source to the destination
+# Delete assets from ImageCollection
 for asset_name in asset_names:
-    # Construct the source and destination asset paths
-    # source_asset = "users/{}/SATROMO/{}".format(source_username, asset_name)
-    source_asset = "projects/satromo-int/assets/1991-2020_NDVI_STATS15/{}".format(
-        asset_name)
-    # destination_asset = 'projects/{}/assets/res/{}'.format(
-    #     destination_username, asset_name)
-    destination_asset = 'projects/{}/assets/col/1991-2020_NDVI_SWISS/{}'.format(
-        destination_username, asset_name)
-
-    # Copy the asset from the source to the destination
-    ee.data.copyAsset(source_asset, destination_asset)
-    print("Copied asset:", asset_name)
+        try:
+            # Delete the asset
+            ee.data.deleteAsset(asset_name)
+            print(f'Deleted asset: {asset_name}')
+        except Exception as e:
+            print(f'Error deleting asset: {asset_name}, {e}')

@@ -5,6 +5,40 @@ import datetime
 import csv
 import os
 import json
+import pandas as pd
+
+
+def is_date_in_empty_asset_list(collection, check_date_str):
+    """
+    Check if a given date for a collection is in the empty asset list.
+
+    Args:
+    collection_basename (str): The basename of the collection.
+    check_date_str (str): The date to check in string format.
+    config (object): Configuration object containing EMPTY_ASSET_LIST path.
+
+    Returns:
+    bool: True if the date is found in the empty asset list, False otherwise.
+    """
+    try:
+        collection_basename = os.path.basename(collection)
+        # Read the empty asset list
+        df = pd.read_csv(config.EMPTY_ASSET_LIST)
+
+        # Filter the dataframe for the given collection and date
+        df_selection = df[(df.collection == collection_basename) &
+                          (df.date == check_date_str)]
+
+        # Check if any rows match the criteria
+        if len(df_selection) > 0:
+            print(check_date_str+' is in empty_asset_list for '+collection)
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        print(f"Error checking empty asset list: {e}")
+        return False  # Return False in case of any error to allow further processing
 
 
 def get_github_info():
@@ -203,7 +237,7 @@ def get_quadrants(roi):
 
 def start_export(image, scale, description, region, filename_prefix, crs):
     """
-    Starts an export task to export an image to Google Drive.
+    Starts an export task to export an image to Google Drive or Google Cloud Storage
 
 
     Args:
@@ -213,6 +247,7 @@ def start_export(image, scale, description, region, filename_prefix, crs):
         region: The region of interest (ROI) to export.
         filename_prefix: The prefix to be used for the exported file.
         crs: The coordinate reference system (CRS) of the exported image.
+        GCS=False : If set to true, an GCS will be used for output
 
     Returns:
         None
@@ -223,17 +258,31 @@ def start_export(image, scale, description, region, filename_prefix, crs):
     #  Use projection() from one of the original images instead, e.g., S2_collection.first().projection(), *after the aoi/date filters but before mapping any transformation function* then
     #  work with the corresponding CrsTtransform derived from it  crs:'EPSG:32632',   crsTransform: '[10,0,0,0,10,0]'
 
-    task = ee.batch.Export.image.toDrive(
-        image=image,
-        description=description,
-        scale=scale,
-        region=region,
-        fileNamePrefix=filename_prefix,
-        maxPixels=1e13,
-        crs=crs,
-        fileFormat="GeoTIFF"
-    )
-
+    if config.GDRIVE_TYPE == "GCS":
+        # print("GCS export")
+        task = ee.batch.Export.image.toCloudStorage(
+            image=image,
+            description=description,
+            scale=scale,
+            region=region,
+            fileNamePrefix=filename_prefix,
+            maxPixels=1e13,
+            crs=crs,
+            fileFormat="GeoTIFF",
+            bucket=config.GCLOUD_BUCKET
+        )
+    else:
+        # print("Drive export")
+        task = ee.batch.Export.image.toDrive(
+            image=image,
+            description=description,
+            scale=scale,
+            region=region,
+            fileNamePrefix=filename_prefix,
+            maxPixels=1e13,
+            crs=crs,
+            fileFormat="GeoTIFF"
+        )
     # OPTION Export in GEE with UTM32
     # for images covering that UTM zone this will be the best, but for the neighbouring UTM zones, images will be reprojected. So, for mosaics for larger areas spanning multiple UTM zones maybe some alternative projection is more convenient.
     # task = ee.batch.Export.image.toDrive(
@@ -265,7 +314,8 @@ def start_export(image, scale, description, region, filename_prefix, crs):
 
     # Get Task ID
     task_id = task.status()["id"]
-    print("Exporting  with Task ID:", task_id + f" file {filename_prefix}...")
+    print("Exporting  with Task ID:", task_id +
+          f" file {filename_prefix} to {config.GDRIVE_TYPE}...")
 
     # Save Task ID and filename to a text file
     header = ["Task ID", "Filename"]
