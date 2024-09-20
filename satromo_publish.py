@@ -784,7 +784,7 @@ if __name__ == "__main__":
         grouped_files[date_part].append(filename)
 
     # Step 2: Create the unique_filename_day list
-    unique_filename_day = list(grouped_files.values())
+    unique_filename_day = [sorted(day_list) for day_list in grouped_files.values()]
 
     # Step 3: Loop through unique_filename_day, Start the processing and remove groups from unique_filename
     for group in unique_filename_day:
