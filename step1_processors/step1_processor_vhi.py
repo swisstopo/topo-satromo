@@ -73,7 +73,7 @@ def loadNdviCurrentData(image):
     """
     # Apply the cloud and terrain shadow mask within the S2 image collection
     def applyMasks(image):
-        image = image.updateMask(image.select('terrainShadowMask').eq(0))
+        image = image.updateMask(image.select('terrainShadowMask').lt(65))
         image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
         return image
     S2_col_masked = image.map(applyMasks)
