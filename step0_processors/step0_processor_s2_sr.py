@@ -1,4 +1,5 @@
 import ee
+import numpy as np
 from main_functions import main_utils
 from .step0_utils import write_asset_as_empty
 
@@ -91,9 +92,15 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     DEM_sa3d = ee.Image(
         "projects/satromo-prod/assets/res/SS3DR_SA3DRegio_10m_20kmBuffer_epsg32632")
 
+    # SRTM 30 - digital elevation model (slope and aspect) used for the atmospheric correction in sen2cor in a 30 m resolution
+    # source: https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003
+    # processing: ee.Terrain.slope(DEM) and ee.Terrain.aspect(DEM) converted to radians
+    slope = ee.Image('projects/satromo-prod/assets/res/SRTM30m_slope_radians_epsg32632')
+    aspect = ee.Image('projects/satromo-prod/assets/res/SRTM30m_aspect_radians_epsg32632')
+
     # Terrain - very precise digital surface  model in a 10 m resolution
     # source: https://code.earthengine.google.com/ccfa64fe9827c93e2986e693983332e2
-    # processing:The shadow masks are  combined into a single image with multiple bands as asset per DOY.
+    # processing: The shadow masks are  combined into a single image with multiple bands as asset per DOY.
     terrain_shadow_collection = "projects/satromo-prod/assets/col/TERRAINSHADOW_SWISS/"
 
     # DX DY - Precalculated DX DY shifts
@@ -373,7 +380,39 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             'cloud_mask_threshold': CLOUD_THRESHOLD         # threshold for cloud mask
         })
 
-    # This function detects and adds terrain shadows
+    # This function calculates and adds the illumination angle
+    def addIlluminationAngel(image):
+        # get the solar position
+        meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
+        meanZenith = image.get('MEAN_SOLAR_ZENITH_ANGLE')
+
+        # Create an empty image to apply the expression
+        empty_image = ee.Image().float()
+
+        # Calculate illumination angle
+        illumination_cos = empty_image.expression(
+            'cos(sz) * cos(ps) + sin(sz) * sin(ps) * cos(sa - pa)',
+            {
+                'sz': ee.Number(meanZenith).multiply(np.pi).divide(180),  # Convert solar zenith to radians
+                'sa': ee.Number(meanAzimuth).multiply(np.pi).divide(180),  # Convert solar azimuth to radians
+                'ps': slope,
+                'pa': aspect
+            }
+        )
+        # The result is the cosine of the illumination angle
+        # To get the angle itself -> acos
+        illumination_angle_r = illumination_cos.acos()
+        illumination_angle = illumination_angle_r.multiply(180).divide(np.pi)
+
+        # Round to full numbers, convert to int, and cap at 90
+        illumination_angle = illumination_angle.round().toInt().clamp(0, 90).rename('terrainShadowMask')
+
+        # add the additonal terrainShadow band
+        image = image.addBands(illumination_angle)
+
+        return image
+
+    # This function detects and updates terrain shadows
     def addTerrainShadow(image):
         # get the solar position
         meanAzimuth = image.get('MEAN_SOLAR_AZIMUTH_ANGLE')
@@ -382,15 +421,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         # Terrain shadow
         terrainShadow = ee.Terrain.hillShadow(
             DEM_sa3d, meanAzimuth, meanZenith, 100, True)
-        terrainShadow = terrainShadow.Not().rename(
-            'terrainShadowMask')  # invert the binaries
+        terrainShadow = terrainShadow.Not() # invert the binaries
 
-        # add the additonal terrainShadow band
-        image = image.addBands(terrainShadow)
+        # Update the existing terrainShadowMask band
+        updatedMask = image.select('terrainShadowMask').where(terrainShadow, 100)
+
+        # Replace the existing terrainShadowMask band
+        image = image.addBands(updatedMask, ['terrainShadowMask'], True)
 
         return image
 
-    # This  adds terrain shadows from precalcuated terrain
+    # This updates terrain shadows from precalcuated terrain
     def addTerrainShadow_predefined(image, start_date, terrain_shadow_collection, S2_sr):
 
         # Define the day of year
@@ -433,10 +474,12 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         band_image = terrain_shadow_asset.select(
             'shadow_' + closest_band_name.getInfo())
-        band_image = band_image.rename('terrainShadowMask')
+        
+        # Update the existing terrainShadowMask band
+        updatedMask = image.select('terrainShadowMask').where(band_image, 100)
 
-        # Add the terrain shadow mask band to the input image
-        image = image.addBands(band_image)
+        # Replace the existing terrainShadowMask band
+        image = image.addBands(updatedMask, ['terrainShadowMask'], True)
 
         return image
 
@@ -444,7 +487,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     def addMaskedPixelCount(image):
         # counter the umber of pixel that are masked by cloud or shadows
         image_mask = image.select('cloudAndCloudShadowMask').gt(
-            0).Or(image.select('terrainShadowMask').gt(0))
+            0).Or(image.select('terrainShadowMask').gt(99))
         statsMasked = image_mask.reduceRegion(
             reducer=ee.Reducer.sum(),
             geometry=image.geometry().intersection(aoi_CH_simplified),
@@ -518,6 +561,9 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             print('--- Cloud and cloud shadow masking applied: s2cloudless ---')
             S2_sr = ee.ImageCollection(
                 S2_sr).map(maskCloudsAndShadowsSTwoCloudless)
+
+    # Add the illumination angle as terrainShadowMask band
+    S2_sr = S2_sr.map(addIlluminationAngel)
 
     # SWITCH
     if terrainShadowDetection is True:

@@ -717,6 +717,7 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
     else:
         return False
 
+
 def check_asset_size(filename):
     """
     Checks the asset size of the product defined in the configuration 
@@ -973,10 +974,10 @@ if __name__ == "__main__":
                         # Authenticate with GDRIVE
                         initialize_drive()
 
-                        # os.remove(file_merged)
+                        # os.remove(file_merged
                         clean_up_gdrive(filename)
 
-                        # Remove each filename from the original list
+                        # Remove each filename from the original group and list
                         unique_filenames.remove(filename)
 
                 else:
