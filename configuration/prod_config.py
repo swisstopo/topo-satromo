@@ -30,6 +30,7 @@ GDRIVE_MOUNT_DEV = r'G:\\'
 # GDRIVE_MOUNT_DEV = r'M:\\satromo_export' # for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
+
 #  GITHUB
 GDRIVE_SOURCE_INT = "geedrivePROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
