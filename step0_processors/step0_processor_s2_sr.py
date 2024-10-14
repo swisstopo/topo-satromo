@@ -92,11 +92,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     DEM_sa3d = ee.Image(
         "projects/satromo-prod/assets/res/SS3DR_SA3DRegio_10m_20kmBuffer_epsg32632")
 
-    # COPERNICUS DEM GLO-30 - digital elevation model (slope and aspect) used for the atmospheric correction in sen2cor in a 30 m resolution
-    # source: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_DEM_GLO30#bands
+    # SRTM 30 - digital elevation model (slope and aspect) used for the atmospheric correction in sen2cor in a 30 m resolution
+    # source: https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003
     # processing: ee.Terrain.slope(DEM) and ee.Terrain.aspect(DEM) converted to radians
-    slope_cop = ee.Image('projects/satromo-prod/assets/res/CopDEM30m_slope_radians_epsg32632')
-    aspect_cop = ee.Image('projects/satromo-prod/assets/res/CopDEM30m_aspect_radians_epsg32632')
+    slope = ee.Image('projects/satromo-prod/assets/res/SRTM30m_slope_radians_epsg32632')
+    aspect = ee.Image('projects/satromo-prod/assets/res/SRTM30m_aspect_radians_epsg32632')
 
     # Terrain - very precise digital surface  model in a 10 m resolution
     # source: https://code.earthengine.google.com/ccfa64fe9827c93e2986e693983332e2
@@ -395,8 +395,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             {
                 'sz': ee.Number(meanZenith).multiply(np.pi).divide(180),  # Convert solar zenith to radians
                 'sa': ee.Number(meanAzimuth).multiply(np.pi).divide(180),  # Convert solar azimuth to radians
-                'ps': slope_cop,
-                'pa': aspect_cop
+                'ps': slope,
+                'pa': aspect
             }
         )
         # The result is the cosine of the illumination angle
