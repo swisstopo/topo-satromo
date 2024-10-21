@@ -108,9 +108,9 @@ PRODUCT_VHI = {
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     # prod:'projects/satromo-prod/assets/col/LST_SWISS',
-    'LST_current_data': 'projects/satromo-int/assets/LST_CLIMA_SWISS',
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz
