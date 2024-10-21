@@ -60,7 +60,7 @@ def loadNdviRefData(doy):
 # This function loads the current NDVI data
 
 
-def loadNdviCurrentData(image):
+def loadNdviCurrentData(image, date):
     """
     Loads the current NDVI data from Sentinel-2 imagery.
     Takes the most recent pixels from the ee.ImageCollection.
@@ -71,10 +71,14 @@ def loadNdviCurrentData(image):
     Returns:
         Tuple[ee.Image, str, int]: Tuple containing NDVI image, index list, and scene count.
     """
-    # Apply the cloud and terrain shadow mask within the S2 image collection
+    # Calculate the nomalised difference snow index
+    NDSI = calculateSnowMask(date)
+
+    # Apply the cloud, snow and terrain shadow mask within the S2 image collection
     def applyMasks(image):
         image = image.updateMask(image.select('terrainShadowMask').lt(65))
         image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
+        image = image.updateMask(NDSI.select('ndsi').lt(0.43))
         return image
     S2_col_masked = image.map(applyMasks)
 
@@ -222,6 +226,29 @@ def loadLstCurrentData(date, d, aoi):
     return LSTj, LST_index_list, LST_scene_count
 
 
+# This function caluclates the normalised difference snow index
+
+def calculateSnowMask(date):
+    # Sentinel S2-SR data
+    green = ee.ImageCollection('projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS') \
+        .filterDate(date, date.advance(1, 'day')) \
+        .filter(ee.Filter.stringEndsWith('system:index', '10m')) \
+        .select('B3')
+    green = green.mosaic()
+
+    swir = ee.ImageCollection('projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS') \
+        .filterDate(date, date.advance(1, 'day')) \
+        .filter(ee.Filter.stringEndsWith('system:index', '20m')) \
+        .select('B11')
+    swir = swir.mosaic()
+    
+    # calculate normalised difference snow index
+    NDSI = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
+    
+    return NDSI
+
+
+
 def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     """
     Processes swissEO VHI data for Switzerland.
@@ -362,7 +389,7 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         # PROCESSING
         # Load NDVI for VCI calculation
         NDVIref = loadNdviRefData(doy)
-        NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col)
+        NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col, current_date)
 
         # Calculate VCI
         if workWithPercentiles is True:
