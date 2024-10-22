@@ -991,10 +991,11 @@ if __name__ == "__main__":
         # Remove the key file so It wont be commited
         os.remove("keyfile.json")
         os.remove("rclone.conf")
-    # empty temp files on GDrive
-    file_list = drive.ListFile({'q': "trashed=true"}).GetList()
-    for file in file_list:
-        # Delete file on gdrive with muliple attempt
-        delete_gdrive(file)
-        # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
+    if config.GDRIVE_TYPE == "DRIVE":
+        # empty temp files on GDrive
+        file_list = drive.ListFile({'q': "trashed=true"}).GetList()
+        for file in file_list:
+            # Delete file on gdrive with muliple attempt
+            delete_gdrive(file)
+            # print('GDRIVE TRASH: Deleted file: %s' % file['title'])
     print("PUBLISH Process done.")
