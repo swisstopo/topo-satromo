@@ -1,5 +1,7 @@
 [![Run processor](https://github.com/swisstopo/topo-satromo/actions/workflows/run-processor.yml/badge.svg)](https://github.com/swisstopo/topo-satromo/actions/workflows/run-processor.yml) [![Run publisher](https://github.com/swisstopo/topo-satromo/actions/workflows/run-publisher.yml/badge.svg)](https://github.com/swisstopo/topo-satromo/actions/workflows/run-publisher.yml)
 [![GitHub commit](https://img.shields.io/github/last-commit/swisstopo/topo-satromo)](https://github.com/swisstopo/topo-satromo/commits/main)
+
+![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue.svg)
 # SATROMO Processing chain
 
 The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) consists of python code with ETL functionalities to operationally generate and provide AnalysisReadyData and indices from satellite sensors using GoogleEarthEngine, GithubAction and AWS S3 / Cloudfront 
@@ -8,8 +10,11 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 
 **Note: This project is currently in the commissioning phase and is limited for operational use.**
 
-- Data description: [Products](https://www.swisstopo.admin.ch/en/satellite-images-swisseo)
-- Access to data: [STAC BROWSER](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100?.language=en)
+
+|      | swissEO S2-SR | swissEO VHI |
+|------------------|---------------|--------------|
+| Data description  | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi) |
+| Access to data    | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_vhi_v100) |
 
 
 ## Introduction and Project Description
@@ -84,6 +89,11 @@ Adapt your GoogleEarthEngine and rclone credentials
 ### Program flows  (`satromo_processor.py` and `satromo_publisher.py`)
 
 ![Diagram](satromo_processor.drawio.svg)
+
+
+### Program flows VHI (`step1_processor_vhi.py` ) 
+See [VHI flowchart](VHI_flowchart.md)
+
 
 ## Functionality in detail
 
@@ -225,7 +235,7 @@ Update the step0_empty_assets.csv directly on GitHub PROD: https://github.com/sw
 
 ## Roadmap
 
-- [ ] Add Changelog
+- [X] Add Changelog
 - [X] Implement STAC Cataloge description  
 - [X] Implement Co-Registration correction
 - [X] Implement Topografic shadow information
