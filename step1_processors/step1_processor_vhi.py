@@ -29,9 +29,8 @@ from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for
 ###########################################
 # FUNCTIONS
 
+
 # This function loads the reference NDVI data (statistical value derived per DOY from 1991-2020)
-
-
 def loadNdviRefData(doy):
     """
     Loads the reference NDVI data for a specific day of year (DOY).
@@ -57,10 +56,10 @@ def loadNdviRefData(doy):
     NDVIref = NDVIref.subtract(offsetImage).divide(scale)
     return NDVIref
 
+
+
 # This function loads the current NDVI data
-
-
-def loadNdviCurrentData(image, date):
+def loadNdviCurrentData(image):
     """
     Loads the current NDVI data from Sentinel-2 imagery.
     Takes the most recent pixels from the ee.ImageCollection.
@@ -71,14 +70,11 @@ def loadNdviCurrentData(image, date):
     Returns:
         Tuple[ee.Image, str, int]: Tuple containing NDVI image, index list, and scene count.
     """
-    # Calculate the nomalised difference snow index
-    NDSI = calculateSnowMask(date)
-
-    # Apply the cloud, snow and terrain shadow mask within the S2 image collection
+    # Apply the cloud and terrain shadow mask within the S2 image collection
     def applyMasks(image):
         image = image.updateMask(image.select('terrainShadowMask').lt(65))
         image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
-        image = image.updateMask(NDSI.select('ndsi').lt(0.43))
+        image = image.updateMask(image.select('ndsi').lt(0.43))
         return image
     S2_col_masked = image.map(applyMasks)
 
@@ -94,9 +90,9 @@ def loadNdviCurrentData(image, date):
     NDVIj = latestMosaic.normalizedDifference(['B8', 'B4']).rename('ndvi')
     return NDVIj, NDVI_index_list, NDVI_scene_count
 
+
+
 # This function loads the reference LST data (statistical value derived per DOY from 2012-2020)
-
-
 def loadLstRefData(doy):
     """
     Loads the reference Land Surface Temperature (LST) data for a specific day of year (DOY).
@@ -119,78 +115,9 @@ def loadLstRefData(doy):
     LSTref = LSTref.divide(scale)
     return LSTref
 
-# # Helper function to extract the values from specific bits
-# def bitwiseExtract(input, fromBit, toBit):
-#     """
-#     Extracts values from specific bits in an input integer.
 
-#     Args:
-#         input (ee.Number): Input integer.
-#         fromBit (int): Starting bit position.
-#         toBit (int): Ending bit position.
-
-#     Returns:
-#         ee.Number: Extracted value.
-#     """
-#     maskSize = ee.Number(1).add(toBit).subtract(fromBit)
-#     mask = ee.Number(1).leftShift(maskSize).subtract(1)
-#     return input.rightShift(fromBit).bitwiseAnd(mask)
-
-# # function to mask clouds from a "NOAA/VIIRS/001/VNP21A1D" dataset
-# def maskCloudsAndLowQuality(image):
-#     """
-#     Masks clouds and low-quality pixels in a VIIRS dataset.
-
-#     Args:
-#         image (ee.Image): VIIRS image.
-
-#     Returns:
-#         ee.Image: Masked image.
-#     """
-#     # extract the quality band
-#     QC = image.select('QC')
-#     # only keep pixels from the input image where
-#     # Bits 0-1 = 0 (Pixel produced, good quality, no further QA info necessary)
-#     qaMask = bitwiseExtract(QC, 0, 1).eq(0)
-#     image = image.updateMask(qaMask)
-#     return image
-
-# # This function loads the current LST data from VIIRS imagery
-# def loadLstCurrentData(date, d, aoi):
-#     """
-#     Loads the current Land Surface Temperature (LST) data from VIIRS imagery.
-#     Takes the most recent pixels from the ee.ImageCollection.
-
-#     Args:
-#         date (ee.Date): Date of interest.
-#         d (int): Number of days to cover in the time window.
-#         aoi (ee.Geometry): Area of interest.
-
-#     Returns:
-#         Tuple[ee.Image, str, int]: Tuple containing LST image, index list, and scene count.
-#     """
-#     start_date = date.advance((-1*d), 'day')
-#     end_date = date.advance(1, 'day')
-#     LST_col = ee.ImageCollection("NOAA/VIIRS/001/VNP21A1D") \
-#         .filterDate(start_date, end_date) \
-#         .filterBounds(aoi)
-#     # apply cloud and low quality masks
-#     LST_col_masked = LST_col.map(maskCloudsAndLowQuality)
-#     # Sort the collection by time in descending order
-#     sortedCollection = LST_col_masked.sort('system:time_start', False)
-#     # Create list with indices of all used data
-#     LST_index_list = sortedCollection.aggregate_array('system:index')
-#     LST_index_list = LST_index_list.join(',')
-#     LST_scene_count = sortedCollection.size()
-#     # Create a mosaic using the latest pixel values
-#     latestMosaic = sortedCollection.mosaic()
-#     # Select LST for the mosaic
-#     LSTj = latestMosaic.select('LST_1KM').rename('lst')
-#     return LSTj, LST_index_list, LST_scene_count
 
 # This function loads the current LST data
-
-
 def loadLstCurrentData(date, d, aoi):
     """
     Loads the current Land Surface Temperature (LST) data from Meteosat data.
@@ -226,29 +153,8 @@ def loadLstCurrentData(date, d, aoi):
     return LSTj, LST_index_list, LST_scene_count
 
 
-# This function caluclates the normalised difference snow index
 
-def calculateSnowMask(date):
-    # Sentinel S2-SR data
-    green = ee.ImageCollection('projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS') \
-        .filterDate(date, date.advance(1, 'day')) \
-        .filter(ee.Filter.stringEndsWith('system:index', '10m')) \
-        .select('B3')
-    green = green.mosaic()
-
-    swir = ee.ImageCollection('projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS') \
-        .filterDate(date, date.advance(1, 'day')) \
-        .filter(ee.Filter.stringEndsWith('system:index', '20m')) \
-        .select('B11')
-    swir = swir.mosaic()
-    
-    # calculate normalised difference snow index
-    NDSI = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
-    
-    return NDSI
-
-
-
+# this function processes the VHI data
 def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
     """
     Processes swissEO VHI data for Switzerland.
@@ -321,6 +227,11 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '10m'))
 
+    S2_col_20m = ee.ImageCollection(collection_ready) \
+        .filterDate(start_date, end_date) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '20m'))
+    
     ###########################################
     # Test PRE conditions
 
@@ -387,9 +298,28 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
 
         ###########################################
         # PROCESSING
+        # Function to calculate NDSI
+        def add_ndsi(image):
+            # Select the green band (10m) and SWIR band (20m)
+            green = image.select('B3')  # Adjust according to your band's naming convention
+            
+            # Get the acquisition date of the current image
+            acq_date = image.get('system:time_start')
+            # Filter S2_col_20m to find the corresponding SWIR band based on the acquisition date
+            swir = S2_col_20m.filter(ee.Filter.eq('system:time_start', acq_date)).first().select('B11')  # SWIR band
+            
+            # Calculate NDSI
+            ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
+    
+            # Add NDSI band to the image
+            return image.addBands(ndsi)
+
+        # Map the function over the S2_col collection
+        S2_col = S2_col.map(add_ndsi)
+
         # Load NDVI for VCI calculation
         NDVIref = loadNdviRefData(doy)
-        NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col, current_date)
+        NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col)
 
         # Calculate VCI
         if workWithPercentiles is True:
