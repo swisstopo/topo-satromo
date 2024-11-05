@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    current_date_str = "2024-09-15"
+    current_date_str = "2023-08-21"
 
     print("*****************************\n")
     print("using a manual set Date: " + current_date_str)
@@ -536,6 +536,12 @@ if __name__ == "__main__":
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
                 #     [8.10, 47.18, 8.20, 47.25])  # 6221 Rickenbach
+                # roi = ee.Geometry.Rectangle(
+                #    [7.81, 46.35, 8.06, 46.46])  # Oberaletschgletscher
+                # roi = ee.Geometry.Rectangle(
+                #     [7.16, 47.20, 7.27, 47.24])  # Tavannes
+                # roi = ee.Geometry.Rectangle(
+                #     [8.06, 47.14, 8.72, 47.18])  # Raten ZG/SZ
                 result = step1_processor_vhi.process_PRODUCT_VHI(
                     roi, collection_ready, current_date_str)
 
