@@ -273,7 +273,7 @@ def move_files_with_rclone(source, destination, move=True):
 
 def merge_files_with_gdal_warp(source):
     """
-    Merge with GDAL 
+    Merge with GDAL
 
     Parameters:
     source (str): Source filename .
@@ -720,7 +720,7 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
 
 def check_asset_size(filename):
     """
-    Checks the asset size of the product defined in the configuration 
+    Checks the asset size of the product defined in the configuration
 
     Args:
     - filename (str): The filename containing the product name to match.
@@ -991,6 +991,7 @@ if __name__ == "__main__":
         # Remove the key file so It wont be commited
         os.remove("keyfile.json")
         os.remove("rclone.conf")
+
     if config.GDRIVE_TYPE == "DRIVE":
         # empty temp files on GDrive
         file_list = drive.ListFile({'q': "trashed=true"}).GetList()
