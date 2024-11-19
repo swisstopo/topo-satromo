@@ -32,7 +32,10 @@ GDRIVE_MOUNT_DEV = r'M:\\satromo_export'  # for GCS
 S3_DESTINATION_DEV = r'X:\\'
 
 # GITHUB
-GDRIVE_SOURCE_INT = "geedriveINT:"
+# if using GDRIVE
+# GDRIVE_SOURCE_INT = "geedriveINT:"
+# if using GCS
+GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
@@ -306,9 +309,9 @@ STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
 
-GDRIVE_SOURCE_INT = "geedriveINT:"
-GDRIVE_MOUNT_INT = "localgdrive"
-STAC_DESTINATION_INT = "s3INT:satromoint"
+# GDRIVE_SOURCE_INT = "geedriveINT:"
+# GDRIVE_MOUNT_INT = "localgdrive"
+# STAC_DESTINATION_INT = "s3INT:satromoint"
 
 # STAC FSDI
 # ---------------

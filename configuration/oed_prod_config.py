@@ -83,13 +83,13 @@ PRODUCT_S2_LEVEL_2A = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
     "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
-    "temporal_coverage": 31,  # Days
+    "temporal_coverage": 26,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     "asset_size": 5,
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress ch.swisstopo.swisseo_vhi_v100
@@ -107,7 +107,7 @@ PRODUCT_VHI = {
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
-    # "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
@@ -118,7 +118,7 @@ PRODUCT_MSG_CLIMA = {
     "temporal_coverage": 1,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    # 'step0_collection': 'projects/satromo-prod/assets/col/LST_SWISS'
+    'step0_collection': 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
 
@@ -138,10 +138,10 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    # 'projects/satromo-int/assets/LST_SWISS': {
-    #     'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
-    #     # cleaning_older_than: 2 # entry used to clean assets
-    # },
+    'projects/satromo-prod/assets/col/LST_SWISS': {
+        'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
     'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets

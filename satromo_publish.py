@@ -69,6 +69,7 @@ def initialize_gee_and_drive():
 
     scopes = ["https://www.googleapis.com/auth/drive"]
 
+
     if run_type == 2:
         # Initialize GEE and Google Drive using service account key file
 
@@ -87,10 +88,8 @@ def initialize_gee_and_drive():
         rclone_config_file = config.RCLONE_SECRETS
         google_secret_file = config.GDRIVE_SECRETS
 
-        # TODO GCS: later move below so it works as well on GITHUB
-        global storage_client
-        storage_client = storage.Client.from_service_account_json(
-            gauth.service_account_file)
+
+
     else:
         # Initialize GEE and Google Drive using GitHub secrets
 
@@ -112,11 +111,6 @@ def initialize_gee_and_drive():
         with open(rclone_config_file, "w") as f:
             f.write(rclone_config)
 
-        # Write rclone config to a file
-        rclone_config = os.environ.get('RCONF_SECRET')
-        rclone_config_file = "rclone.conf"
-        with open(rclone_config_file, "w") as f:
-            f.write(rclone_config)
 
         # Write GDRIVE Secrest config to a file
         google_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
@@ -124,21 +118,33 @@ def initialize_gee_and_drive():
         with open(google_secret_file, "w") as f:
             f.write(google_secret)
 
+
         # Create mountpoint GDRIVE
         command = ["mkdir", GDRIVE_MOUNT]
         print(command)
         result = subprocess.run(command, check=True)
 
-        # GDRIVE Mount
-        command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
-                   os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
-
+        if config.GDRIVE_TYPE != "GCS":
+            # GDRIVE Mount
+            command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
+                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
+        else:
+            # GCS Mount
+            command = ["rclone", "mount", "--config", "rclone.conf",
+                    GDRIVE_SOURCE+config.GCLOUD_BUCKET, GDRIVE_MOUNT, "--gcs-bucket-policy-only"]
+            # add path on Bucket to drive
+            #GDRIVE_MOUNT=os.path.join(GDRIVE_MOUNT,config.GCLOUD_BUCKET)
         print(command)
         subprocess.Popen(command)
 
     # Create the Google Drive client
     global drive
     drive = GoogleDrive(gauth)
+
+    # Create the Google Drive client
+    global storage_client
+    storage_client = storage.Client.from_service_account_json(
+            gauth.service_account_file)
 
     # Initialize EE
     credentials = ee.ServiceAccountCredentials(

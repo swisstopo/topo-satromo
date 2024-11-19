@@ -43,18 +43,18 @@ for /L %%D in (1,1,!days_in_month!) do (
     if %%D LSS 10 set "day=0%%D"
     python satromo_processor.py !config_file! !year!-!month!-!day!
 )
+ping -n 3600 localhost >nul
 
 :publish_loop
-ping -n 3600 localhost >nul
-python satromo_publish.py !config_file!
+echo Start Publisher <nul
+python satromo_publish.py !config_file! 
+echo %TIME% waiting 15min
+ping -n 900 localhost >nul
 
-for /f %%A in ('find /c /v "" ^< processing/running_task.csv') do set "lines=%%A"
+for /f %%A in ('find /c /v "" ^< processing/running_tasks.csv') do set "lines=%%A"
 if !lines! GTR 1 goto publish_loop
 
 echo *********************************************
 echo VHI Prozess fuer !year! !month! abgeschlossen.
 echo *********************************************
-echo *********************************************
-pause
-
-endlocal
+echo *********************************************<nul
