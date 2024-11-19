@@ -1,7 +1,7 @@
 import os
 import hashlib
 from base64 import b64encode
-from urllib.parse import urlparse
+#from urllib.parse import urlparse
 import requests
 import multihash
 from hashlib import md5
@@ -552,7 +552,7 @@ def upload_asset(stac_asset_filename, stac_asset_url):
 
 def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     """
-    Publishes a STAC asset. 
+    Publishes a STAC asset.
 
     This function determines the run type, initializes FSDI authentication, checks if the STAC item exists and creates it if it doesn't, checks if the STAC asset exists and overwrites it if it does, and finally uploads the STAC asset.
 
