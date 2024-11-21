@@ -500,7 +500,7 @@ def upload_asset(stac_asset_filename, stac_asset_url):
     """
     Uploads a STAC asset.
 
-    This function prepares a singlepart upload by calculating the SHA256 and MD5 hashes of the file at `stac_asset_filename`. It then creates a multipart upload, uploads the part using the presigned URL, and completes the upload. If any step fails, it returns False. Otherwise, it returns True.
+    This function prepares a singlepart upload by calculating the SHA256 and MD5 hashes of the file at `stac_asset_filename`. It then creates a singlepart upload, uploads the part using the presigned URL, and completes the upload. If any step fails, it returns False. Otherwise, it returns True.
 
     Args:
         stac_asset_filename (str): The filename of the STAC asset to upload.
@@ -517,7 +517,11 @@ def upload_asset(stac_asset_filename, stac_asset_url):
         multihash.encode(hashlib.sha256(data).digest(), 'sha2-256'))
     md5 = b64encode(hashlib.md5(data).digest()).decode('utf-8')
 
-    # 2. Create a multipart upload
+    # 2a. Create a singlepart upload
+    ip_response = requests.get("https://api64.ipify.org?format=json")
+    ip_address = ip_response.json()["ip"]
+    print(f"my IP address is: {ip_address}")
+    print(f"stac_asset_url is: {stac_asset_url}")
     response = requests.post(
         stac_asset_url + "/uploads",
         auth=(user, password),
@@ -527,12 +531,16 @@ def upload_asset(stac_asset_filename, stac_asset_url):
                 "part_number": 1,
                 "md5": md5
             }],
-            "checksum:multihash": checksum_multihash
+            "checksum:multihash": checksum_multihash,
+            "update_interval": 30
         }
     )
     upload_id = response.json()['upload_id']
+    print("START *!!!!!!!* 2a. Create a singlepart upload POST")
+    print(response.json())
+    print(" END *!!!!!!!* 2a. Create a singlepart upload POST")
 
-    # 2. Upload the part using the presigned url
+    # 2b. Upload the part using the presigned url
     response = requests.put(
         response.json()['urls'][0]['url'], data=data, headers={'Content-MD5': md5})
     etag = response.headers['ETag']
