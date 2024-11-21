@@ -110,7 +110,7 @@ PRODUCT_VHI = {
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
-    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
