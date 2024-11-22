@@ -551,7 +551,9 @@ def upload_asset(stac_asset_filename, stac_asset_url):
         auth=(user, password),
         json={'parts': [{'etag': etag, 'part_number': 1}]}
     )
-
+    # wait 30 seconds to overcome 409 errors
+    time.sleep(30)
+    
     if response.status_code // 200 == 1:
         return True
     else:
