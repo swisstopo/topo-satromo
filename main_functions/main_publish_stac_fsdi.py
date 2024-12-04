@@ -543,7 +543,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     env = "int" if ".int." in config.STAC_FSDI_HOSTNAME else "prod"
 
     # Upload ASSET
-    if not main_multipart_upload_via_api.multipart_upload(env, collection, item, asset, asset, user, password, force=True,verbose=True):
+    if not main_multipart_upload_via_api.multipart_upload(env, collection, item, asset, asset, user, password, force=True,verbose=False):
         print(f"ASSET object {asset}: upload FAILED")
 
 
