@@ -231,7 +231,7 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         .filterDate(start_date, end_date) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '20m'))
-    
+
     ###########################################
     # Test PRE conditions
 
@@ -267,194 +267,205 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
 
             check_date = check_date.advance(1, 'day')
 
-    # TEST VHI GEE: VHI GEE Asset already exists ?? then skip
-    VHI_col = ee.ImageCollection(config.PRODUCT_VHI['step1_collection']) \
-        .filterMetadata('system:index', 'contains', current_date_str) \
-        .filterBounds(aoi)
-    VHI_count = VHI_col.size().getInfo()
-    if VHI_count == 2:
-        print(current_date_str+' is already in ' +
-              config.PRODUCT_VHI['step1_collection'])
-        return
 
-    # TEST VHI empty asset? VHI in empty_asset list? then skip
-    if main_utils.is_date_in_empty_asset_list(config.PRODUCT_VHI['step1_collection'], current_date_str):
-        return
+    # Define item Name
+    timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
+    timestamp = timestamp.strftime('%Y-%m-%dT235959')
 
-    # Get information about the available sensor data for the range
-    # Get the number of images in the filtered collection
-    image_count = S2_col.size().getInfo()
-
-    if image_count == 0:
-        write_asset_as_empty(
-            config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
-        return
-
-    # TEST only Process if newer than last product update OR no S2 SR fro specific date is in empty list
+    #Get Sensor info> which S2 is available
     sensor_stats = main_utils.get_collection_info(S2_col)
     if main_utils.check_product_update(config.PRODUCT_VHI['product_name'], sensor_stats[1]) or main_utils.is_date_in_empty_asset_list(collection_ready, current_date_str):
 
         print("new/latest imagery from: " + sensor_stats[1])
 
-        ###########################################
-        # PROCESSING
-        # Function to calculate NDSI
-        def add_ndsi(image):
-            # Select the green band (10m) and SWIR band (20m)
-            green = image.select('B3')  # Adjust according to your band's naming convention
-            
-            # Get the acquisition date of the current image
-            acq_date = image.get('system:time_start')
-            # Filter S2_col_20m to find the corresponding SWIR band based on the acquisition date
-            swir = S2_col_20m.filter(ee.Filter.eq('system:time_start', acq_date)).first().select('B11')  # SWIR band
-            
-            # Calculate NDSI
-            ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
-    
-            # Add NDSI band to the image
-            return image.addBands(ndsi)
+        # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
+        VHI_col = ee.ImageCollection(config.PRODUCT_VHI['step1_collection']) \
+            .filterMetadata('system:index', 'contains', current_date_str) \
+            .filterBounds(aoi)
+        VHI_count = VHI_col.size().getInfo()
+        if VHI_count == 0:
 
-        # Map the function over the S2_col collection
-        S2_col = S2_col.map(add_ndsi)
+            # TEST VHI empty asset? VHI in empty_asset list? then skip
+            if main_utils.is_date_in_empty_asset_list(config.PRODUCT_VHI['step1_collection'], current_date_str):
+                return
 
-        # Load NDVI for VCI calculation
-        NDVIref = loadNdviRefData(doy)
-        NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col)
+            # Get information about the available sensor data for the range
+            # Get the number of images in the filtered collection
+            image_count = S2_col.size().getInfo()
 
-        # Calculate VCI
-        if workWithPercentiles is True:
-            VCI = NDVIj.subtract(NDVIref.select('p05')).divide(NDVIref.select(
-                'p95').subtract(NDVIref.select('p05'))).multiply(100).rename('vci')
-            print(
-                '--- VCI calculated (with 5th and 95th percentile reference values) ---')
+            if image_count == 0:
+                write_asset_as_empty(
+                    config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
+                return
+
+
+            ###########################################
+            # PROCESSING
+            # Function to calculate NDSI
+            def add_ndsi(image):
+                # Select the green band (10m) and SWIR band (20m)
+                green = image.select('B3')  # Adjust according to your band's naming convention
+
+                # Get the acquisition date of the current image
+                acq_date = image.get('system:time_start')
+                # Filter S2_col_20m to find the corresponding SWIR band based on the acquisition date
+                swir = S2_col_20m.filter(ee.Filter.eq('system:time_start', acq_date)).first().select('B11')  # SWIR band
+
+                # Calculate NDSI
+                ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
+
+                # Add NDSI band to the image
+                return image.addBands(ndsi)
+
+            # Map the function over the S2_col collection
+            S2_col = S2_col.map(add_ndsi)
+
+            # Load NDVI for VCI calculation
+            NDVIref = loadNdviRefData(doy)
+            NDVIj, NDVI_index_list, NDVI_scene_count = loadNdviCurrentData(S2_col)
+
+            # Calculate VCI
+            if workWithPercentiles is True:
+                VCI = NDVIj.subtract(NDVIref.select('p05')).divide(NDVIref.select(
+                    'p95').subtract(NDVIref.select('p05'))).multiply(100).rename('vci')
+                print(
+                    '--- VCI calculated (with 5th and 95th percentile reference values) ---')
+            else:
+                VCI = NDVIj.subtract(NDVIref.select('min')).divide(NDVIref.select(
+                    'max').subtract(NDVIref.select('min'))).multiply(100).rename('vci')
+                print('--- VCI calculated (with min and max reference values) ---')
+
+            # Load LST for TCI calculation
+            LSTref = loadLstRefData(doy)
+            LSTj, LST_index_list, LST_scene_count = loadLstCurrentData(
+                current_date, d, aoi)
+
+            # Calculate TCI
+            if workWithPercentiles is True:
+                TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
+                    'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
+                print(
+                    '--- TCI calculated (with 5th and 95th percentile reference values) ---')
+            else:
+                TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
+                    'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
+                print('--- TCI calculated (with min and max reference values) ---')
+
+            # Calculate VHI
+            VHI = VCI.multiply(alpha).add(TCI.multiply(1-alpha)).rename('vhi')
+            print('--- VHI calculated ---')
+
+            # converting the data type (to UINT8) and force data range (to [0 100])
+            VHI = VHI.uint8().clamp(0, 100)
+
+            # add no data value for when one of the datasets is unavailable
+            VHI = VHI.unmask(config.PRODUCT_VHI['missing_data'])
+
+            # Set data properties
+            # Getting swisstopo Processor Version
+            processor_version = main_utils.get_github_info()
+            # Earth Engine version
+            ee_version = ee.__version__
+
+            # set properties to the product to be exported
+            VHI = VHI.set({
+                'doy': doy,
+                'alpha': alpha,
+                'temporal_coverage': config.PRODUCT_VHI['temporal_coverage'],
+                'missing_data': config.PRODUCT_VHI['missing_data'],
+                'no_data': config.PRODUCT_VHI['no_data'],
+                'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
+                'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
+                'collection': collection_ready,
+                'system:time_start': current_date.advance((-1*d), 'day').millis(),
+                'system:time_end': current_date.millis(),
+                'NDVI_reference_data': config.PRODUCT_VHI['NDVI_reference_data'],
+                'NDVI_index_list': NDVI_index_list,
+                'NDVI_scene_count': NDVI_scene_count,
+                'LST_reference_data': config.PRODUCT_VHI['LST_reference_data'],
+                'LST_index_list': LST_index_list,
+                'LST_scene_count': LST_scene_count,
+                'VCI_and_TCI_calculated_with': CI_method,
+                'GEE_api_version': ee_version,
+                'pixel_size_meter': 10,
+            })
+
+            # mask vegetation
+            VHI_vegetation = VHI
+            VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
+            # add the no data value to all masked pixels
+            VHI_vegetation = VHI_vegetation.unmask(config.PRODUCT_VHI['no_data'])
+
+            # mask forest
+            VHI_forest = VHI
+            VHI_forest = VHI_forest.updateMask(forest_mask.eq(1))
+            # add the no data value to all masked pixels
+            VHI_forest = VHI_forest.unmask(config.PRODUCT_VHI['no_data'])
+
+
+
+            ##############################
+            # EXPORT
+
+            # define the export aoi
+            aoi_exp = aoi
+
+            # SWITCH export - vegetation (Asset)
+            task_description = 'VHI_SWISS_' + current_date_str
+            if exportVegetationAsset is True:
+                print('Launching VHI export for vegetation')
+                # Export asset
+                task = ee.batch.Export.image.toAsset(
+                    image=VHI_vegetation.clip(aoi_exp),
+                    scale=10,
+                    description=task_description + '_VEGETATION_10m',
+                    crs='EPSG:2056',
+                    region=aoi_exp,
+                    maxPixels=1e10,
+                    assetId=config.PRODUCT_VHI['step1_collection'] +
+                        '/' + task_description + '_VEGETATION_10m',
+                )
+                task.start()
+
+            # SWITCH export - forest (Asset)
+            if exportForestAsset is True:
+                print('Launching VHI export for forests')
+                # Export asset
+                task = ee.batch.Export.image.toAsset(
+                    image=VHI_forest.clip(aoi_exp),
+                    scale=10,
+                    description=task_description + '_FOREST_10m',
+                    crs='EPSG:2056',
+                    region=aoi_exp,
+                    maxPixels=1e10,
+                    assetId=config.PRODUCT_VHI['step1_collection'] +
+                        '/' + task_description + '_FOREST_10m',
+                )
+                task.start()
+
         else:
-            VCI = NDVIj.subtract(NDVIref.select('min')).divide(NDVIref.select(
-                'max').subtract(NDVIref.select('min'))).multiply(100).rename('vci')
-            print('--- VCI calculated (with min and max reference values) ---')
+            print(current_date_str+' is already in ' +
+                config.PRODUCT_VHI['step1_collection'])
 
-        # Load LST for TCI calculation
-        LSTref = loadLstRefData(doy)
-        LSTj, LST_index_list, LST_scene_count = loadLstCurrentData(
-            current_date, d, aoi)
+            # Load from GEE Asset
+            VHI_forest = ee.Image(VHI_col.filter(ee.Filter.stringContains('system:index', 'FOREST')).first())
+            VHI_vegetation = ee.Image(VHI_col.filter(ee.Filter.stringContains('system:index', 'VEGETATION')).first())
 
-        # Calculate TCI
-        if workWithPercentiles is True:
-            TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
-                'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
-            print(
-                '--- TCI calculated (with 5th and 95th percentile reference values) ---')
-        else:
-            TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
-                'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
-            print('--- TCI calculated (with min and max reference values) ---')
-
-        # Calculate VHI
-        VHI = VCI.multiply(alpha).add(TCI.multiply(1-alpha)).rename('vhi')
-        print('--- VHI calculated ---')
-
-        # converting the data type (to UINT8) and force data range (to [0 100])
-        VHI = VHI.uint8().clamp(0, 100)
-
-        # add no data value for when one of the datasets is unavailable
-        VHI = VHI.unmask(config.PRODUCT_VHI['missing_data'])
-
-        # Set data properties
-        # Getting swisstopo Processor Version
-        processor_version = main_utils.get_github_info()
-        # Earth Engine version
-        ee_version = ee.__version__
-
-        # set properties to the product to be exported
-        VHI = VHI.set({
-            'doy': doy,
-            'alpha': alpha,
-            'temporal_coverage': config.PRODUCT_VHI['temporal_coverage'],
-            'missing_data': config.PRODUCT_VHI['missing_data'],
-            'no_data': config.PRODUCT_VHI['no_data'],
-            'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
-            'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
-            'collection': collection_ready,
-            'system:time_start': current_date.advance((-1*d), 'day').millis(),
-            'system:time_end': current_date.millis(),
-            'NDVI_reference_data': config.PRODUCT_VHI['NDVI_reference_data'],
-            'NDVI_index_list': NDVI_index_list,
-            'NDVI_scene_count': NDVI_scene_count,
-            'LST_reference_data': config.PRODUCT_VHI['LST_reference_data'],
-            'LST_index_list': LST_index_list,
-            'LST_scene_count': LST_scene_count,
-            'VCI_and_TCI_calculated_with': CI_method,
-            'GEE_api_version': ee_version,
-            'pixel_size_meter': 10,
-        })
-
-        # mask vegetation
-        VHI_vegetation = VHI
-        VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
-        # add the no data value to all masked pixels
-        VHI_vegetation = VHI_vegetation.unmask(config.PRODUCT_VHI['no_data'])
-
-        # mask forest
-        VHI_forest = VHI
-        VHI_forest = VHI_forest.updateMask(forest_mask.eq(1))
-        # add the no data value to all masked pixels
-        VHI_forest = VHI_forest.unmask(config.PRODUCT_VHI['no_data'])
-
-        # Define item Name
-        timestamp = datetime.datetime.strptime(current_date_str, '%Y-%m-%d')
-        timestamp = timestamp.strftime('%Y-%m-%dT235959')
-
-        ##############################
-        # EXPORT
-
-        # define the export aoi
-        aoi_exp = aoi
-
-        # SWITCH export - vegetation (Asset)
-        task_description = 'VHI_SWISS_' + current_date_str
-        if exportVegetationAsset is True:
-            print('Launching VHI export for vegetation')
-            # Export asset
-            task = ee.batch.Export.image.toAsset(
-                image=VHI_vegetation.clip(aoi_exp),
-                scale=10,
-                description=task_description + '_VEGETATION_10m',
-                crs='EPSG:2056',
-                region=aoi_exp,
-                maxPixels=1e10,
-                assetId=config.PRODUCT_VHI['step1_collection'] +
-                    '/' + task_description + '_VEGETATION_10m',
-            )
-            task.start()
-
-        # SWITCH export - forest (Asset)
-        if exportForestAsset is True:
-            print('Launching VHI export for forests')
-            # Export asset
-            task = ee.batch.Export.image.toAsset(
-                image=VHI_forest.clip(aoi_exp),
-                scale=10,
-                description=task_description + '_FOREST_10m',
-                crs='EPSG:2056',
-                region=aoi_exp,
-                maxPixels=1e10,
-                assetId=config.PRODUCT_VHI['step1_collection'] +
-                    '/' + task_description + '_FOREST_10m',
-            )
-            task.start()
-
-        # SWITCH export (Drive)
+        # SWITCH export (Drive/GCS)
         if exportVegetationDrive is True:
             # Generate the filename
             filename = config.PRODUCT_VHI['product_name'] + \
                 '_mosaic_' + timestamp + '_vegetation-10m'
             main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI['product_name'],
-                                      config.PRODUCT_VHI['spatial_scale_export'], VHI_vegetation,
-                                      sensor_stats, current_date_str)
+                                    config.PRODUCT_VHI['spatial_scale_export'], VHI_vegetation,
+                                    sensor_stats, current_date_str)
 
         if exportForestDrive is True:
             # Generate the filename
             filename = config.PRODUCT_VHI['product_name'] + \
                 '_mosaic_' + timestamp + '_forest-10m'
             main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI['product_name'],
-                                      config.PRODUCT_VHI['spatial_scale_export'], VHI_forest,
-                                      sensor_stats, current_date_str)
+                                    config.PRODUCT_VHI['spatial_scale_export'], VHI_forest,
+                                    sensor_stats, current_date_str)
+    else:
+        print("...older date, will not processed. Set date in last_updates.csv")
