@@ -474,11 +474,11 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    #current_date_str = "2024-09-15"
+    # current_date_str = "2003-06-01"
 
-    #print("*****************************\n")
-    #print("using a manual set Date: " + current_date_str)
-    #print("*****************************\n")
+    # print("*****************************\n")
+    # print("using a manual set Date: " + current_date_str)
+    # print("*****************************\n")
 
     # For CLI
     # --------------
@@ -544,6 +544,11 @@ if __name__ == "__main__":
                 #     [8.06, 47.14, 8.72, 47.18])  # Raten ZG/SZ
                 result = step1_processor_vhi.process_PRODUCT_VHI(
                     roi, collection_ready, current_date_str)
+
+            # elif product_to_be_processed == 'PRODUCT_VHI_HIST':
+            #     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+            #     result = step1_processor_vhi_hist.process_PRODUCT_VHI_HIST(
+            #         roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)

@@ -26,6 +26,7 @@ googleapis-common-protos==1.59.0
 httplib2==0.22.0
 idna==3.7
 jmespath==1.0.1
+lxml
 morphys==1.0
 netCDF4==1.6.5			  
 numpy==1.25.2

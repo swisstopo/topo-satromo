@@ -12,6 +12,7 @@ GITHUB_REPO = "topo-satromo"
 GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 FSDI_SECRETS = os.path.join("secrets", "stac_fsdi.json")
+CMS_SECRETS = os.path.join("secrets", "INT_CMS.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -39,6 +40,8 @@ GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
+# CMS to store tools files
+CMS_BUCKET = "satromoint"
 
 # General GEE parameters
 
@@ -93,7 +96,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    #"step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress
@@ -103,17 +106,33 @@ PRODUCT_VHI = {
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
     "temporal_coverage": 7,  # Days
     "spatial_scale_export": 10,  # Meters
-    # "band_names": [{'NIR': "B8", 'RED': "B4"}],
     "product_name": "ch.swisstopo.swisseo_vhi_v100",
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
-    # prod:'projects/satromo-prod/assets/col/LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
+    # "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
+}
+
+# VHI Historic – Trockenstress
+PRODUCT_VHI_HIST = {
+    # TODO: check if needed in context with step0
+    "image_collection": [{"LANDSAT/LT05/C02/T1_L2", "LANDSAT/LE07/C02/T1_L2", "LANDSAT/LC08/C02/T1_L2"}],
+    "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
+    "temporal_coverage": 1,  # Months
+    "spatial_scale_export": 30,  # Meters
+    "product_name": "ch.swisstopo.swisseo_vhi_hist_v100",
+    "no_data": 255,
+    "missing_data": 110,
+    "asset_size": 2,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
+    "step1_collection": 'projects/satromo-int/assets/VHI_HIST_SWISS',
+    "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
 # # MSG – MeteoSchweiz
@@ -287,7 +306,7 @@ step0 = {
         'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
-    'projects/satromo-int/assets/LST_SWISS': {
+    'projects/satromo-prod/assets/col/LST_SWISS': {
         'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
