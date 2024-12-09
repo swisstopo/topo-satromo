@@ -12,6 +12,7 @@ GITHUB_REPO = "topo-satromo"
 GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials-int.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 FSDI_SECRETS = os.path.join("secrets", "stac_fsdi-prod.json")
+CMS_SECRETS = os.path.join("secrets", "INT_CMS.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -39,6 +40,8 @@ GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
+# CMS to store tools files
+CMS_BUCKET = "cms.geo.admin.ch"
 
 # General GEE parameters
 

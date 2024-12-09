@@ -11,7 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi, step1_processor_vhi_hist
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi
 from main_functions import main_utils
 import pandas as pd
 from google.cloud import storage
@@ -474,11 +474,11 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    current_date_str = "2003-06-01"
+    # current_date_str = "2003-06-01"
 
-    print("*****************************\n")
-    print("using a manual set Date: " + current_date_str)
-    print("*****************************\n")
+    # print("*****************************\n")
+    # print("using a manual set Date: " + current_date_str)
+    # print("*****************************\n")
 
     # For CLI
     # --------------
@@ -545,10 +545,10 @@ if __name__ == "__main__":
                 result = step1_processor_vhi.process_PRODUCT_VHI(
                     roi, collection_ready, current_date_str)
 
-            elif product_to_be_processed == 'PRODUCT_VHI_HIST':
-                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-                result = step1_processor_vhi_hist.process_PRODUCT_VHI_HIST(
-                    roi, collection_ready, current_date_str)
+            # elif product_to_be_processed == 'PRODUCT_VHI_HIST':
+            #     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+            #     result = step1_processor_vhi_hist.process_PRODUCT_VHI_HIST(
+            #         roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
