@@ -56,8 +56,15 @@ def initialize_s3():
     s3 = boto3.client('s3',
         aws_access_key_id=bucket_key,
         aws_secret_access_key=bucket_secret,
-        region_name='eu-central-2'
+        #region_name='eu-central-1' #BIT sandbox
+        region_name='eu-west-1' #PROD cms.geo.admin.ch
     )
+    # # List all buckets
+    # response = s3.list_buckets()
+
+    # # Print the bucket names
+    # for bucket in response['Buckets']:
+    #     print(bucket['Name'])
 
 def upload_file_to_s3(local_file_path, bucket_name, s3_folder=''):
 
@@ -84,10 +91,10 @@ if __name__ == "__main__":
 
 
     # upload acquisitionplan.csv
-    ACQUI_OK=upload_file_to_s3(os.path.join('tools','acquisitionplan.csv'), config.CMS_BUCKET, os.path.join("Topo","umweltbeobachtung","tools"))
+    ACQUI_OK=upload_file_to_s3(os.path.join('tools','acquisitionplan.csv'), config.CMS_BUCKET, "Topo/umweltbeobachtung/tools/")
 
     # upload step0_empty_assets.csv
-    EMPTY_OK=upload_file_to_s3(os.path.join('tools','step0_empty_assets.csv'), config.CMS_BUCKET, os.path.join("Topo","umweltbeobachtung","tools"))
+    EMPTY_OK=upload_file_to_s3(os.path.join('tools','step0_empty_assets.csv'), config.CMS_BUCKET, "Topo/umweltbeobachtung/tools/")
 
     # Report success or failure
     if not (ACQUI_OK and EMPTY_OK ):
