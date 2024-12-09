@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>swissEO Data Availability</title>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/main.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        .no-data,
+        .cloudy {
+            background-color: white;
+            border: 1px solid white;
+            text-align: center;
+        }
+
+        .data-available {
+            background-color: white;
+            border: 4px solid green;
+            color: green;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 1px;
+            text-align: center;
+            position: relative;
+        }
+
+        .calendar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .calendar-section {
+            width: 100%;
+        }
+
+        .fc-event .fc-event-title {
+            display: none;
+        }
+
+        .fc-daygrid-day-frame {
+            height: 100px !important;
+            /* Adjust this value as needed */
+        }
+
+        .fc-event .thumbnail {
+            max-width: 100%;
+            max-height: 40px;
+            /* Adjust as necessary */
+            display: block;
+            /* Ensure it behaves as a block element */
+            margin: 0 auto;
+            /* Center the image horizontally */
+        }
+
+        .fc-daygrid-event.cloudy .fa,
+        .fc-daygrid-event.no-data .fa {
+            font-size: 2em;
+            color: grey;
+            margin-top: 15px;
+        }
+
+        .fc-daygrid-event.cloudy,
+        .fc-daygrid-event.no-data {
+            background-color: transparent;
+            border-color: transparent;
+        }
+
+        .remark-text {
+            font-size: 12px;
+            color: #333;
+            text-align: center;
+        }
+
+        .fc-event.forecast {
+            background-color: white;
+            border: 4px solid grey;
+        }
+
+        .platform-text {
+            font-size: 10px;
+            text-align: center;
+            color: grey;
+        }
+
+        .icon-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 1px;
+        }
+
+        .icon-container a {
+            text-decoration: none;
+            color: grey;
+            font-size: 12px;
+        }
+
+        .icon-container a:hover {
+            color: red;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .calendar-container {
+            height: 100%;
+        }
+
+        .calendar-section {
+            height: 100%;
+        }
+
+        #calendarS2 {
+            height: 100%;
+        }
+
+        .fc {
+            height: 100%;
+        }
+
+        .fc-view-harness {
+            height: 100% !important;
+        }
+
+        .fc-view {
+            height: 100% !important;
+        }
+
+        .fc-scroller {
+            height: auto !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="calendar-container">
+        <div class="calendar-section">
+            <div id="calendarS2"></div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
+    <script>
+        // Configuration Section
+        const CONFIG = {
+
+            // Data URLs
+            emptyAssetsCSV: "https://cms.geo.admin.ch/Topo/umweltbeobachtung/tools/step0_empty_assets.csv",
+            acquisitionPlanCSV: "https://cms.geo.admin.ch/Topo/umweltbeobachtung/tools/acquisitionplan.csv",
+            acquisitionPlanIMG: "https://github.com/davidoesch/Sentinel-2-Acquisition-Plan-Harvesting/raw/main/assets/",
+
+            // API and Data URLs
+            // OPTION VHI
+            //collectionBaseURL: "ch.swisstopo.swisseo_vhi_v100",
+            //itemBaseURL: "swisseo_vhi_v100",
+
+            // OPTION S2 SR
+            collectionBaseURL: "ch.swisstopo.swisseo_s2-sr_v100",
+            itemBaseURL: "swisseo_s2-sr_v100",
+            productNAME: "S2_SR_HARMONIZED_SWISS",
+            stacApiBaseUrl: "https://data.geo.admin.ch/api/stac/v0.9/collections/",
+            mapGeoAdminUrl: "https://map.geo.admin.ch/index.html",
+            dataGeoAdminUrl: "https://data.geo.admin.ch/",
+
+            // Language and Localization
+            locale: "de",
+            buttonText: {
+                today: "Heute"
+            },
+            buttonHints: {
+                today: "Diesen Monat",
+                prev: "Vorheriger Monat",
+                next: "Nächster Monat"
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const fetchCSVData = async () => {
+                const response = await fetch(CONFIG.emptyAssetsCSV);
+                const text = await response.text();
+                return text.trim().split('\n').slice(1).map(row => {
+                    const [collection, date, remark] = row.split(',');
+                    return { collection, date, remark };
+                });
+            };
+
+            const fetchCSVForecast = async () => {
+                const response = await fetch(CONFIG.acquisitionPlanCSV);
+                const text = await response.text();
+                return text.trim().split('\n').slice(1).map(row => {
+                    const [acquisitionDate, publishDate, orbit, platform] = row.split(',');
+                    return { acquisitionDate, publishDate, orbit, platform };
+                });
+            };
+
+            const fetchStacData = async (startDate, endDate) => {
+                const baseUrl = `${CONFIG.stacApiBaseUrl}${CONFIG.collectionBaseURL}/items`;
+                const response = await fetch(`${baseUrl}?datetime=${startDate}/${endDate}`);
+                const data = await response.json();
+                return data.features
+                    .filter(feature => /^\d{4}-\d{2}-\d{2}t\d{6}$/.test(feature.id || ""))
+                    .map(feature => {
+                        const dateTime = feature.properties.datetime;
+                        const dateOnly = dateTime.split('T')[0];
+                        let timeOnly = dateTime.split('T')[1].split('.')[0].replace(/:/g, '');
+                        timeOnly = timeOnly.endsWith('Z') ? timeOnly.slice(0, -1) : timeOnly;
+                        const viewLink = `${CONFIG.mapGeoAdminUrl}?layers=WMS||${CONFIG.itemBaseURL}}_${dateOnly}t${timeOnly}||https://wms.geo.admin.ch/?item=${dateOnly}t${timeOnly}||${CONFIG.collectionBaseURL}`;
+                        const image = `${CONFIG.dataGeoAdminUrl}${CONFIG.collectionBaseURL}/${dateOnly}t${timeOnly}/thumbnail.jpg`;
+                        const formattedUrl = `${CONFIG.dataGeoAdminUrl}browser/index.html#/collections/${CONFIG.collectionBaseURL}/items/${dateOnly}t${timeOnly}?&asset=asset-thumbnail.jpg`;
+                        return { date: dateOnly, link: formattedUrl, downloadLink: formattedUrl, viewLink, image };
+                    });
+            };
+
+            const initializeCalendar = async (calendarId) => {
+                const calendarEl = document.getElementById(calendarId);
+                const calendar = new FullCalendar.Calendar(calendarEl, {
+                    locale: CONFIG.locale,
+                    buttonText: CONFIG.buttonText,
+                    buttonHints: CONFIG.buttonHints,
+                    initialView: 'dayGridMonth',
+                    events: async function (fetchInfo, successCallback, failureCallback) {
+                        try {
+                            const stacData = await fetchStacData(fetchInfo.startStr.slice(0, 10), fetchInfo.endStr.slice(0, 10));
+                            const stacDates = new Set(stacData.map(item => item.date));
+                            const forecastData = await fetchCSVForecast();
+                            const events = stacData.map(item => ({
+                                title: '',
+                                start: item.date,
+                                className: 'data-available',
+                                extendedProps: { ...item }
+                            }));
+
+                            const csvData = await fetchCSVData();
+                            csvData
+                                .filter(entry => entry.collection.trim() === CONFIG.productNAME)
+                                .forEach(entry => {
+                                    if (!stacDates.has(entry.date)) {
+                                        let eventTitle = entry.remark;
+                                        let eventClass = 'no-data';
+                                        let iconHtml = '';
+                                        if (entry.remark.includes('cloudy')) {
+                                            eventClass = 'cloudy';
+                                            iconHtml = '<i class="fa fa-cloud"></i>';
+                                            eventTitle = '';
+                                        } else if (entry.remark.includes('No candidate scene') || entry.remark.includes('No S2 SR data available')) {
+                                            eventClass = 'no-data';
+                                            iconHtml = '<i class="fa fa-times-circle"></i>';
+                                            eventTitle = '';
+                                        }
+                                        events.push({
+                                            title: eventTitle,
+                                            start: entry.date,
+                                            className: eventClass,
+                                            extendedProps: { iconHtml: iconHtml }
+                                        });
+                                    }
+                                });
+
+                            forecastData.forEach(entry => {
+                                events.push({
+                                    title: '',
+                                    start: entry.acquisitionDate,
+                                    className: 'forecast',
+                                    extendedProps: {
+                                        orbit: entry.orbit,
+                                        platform: entry.platform,
+                                        imageUrl: `${CONFIG.acquisitionPlanIMG}${entry.orbit}.png`
+                                    }
+                                });
+                            });
+
+                            successCallback(events);
+                        } catch (error) {
+                            failureCallback(error);
+                        }
+                    },
+                    eventContent: function (arg) {
+                        let arrayOfDomNodes = [];
+                        if (arg.event.classNames.includes('data-available')) {
+                            let imgEl = document.createElement('img');
+                            imgEl.src = arg.event.extendedProps.image;
+                            imgEl.classList.add('thumbnail');
+                            arrayOfDomNodes.push(imgEl);
+
+                            let iconContainer = document.createElement('div');
+                            iconContainer.classList.add('icon-container');
+                            let eyeLink = document.createElement('a');
+                            eyeLink.href = arg.event.extendedProps.viewLink;
+                            eyeLink.target = '_blank';
+                            eyeLink.innerHTML = '<i class="fa fa-eye"></i>';
+                            iconContainer.appendChild(eyeLink);
+
+                            let downloadLink = document.createElement('a');
+                            downloadLink.href = arg.event.extendedProps.downloadLink;
+                            downloadLink.target = '_blank';
+                            downloadLink.innerHTML = '<i class="fa fa-download"></i>';
+                            iconContainer.appendChild(downloadLink);
+
+                            arrayOfDomNodes.push(iconContainer);
+                        } else if (arg.event.classNames.includes('cloudy') || arg.event.classNames.includes('no-data')) {
+                            let iconEl = document.createElement('div');
+                            iconEl.innerHTML = arg.event.extendedProps.iconHtml;
+                            arrayOfDomNodes.push(iconEl);
+                            if (arg.event.title) {
+                                let titleEl = document.createElement('div');
+                                titleEl.classList.add('remark-text');
+                                titleEl.innerText = arg.event.title;
+                                arrayOfDomNodes.push(titleEl);
+                            }
+                        } else if (arg.event.classNames.includes('forecast')) {
+                            let imgEl = document.createElement('img');
+                            imgEl.src = arg.event.extendedProps.imageUrl;
+                            imgEl.classList.add('thumbnail');
+                            arrayOfDomNodes.push(imgEl);
+
+                            let platformEl = document.createElement('div');
+                            platformEl.classList.add('platform-text');
+                            platformEl.innerText = arg.event.extendedProps.platform;
+                            arrayOfDomNodes.push(platformEl);
+                        }
+                        return { domNodes: arrayOfDomNodes };
+                    }
+                });
+                calendar.render();
+            };
+
+            initializeCalendar('calendarS2');
+        });
+    </script>
+</body>
+
+</html>

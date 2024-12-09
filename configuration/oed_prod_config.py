@@ -89,7 +89,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress ch.swisstopo.swisseo_vhi_v100

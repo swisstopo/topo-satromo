@@ -12,6 +12,7 @@ GITHUB_REPO = "topo-satromo"
 GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 FSDI_SECRETS = os.path.join("secrets", "stac_fsdi.json")
+CMS_SECRETS = os.path.join("secrets", "INT_CMS.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -39,6 +40,8 @@ GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
+# CMS to store tools files
+CMS_BUCKET = "satromoint"
 
 # General GEE parameters
 
@@ -93,7 +96,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+    #"step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress
