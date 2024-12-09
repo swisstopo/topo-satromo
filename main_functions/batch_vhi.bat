@@ -8,8 +8,8 @@ set "month=%~3"
 echo *********************************************
 echo ACHTUNG: Sicherstellen dass nur VHI Produkt im config aktiviert ist!
 echo *********************************************
-echo Bitte Enter druecken, um fortzufahren...
-pause >nul
+:: echo Bitte Enter druecken, um fortzufahren...
+:: pause >nul
 
 if "!config_file!"=="" (
     echo Bitte Konfigurationsfile, Jahr und Monat als Parameter eingeben.
