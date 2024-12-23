@@ -9,7 +9,6 @@ import os
 config = r'C:\temp\topo-satromo\secrets\xxx.secret'
 asset_list = r'C:\temp\topo-satromo\main_functions\asset_list.txt'
 
-
 def initialize_gee_and_drive():
     """
     Initializes Google Earth Engine (GEE) and Google Drive based on the run type.
@@ -70,12 +69,12 @@ asset_names = [name.strip() for name in asset_names]
 # Copy each asset from the source to the destination
 for asset_name in asset_names:
     # Construct the source and destination asset paths
-    # source_asset = "users/{}/SATROMO/{}".format(source_username, asset_name)
-    source_asset = "projects/satromo-int/assets/res/{}".format(
+    # source_asset = 'users/{}/SATROMO/{}'.format(source_username, asset_name)
+    source_asset = 'projects/gee-joan/assets/SATROMO/1991-2020_NDVI_SWISS_M/{}'.format(
         asset_name)
     # destination_asset = 'projects/{}/assets/res/{}'.format(
     #     destination_username, asset_name)
-    destination_asset = 'projects/satromo-prod/assets/res/{}'.format(
+    destination_asset = 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M/{}'.format(
         asset_name)
 
     # Copy the asset from the source to the destination
