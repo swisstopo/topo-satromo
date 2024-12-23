@@ -232,6 +232,15 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '20m'))
 
+    # Get information about the available sensor data for the range
+    # Get the number of images in the filtered collection
+    image_count = S2_col.size().getInfo()
+
+    if image_count == 0:
+        write_asset_as_empty(
+            config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
+        return
+
     ###########################################
     # Test PRE conditions
 
