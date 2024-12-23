@@ -131,7 +131,7 @@ PRODUCT_VHI_HIST = {
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
-    "step1_collection": 'projects/satromo-int/assets/VHI_HIST_SWISS',
+    "step1_collection": 'projects/satromo-prod/assets/col/VHI_HIST_SWISS',
     "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
