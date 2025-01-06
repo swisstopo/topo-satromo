@@ -515,8 +515,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     exportVegetationAsset = True
     exportForestAsset = True
     # options: True, False
-    exportVegetationDrive = True
-    exportForestDrive = True
+    exportVegetationDrive = False
+    exportForestDrive = False
     # options: True, False
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
