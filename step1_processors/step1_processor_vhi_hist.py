@@ -36,15 +36,15 @@ from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for
 # -----------------------------------------
 
 # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
-def maskCloudsAndShadowsL57sr(image, water):
+def maskCloudsAndShadowsLsr(image, water):
     """
-    Masks clouds and cloud shadows in Landsat 5/7 Surface Reflectance (SR) images based on quality bands.
+    Masks clouds and cloud shadows in Landsat Surface Reflectance (SR) images based on quality bands.
     This function applies cloud and cloud shadow masking using the QA_PIXEL and QA_RADSAT bands.
     It also applies scaling factors to optical and thermal bands, detects dark pixels,
     projects cloud shadows based on solar position, and combines various masks.
 
     Args:
-        image (ee.Image): Input Landsat 5/7 SR image.
+        image (ee.Image): Input Landsat SR image.
 
     Returns:
         ee.Image: Processed image with clouds and shadows masked, scaled bands,
@@ -52,6 +52,7 @@ def maskCloudsAndShadowsL57sr(image, water):
 
     Note:
         This function assumes working in a UTM projection for shadow projection calculations.
+        This function assumes band names according to Landsat 5 or 7.
     """
     
     if isinstance(image, ee.ImageCollection):
@@ -117,97 +118,15 @@ def maskCloudsAndShadowsL57sr(image, water):
     return image
 
 
-# This function masks clouds & cloud shadows based on the QA quality bands of Landsat
-def maskCloudsAndShadowsL89sr(image, water):
-    """
-    Masks clouds and cloud shadows in Landsat 8/9 Surface Reflectance (SR) images based on quality bands.
-    This function applies cloud and cloud shadow masking using the QA_PIXEL and QA_RADSAT bands.
-    It also applies scaling factors to optical and thermal bands, detects dark pixels,
-    projects cloud shadows based on solar position, and combines various masks.
-
-    Args:
-        image (ee.Image): Input Landsat 8/9 SR image.
-
-    Returns:
-        ee.Image: Processed image with clouds and shadows masked, scaled bands,
-                  and additional mask bands added.
-
-    Note:
-        This function assumes working in a UTM projection for shadow projection calculations.
-    """
-
-    if isinstance(image, ee.ImageCollection):
-        image = image.first()
-
-    # DETECT CLOUDS
-    qa = image.select('QA_PIXEL')
-    # See https:#www.usgs.gov/media/files/landsat-8-9-olitirs-collection-2-level-2-data-format-control-book
-
-    # Bit 0 - Fill
-    # Bit 1 - Dilated Cloud
-    # Bit 2 - Cirrus
-    # Bit 3 - Cloud
-
-    qaMask = qa.bitwiseAnd(int('1111', 2)).eq(0).Not()
-    saturationMask = image.select('QA_RADSAT').eq(0)
-
-    # Apply the scaling factors to the appropriate bands.
-    opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2)
-    thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0)
-
-    # DETECT CLOUD SHADOWS
-    # Find dark pixels in the image (used in the upcoming addTerrainShadow function)
-    darkPixels = opticalBands.select(['SR_B5', 'SR_B6', 'SR_B7']).reduce(ee.Reducer.sum()).lt(0.25) \
-        .subtract(water).clamp(0, 1).rename('darkPixels')
-
-    # get the solar position
-    meanAzimuth = ee.Number(image.get('SUN_AZIMUTH'))
-    meanZenith = ee.Number(90).subtract(
-        ee.Number(image.get('SUN_ELEVATION')))
-
-    # Project shadows from clouds. This step assumes we're working in a UTM projection.
-    shadowAzimuth = ee.Number(90).subtract(ee.Number(meanAzimuth))
-    # shadow distance is tied to the solar zenith angle (minimum shadowDistance is 30 pixel)
-    shadowDistance = ee.Number(meanZenith).multiply(
-        0.7).floor().int().max(30)
-
-    # With the following algorithm, cloud shadows are projected.
-    isCloud = qaMask.directionalDistanceTransform(
-        shadowAzimuth, shadowDistance)
-    isCloud = isCloud.reproject(
-        crs=image.select('SR_B2').projection(), scale=100)
-
-    cloudShadow = isCloud.select('distance').mask()
-
-    # combine projectedShadows & darkPixel and buffer the cloud shadow
-    cloudShadow = cloudShadow.And(darkPixels).focalMax(
-        100, 'circle', 'meters', 1, None)
-
-    # combined mask for clouds and cloud shadows
-    cloudAndCloudShadowMask = cloudShadow.Or(qaMask)
-
-    # add bands & apply the masks
-    image = image.addBands(opticalBands, None, True).multiply(10000) \
-        .addBands(thermalBands, None, True) \
-        .updateMask(cloudAndCloudShadowMask.Not()) \
-        .updateMask(saturationMask) \
-        .addBands(cloudAndCloudShadowMask.rename('cloudAndCloudShadowMask')) \
-        .addBands(image.select(['QA_PIXEL', 'QA_RADSAT'])) \
-        .addBands(darkPixels) \
-        .copyProperties(image, image.propertyNames())
-
-    return image
-
-
 # This function detects snow cover
-def addNDSI_L57(image):
+def addNDSI_L(image):
     """
-    Calculates and adds the Normalized Difference Snow Index (NDSI) band to a Landsat 5/7 image.
+    Calculates and adds the Normalized Difference Snow Index (NDSI) band to a Landsat image.
     This function computes the NDSI using the green (SR_B2) and short-wave infrared (SR_B5) bands
-    of Landsat 5/7 imagery. The NDSI is useful for detecting snow cover.
+    of Landsat imagery. The NDSI is useful for detecting snow cover.
 
     Args:
-        image (ee.Image): Input Landsat 5/7 surface reflectance image.
+        image (ee.Image): Input Landsat surface reflectance image.
 
     Returns:
         ee.Image: The input image with an additional 'ndsi' band.
@@ -215,40 +134,11 @@ def addNDSI_L57(image):
     Note:
         The NDSI is calculated as (Green - SWIR) / (Green + SWIR).
         Higher NDSI values generally indicate a higher likelihood of snow cover.
+        This function assumes band names according to Landsat 5 or 7.
     """
     # select the green and swir band
     green = image.select('SR_B2')
     swir = image.select('SR_B5')
-
-    # calculate NDSI
-    ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
-
-    # add NDSI band to the image
-    image = image.addBands(ndsi)
-
-    return image
-
-
-# This function detects snow cover
-def addNDSI_L89(image):
-    """
-    Calculates and adds the Normalized Difference Snow Index (NDSI) band to a Landsat 8/9 image.
-    This function computes the NDSI using the green (SR_B3) and short-wave infrared (SR_B6) bands
-    of Landsat 8/9 imagery. The NDSI is useful for detecting snow cover.
-
-    Args:
-        image (ee.Image): Input Landsat 8/9 surface reflectance image.
-
-    Returns:
-        ee.Image: The input image with an additional 'ndsi' band.
-
-    Note:
-        The NDSI is calculated as (Green - SWIR) / (Green + SWIR).
-        Higher NDSI values generally indicate a higher likelihood of snow cover.
-    """
-    # select the green and swir band
-    green = image.select('SR_B3')
-    swir = image.select('SR_B6')
 
     # calculate NDSI
     ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
@@ -322,9 +212,9 @@ def addTerrainShadow(image, DEM, water):
 
 
 # This function calculates the illumination condition during the time of image acquisition
-def topoCorr_L57(img, DEM):
+def topoCorr_L(img, DEM):
     """
-    Calculates and adds the illumination condition to a Landsat 5/7 image based on topography.
+    Calculates and adds the illumination condition to a Landsat image based on topography.
 
     This function computes the illumination condition (IC) using the image's solar position
     and a digital elevation model (DEM). It considers both slope and aspect in the calculation.
@@ -332,7 +222,7 @@ def topoCorr_L57(img, DEM):
     'cosZ' (cosine of solar zenith angle), 'cosS' (cosine of slope), and 'slope'.
 
     Args:
-        img (ee.Image): Input Landsat 5/7 image with 'SUN_AZIMUTH' and 'SUN_ELEVATION' properties.
+        img (ee.Image): Input Landsat image with 'SUN_AZIMUTH' and 'SUN_ELEVATION' properties.
 
     Returns:
         ee.Image: The input image with added illumination condition and related bands.
@@ -379,26 +269,27 @@ def topoCorr_L57(img, DEM):
     return img_plus_ic
 
 # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
-def topoCorr_SCSc_L57(img):
+def topoCorr_SCSc_L(img):
     """
-    Applies the sun-canopy-sensor+C (SCSc) topographic correction to a Landsat 5/7 image.
+    Applies the sun-canopy-sensor+C (SCSc) topographic correction to a Landsat image.
 
     This function implements the SCSc topographic correction method (Soenen et al. 2005) 
     to adjust reflectance values in mountainous terrain. It corrects for illumination 
     differences due to topography in specified bands.
 
     Args:
-        img (ee.Image): Input Landsat 5/7 image with added illumination condition bands 
-                        (output from topoCorr_L57 function).
+        img (ee.Image): Input Landsat image with added illumination condition bands 
+                        (output from topoCorr_L function).
 
     Returns:
         ee.Image: Topographically corrected image with original properties and additional 'TC_mask' band.
 
     Note:
         - This function assumes the input image has 'slope', 'TC_illumination', and other bands 
-          added by the topoCorr_L57 function.
+          added by the topoCorr_L function.
         - It applies correction to bands 'SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'.
         - Pixels with slope < 5 degrees or TC_illumination < 0.1 are masked from correction.
+        - This function assumes band names according to Landsat 5 or 7.
     """
     img_plus_ic = img
 
@@ -415,9 +306,9 @@ def topoCorr_SCSc_L57(img):
     # This function quantifies the linear relation between illumination and reflectance and corrects for it
     def apply_SCSccorr(band):
         """
-        Applies the SCSc correction to a single band of a Landsat 5/7 image.
+        Applies the SCSc correction to a single band of a Landsat image.
 
-        This function is used within topoCorr_SCSc_L57 to perform the actual correction
+        This function is used within topoCorr_SCSc_L to perform the actual correction
         calculations for each specified band. It computes the linear relationship between
         illumination and reflectance, then applies the SCSc correction.
 
@@ -428,7 +319,7 @@ def topoCorr_SCSc_L57(img):
             ee.Image: Single-band image with SCSc correction applied.
 
         Note:
-            This function is intended to be used as a mapping function within topoCorr_SCSc_L57
+            This function is intended to be used as a mapping function within topoCorr_SCSc_L
             and relies on variables defined in that outer scope.
         """
         out = img_plus_ic_mask.select('TC_illumination', band).reduceRegion(
@@ -455,163 +346,7 @@ def topoCorr_SCSc_L57(img):
 
     # list all bands without topographic correction (to be added to the TC image)
     bandsWithoutTC = ee.List(
-        ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask'])
-
-    # add all bands and properties to the TC bands
-    img_SCSccorr = ee.ImageCollection.fromImages(
-        bandList.map(apply_SCSccorr)).toBands().rename(bandList)
-
-    img_SCSccorr = img_SCSccorr.addBands(
-        img_plus_ic.select(bandsWithoutTC))
-
-    img_SCSccorr = img_SCSccorr.copyProperties(
-        img_plus_ic, img_plus_ic.propertyNames())
-
-    # flatten both lists into one
-    bandList_IC = ee.List([bandList, bandsWithoutTC]).flatten()
-
-    # unmasked the uncorrected pixel using the orignal image
-    return ee.Image(img_SCSccorr).unmask(img_plus_ic.select(bandList_IC)).addBands(mask.rename('TC_mask'))
-
-
-# This function calculates the illumination condition during the time of image acquisition
-def topoCorr_L89(img, DEM):
-    """
-    Calculates and adds the illumination condition to a Landsat 8/9 image based on topography.
-
-    This function computes the illumination condition (IC) using the image's solar position
-    and a digital elevation model (DEM). It considers both slope and aspect in the calculation.
-    The function adds several new bands to the image: 'TC_illumination' (total illumination condition),
-    'cosZ' (cosine of solar zenith angle), 'cosS' (cosine of slope), and 'slope'.
-
-    Args:
-        img (ee.Image): Input Landsat 8/9 image with 'SUN_AZIMUTH' and 'SUN_ELEVATION' properties.
-
-    Returns:
-        ee.Image: The input image with added illumination condition and related bands.
-
-    Note:
-        The calculation uses radians for angular measurements.
-    """
-    if isinstance(img, ee.ImageCollection):
-        img = img.first()
-
-    # get the solar position
-    meanAzimuth = ee.Number(img.get('SUN_AZIMUTH'))
-    meanZenith = ee.Number(90).subtract(
-        ee.Number(img.get('SUN_ELEVATION')))
-
-    # Extract image metadata about solar position and covert from degree to radians
-    SZ_rad = ee.Image.constant((meanZenith).multiply(math.pi).divide(180))
-    SA_rad = ee.Image.constant((meanAzimuth).multiply(math.pi).divide(180))
-
-    # Creat terrain layers and covert from degree to radians
-    slp = ee.Terrain.slope(DEM)
-    slp_rad = ee.Terrain.slope(DEM).multiply(math.pi).divide(180)
-    asp_rad = ee.Terrain.aspect(DEM).multiply(math.pi).divide(180)
-
-    # Calculate the Illumination Condition (IC)
-    # slope part of the illumination condition
-    cosZ = SZ_rad.cos()
-    cosS = slp_rad.cos()
-    slope_illumination = cosS.select('slope').multiply(cosZ)
-
-    # aspect part of the illumination condition
-    sinZ = SZ_rad.sin()
-    sinS = slp_rad.sin()
-    cosAziDiff = (SA_rad.subtract(asp_rad)).cos()
-    aspect_illumination = sinZ.multiply(sinS).multiply(cosAziDiff)
-
-    # full illumination condition (IC)
-    ic = slope_illumination.add(aspect_illumination)
-
-    # Add the illumination condition to original image
-    img_plus_ic = ee.Image(
-        img.addBands(ic.rename('TC_illumination')).addBands(cosZ.rename('cosZ')).addBands(cosS.rename('cosS')).addBands(
-            slp.rename('slope')))
-    return img_plus_ic
-
-# This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
-def topoCorr_SCSc_L89(img):
-    """
-    Applies the sun-canopy-sensor+C (SCSc) topographic correction to a Landsat 8/9 image.
-
-    This function implements the SCSc topographic correction method (Soenen et al. 2005) 
-    to adjust reflectance values in mountainous terrain. It corrects for illumination 
-    differences due to topography in specified bands.
-
-    Args:
-        img (ee.Image): Input Landsat 8/9 image with added illumination condition bands 
-                        (output from topoCorr_L89 function).
-
-    Returns:
-        ee.Image: Topographically corrected image with original properties and additional 'TC_mask' band.
-
-    Note:
-        - This function assumes the input image has 'slope', 'TC_illumination', and other bands 
-          added by the topoCorr_L89 function.
-        - It applies correction to bands 'SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'.
-        - Pixels with slope < 5 degrees or TC_illumination < 0.1 are masked from correction.
-    """
-    img_plus_ic = img
-
-    # masking flat, shadowed, and incorrect pixels (these get excluded from the topographic correction)
-    mask = img_plus_ic.select('slope').gte(5) \
-        .And(img_plus_ic.select('TC_illumination').gte(0.1)) \
-        .And(img_plus_ic.select('SR_B5').gt(-0.1))
-    img_plus_ic_mask = ee.Image(img_plus_ic.updateMask(mask))
-
-    # Specify Bands to topographically correct
-    bandList = ee.List(
-        ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'])
-
-    # This function quantifies the linear relation between illumination and reflectance and corrects for it
-    def apply_SCSccorr(band):
-        """
-        Applies the SCSc correction to a single band of a Landsat 8/9 image.
-
-        This function is used within topoCorr_SCSc_L89 to perform the actual correction
-        calculations for each specified band. It computes the linear relationship between
-        illumination and reflectance, then applies the SCSc correction.
-
-        Args:
-            band (str): Name of the band to correct.
-
-        Returns:
-            ee.Image: Single-band image with SCSc correction applied.
-
-        Note:
-            This function is intended to be used as a mapping function within topoCorr_SCSc_L89
-            and relies on variables defined in that outer scope.
-        """
-        out = img_plus_ic_mask.select('TC_illumination', band).reduceRegion(
-            # Compute coefficients': a(slope), b(offset), c(b/a)
-            reducer=ee.Reducer.linearFit(),
-            geometry=ee.Geometry(img.geometry().buffer(-5000)),
-            # trim off the outer edges of the image for linear relationship
-            scale=30,
-            maxPixels=1e6,
-            bestEffort=True,
-            tileScale=16
-        )
-
-        out_c = ee.Number(out.get('offset')).divide(
-            ee.Number(out.get('scale')))
-
-        # apply the SCSc correction
-        SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
-            'image': img_plus_ic_mask.select([band, ]),
-            'ic': img_plus_ic_mask.select('TC_illumination'),
-            'cosB': img_plus_ic_mask.select('cosS'),
-            'cosZ': img_plus_ic_mask.select('cosZ'),
-            'cvalue': out_c
-        })
-
-        return ee.Image(SCSc_output)
-
-    # list all bands without topographic correction (to be added to the TC image)
-    bandsWithoutTC = ee.List(
-        ['ST_B10', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask'])
+        ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask', 'ndsi'])
 
     # add all bands and properties to the TC bands
     img_SCSccorr = ee.ImageCollection.fromImages(
@@ -671,16 +406,16 @@ def loadNdviRefData(moy):
 
 
 # This function calculates the NDVI
-def calculateNDVI_L57(image):
+def calculateNDVI_L(image):
     """
-    Calculates the Normalized Difference Vegetation Index (NDVI) for Landsat 5/7 imagery.
+    Calculates the Normalized Difference Vegetation Index (NDVI) for Landsat imagery.
 
     This function applies masks for terrain shadows, clouds, cloud shadows, and snow,
     then calculates NDVI using the red and near-infrared bands. It also provides
     information about the scenes used in the calculation.
 
     Args:
-        image (ee.ImageCollection): Input Landsat 5/7 image collection with required bands and masks.
+        image (ee.ImageCollection): Input Landsat image collection with required bands and masks.
 
     Returns:
         tuple: A tuple containing:
@@ -691,81 +426,21 @@ def calculateNDVI_L57(image):
     Note:
         This function assumes the input images have 'terrainShadowMask', 'cloudAndCloudShadowMask',
         'ndsi', 'SR_B3' (red), and 'SR_B4' (NIR) bands.
+        This function assumes band names according to Landsat 5 or 7.
     """
     # Apply the terrain, cloud and snow mask within the Landsat image collection
-    def applyMasks(image):
-        image = image.updateMask(image.select('terrainShadowMask').eq(0))
-        image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
-        image = image.updateMask(image.select('ndsi').lt(0.43))
-        # image = image.updateMask(image.select('TC_illumination').lt(1.13)) # 65° in radians
-        return image
-    
-    image_masked = image.map(applyMasks)
-
-    # Sort the collection by time in descending order
-    sortedCollection = image_masked.sort('system:time_start', False)
-    # Create list with indices of all used data
-    NDVI_index_list = sortedCollection.aggregate_array('system:index')
-    NDVI_index_list = NDVI_index_list.join(',')
-    NDVI_scene_count = sortedCollection.size()
+    image = image.updateMask(image.select('terrainShadowMask').eq(0))
+    image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
+    image = image.updateMask(image.select('ndsi').lt(0.43))
 
     # select the red and nir band
-    red = image_masked.select('SR_B3')
-    nir = image_masked.select('SR_B4')
+    red = image.select('SR_B3')
+    nir = image.select('SR_B4')
 
     # calculate ndvi
     ndvi = nir.subtract(red).divide(nir.add(red)).rename('ndvi')
 
-    return ndvi, NDVI_index_list, NDVI_scene_count
-
-
-# This function calculates the NDVI
-def calculateNDVI_L89(image):
-    """
-    Calculates the Normalized Difference Vegetation Index (NDVI) for Landsat 8/9 imagery.
-
-    This function applies masks for terrain shadows, clouds, cloud shadows, and snow,
-    then calculates NDVI using the red and near-infrared bands. It also provides
-    information about the scenes used in the calculation.
-
-    Args:
-        image (ee.ImageCollection): Input Landsat 8/9 image collection with required bands and masks.
-
-    Returns:
-        tuple: A tuple containing:
-            - ee.Image: Single-band image containing NDVI values.
-            - ee.String: Comma-separated list of indices of all used scenes.
-            - ee.Number: Count of scenes used in the NDVI calculation.
-
-    Note:
-        This function assumes the input images have 'terrainShadowMask', 'cloudAndCloudShadowMask',
-        'ndsi', 'SR_B4' (red), and 'SR_B5' (NIR) bands.
-    """
-    # Apply the terrain, cloud and snow mask within the Landsat image collection
-    def applyMasks(image):
-        image = image.updateMask(image.select('terrainShadowMask').eq(0))
-        image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
-        image = image.updateMask(image.select('ndsi').lt(0.43))
-        # image = image.updateMask(image.select('TC_illumination').lt(1.13)) # 65° in radians
-        return image
-    
-    image_masked = image.map(applyMasks)
-
-    # Sort the collection by time in descending order
-    sortedCollection = image_masked.sort('system:time_start', False)
-    # Create list with indices of all used data
-    NDVI_index_list = sortedCollection.aggregate_array('system:index')
-    NDVI_index_list = NDVI_index_list.join(',')
-    NDVI_scene_count = sortedCollection.size()
-
-    # select the red and nir band
-    red = image_masked.select('SR_B4')
-    nir = image_masked.select('SR_B5')
-
-    # calculate ndvi
-    ndvi = nir.subtract(red).divide(nir.add(red)).rename('ndvi')
-
-    return ndvi, NDVI_index_list, NDVI_scene_count
+    return ndvi
 
 
 # This function loads the reference LST data (statistical value derived per MOY from 2012-2020)
@@ -791,7 +466,7 @@ def loadLstRefData(moy):
     """
     moy2 = ee.String(ee.Number(moy).format('%02d')).getInfo()  # 1 -> 01
     asset_name = config.PRODUCT_VHI_HIST['LST_reference_data'] + \
-        '/LST_Stats_DOY' + moy2
+        '/LST_Stats_M' + moy2
     LSTref = ee.Image(asset_name)
     # back to float
     LSTref = LSTref.float()
@@ -944,7 +619,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
         .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
-        .filter(ee.Filter.eq('IMAGE_QUALITY', 9))
+        .filter(ee.Filter.eq('IMAGE_QUALITY', 9)) \
+        .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
 
     # Landsat 7 (1999-...)
     L7_sr = ee.ImageCollection("LANDSAT/LE07/C02/T1_L2") \
@@ -952,18 +628,27 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
         .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
-        .filter(ee.Filter.eq('IMAGE_QUALITY', 9))
-
+        .filter(ee.Filter.eq('IMAGE_QUALITY', 9)) \
+        .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
+    
     # Landsat 8 (2013-...)
     L8_sr = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2") \
         .filter(ee.Filter.bounds(aoi)) \
         .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
         .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
-        .filter(ee.Filter.eq('IMAGE_QUALITY_OLI', 9))
-
-    L57_sr = ee.ImageCollection(L7_sr.merge(L5_sr))
+        .filter(ee.Filter.eq('IMAGE_QUALITY_OLI', 9)) \
+        .select(['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL', 'QA_RADSAT'])
     
+    # Rename the bands for Landsat 8 to correspond to the band names of Landsat 5 and 7
+    L8_sr = L8_sr.select(['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
+                         ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
+
+    # Merge to one single ee.ImageCollection containing all the Landsat images
+    # L57_sr = ee.ImageCollection(L7_sr.merge(L5_sr))
+    # L_sr = ee.ImageCollection(L8_sr.merge(L57_sr))
+    L_sr = L5_sr
+
     # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
     VHI_col = ee.ImageCollection(config.PRODUCT_VHI_HIST['step1_collection']) \
         .filterMetadata('system:index', 'contains', current_date_str) \
@@ -973,40 +658,35 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         ###########################################
         # PROCESSING
-    
+        
         # ----- Landsat data (pre-processing) -----
         # apply the cloud and cloud shadow masking function
-        L57_sr = L57_sr.map(lambda image: maskCloudsAndShadowsL57sr(L57_sr, water_binary))
-        L8_sr = L8_sr.map(lambda image: maskCloudsAndShadowsL89sr(L8_sr, water_binary))
+        L_sr = L_sr.map(lambda image: maskCloudsAndShadowsLsr(L_sr, water_binary))
         
         # add the snow cover (NDSI)
-        L57_sr = L57_sr.map(addNDSI_L57)
-        L8_sr = L8_sr.map(addNDSI_L89)
-    
+        L_sr = L_sr.map(addNDSI_L)
+        
         # apply the terrain shadow function
-        L57_sr = L57_sr.map(lambda image: addTerrainShadow(L57_sr, DEM_sa3d, water_binary))
-        L8_sr = L8_sr.map(lambda image: addTerrainShadow(L8_sr, DEM_sa3d, water_binary))
-    
+        L_sr = L_sr.map(lambda image: addTerrainShadow(L_sr, DEM_sa3d, water_binary))
+        
 	    # apply the topographic correction function
-        L57_sr = L57_sr.map(lambda image: topoCorr_L57(L57_sr, DEM_sa3d)) \
-            .map(topoCorr_SCSc_L57)
-        L8_sr = L8_sr.map(lambda image: topoCorr_L89(L8_sr, DEM_sa3d)) \
-            .map(topoCorr_SCSc_L89)
-    
+        L_sr = L_sr.map(lambda image: topoCorr_L(L_sr, DEM_sa3d)) \
+            .map(topoCorr_SCSc_L)
+        
         # get collection info
-        L_sr = ee.ImageCollection(L57_sr.merge(L8_sr))
-        breakpoint()
         sensor_stats = main_utils.get_collection_info(L_sr)
         
         # ----- NDVI -----
         # add the NDVI 
-        NDVI57, NDVI57_index_list, NDVI57_scene_count = L57_sr.map(calculateNDVI_L57)
-        NDVI89, NDVI89_index_list, NDVI89_scene_count = L8_sr.map(calculateNDVI_L89)
-    
-        # merge the collections
-        NDVI = ee.ImageCollection(NDVI57.merge(NDVI89))
-        NDVI_index_list = NDVI57_index_list.merge(NDVI89_index_list)
-        NDVI_scene_count = NDVI57_scene_count.add(NDVI89_scene_count)
+        NDVI = L_sr.map(calculateNDVI_L)
+        
+        # Get the total number and indices of all images used for the NDVI generation
+        # Sort the collection by time in descending order
+        sortedCollection = L_sr.sort('system:time_start', False)
+        # Create list with indices of all used data
+        NDVI_index_list = sortedCollection.aggregate_array('system:index')
+        NDVI_index_list = NDVI_index_list.join(',')
+        NDVI_scene_count = sortedCollection.size()
     
 	    # get current NDVI from the mean
         NDVIj = NDVI.mean()
@@ -1119,7 +799,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         aoi_exp = aoi
     	
         # SWITCH export - vegetation (Asset)
-        task_description = 'VHI_SWISS_' + current_date_str
+        task_description = 'VHI_SWISS_' + ee.Date(first_of_month).format('YYYY-MM-dd').getInfo()
         if exportVegetationAsset is True:
             print('Launching VHI export for vegetation')
             # Export asset
@@ -1162,17 +842,21 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     # SWITCH export (Drive/GCS)
     if exportVegetationDrive is True:
         # Generate the filename
-        filename = config.PRODUCT_VHI_HIST['product_name'] + \
-            '_mosaic_' + timestamp + '_vegetation-30m'
-        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
+        ee_string = ee.String(config.PRODUCT_VHI_HIST['product_name'])
+        py_string = ee_string.getInfo()
+        py_timestamp = timestamp.getInfo()
+        filename = py_string + '_mosaic_' + py_timestamp + '_vegetation-30m'
+        main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_vegetation,
                                 sensor_stats, current_date_str)
 
     if exportForestDrive is True:
         # Generate the filename
-        filename = config.PRODUCT_VHI_HIST['product_name'] + \
-            '_mosaic_' + timestamp + '_forest-30m'
-        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
+        ee_string = ee.String(config.PRODUCT_VHI_HIST['product_name'])
+        py_string = ee_string.getInfo()
+        py_timestamp = timestamp.getInfo()
+        filename = py_string + '_mosaic_' + py_timestamp + '_forest-30m'
+        main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_forest,
                                 sensor_stats, current_date_str)
         
