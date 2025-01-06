@@ -172,6 +172,7 @@ def get_collection_info(collection):
 
     Returns:
         A tuple containing the first date, last date, and total number of images in the collection.
+        Returns (None, None, 0) for empty collections.
     """
     # Sort the collection by date in ascending order
     sorted_collection = collection.sort('system:time_start')
@@ -179,21 +180,21 @@ def get_collection_info(collection):
     # Get the first and last image from the sorted collection
     first_image = sorted_collection.first()
     last_image = sorted_collection.sort('system:time_start', False).first()
-
-    # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')
-                         ).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')
-                        ).format('YYYY-MM-dd').getInfo()
-
-    # Get the count of images in the filtered collection
-    image_count = collection.size()
-
-    # Get the scenes count
-    total_scenes = image_count.getInfo()
+    
+    try:
+        # Get the count of images in the collection
+        image_count = collection.size().getInfo()
+        # Get the dates of the first and last image
+        first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+        last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    except ee.EEException:
+        image_count = 0
+        # Handle cases where date information might be missing
+        first_date = None
+        last_date = None
 
     # Return the first date, last date, and total number of scenes
-    return first_date, last_date, total_scenes
+    return first_date, last_date, image_count
 
 
 def get_quadrants(roi):
