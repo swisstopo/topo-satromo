@@ -1,7 +1,11 @@
+import dateutil.parser
 import ee
 import math
 import datetime
 from datetime import timedelta
+import dateutil
+from dateutil import tz
+from dateutil.relativedelta import relativedelta
 import configuration as config
 from main_functions import main_utils
 from step0_processors.step0_utils import write_asset_as_empty
@@ -31,12 +35,57 @@ from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for
 ###########################################
 # FUNCTIONS
 
+def watermask():
+    """
+    Water mask
+    The water mask is used to limit a buffering operation on the cast shadow mask.
+    Here, it helps to better distinguish between dark areas and water bodies.
+    This distinction is also used to limit the cloud shadow propagation.
+    EU-Hydro River Network Database 2006-2012 data is derived from this data source:
+    https:#land.copernicus.eu/en/products/eu-hydro/eu-hydro-river-network-database#download
+    processing: reprojected in QGIS to epsg32632
+    """
+    # Simplified and buffered shapefile of Switzerland to simplify processing
+    aoi = ee.FeatureCollection(
+        "projects/satromo-prod/assets/res/CH_boundaries_buffer_5000m_epsg32632").geometry()
+    # Lakes
+    # lakes = ee.FeatureCollection("users/michaelbrechbuehler/eu-hydro")
+    lakes = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_inlandWater")
+
+    # vector-to-image conversion based on the area attribute
+    lakes_img = lakes.reduceToImage(
+        properties=['AREA'],
+        reducer=ee.Reducer.first()
+    )
+
+    # Make a binary mask and clip to area of interest
+    lakes_binary = lakes_img.gt(0).unmask().clip(aoi)
+    # # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
+
+    # Rivers
+    rivers = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_RiverNet")
+    # print('rivers',rivers.first())
+    # Make an image out of the land area attribute.
+    rivers_img = rivers.reduceToImage(
+        properties=['AREA_GEO'],
+        reducer=ee.Reducer.first()
+    )
+
+    # Make a binary mask and clip to area of interest
+    rivers_binary = rivers_img.gt(0).unmask().clip(aoi)
+    # # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
+
+    # combine both water masks
+    water_binary = rivers_binary.Or(lakes_binary)
+    # # Map.addLayer(water_binary, {min:0, max:1}, 'water mask', False)
+    return water_binary
+
 # -----------------------------------------
 # Functions for processing Landsat data
 # -----------------------------------------
 
 # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
-def maskCloudsAndShadowsLsr(image, water):
+def maskCloudsAndShadowsLsr(image):
     """
     Masks clouds and cloud shadows in Landsat Surface Reflectance (SR) images based on quality bands.
     This function applies cloud and cloud shadow masking using the QA_PIXEL and QA_RADSAT bands.
@@ -51,9 +100,12 @@ def maskCloudsAndShadowsLsr(image, water):
                   and additional mask bands added.
 
     Note:
+        This function assumes the presence of global variables:
+        - water_binary: A binary mask of water bodies.
         This function assumes working in a UTM projection for shadow projection calculations.
         This function assumes band names according to Landsat 5 or 7.
     """
+    water_binary = watermask()
     
     if isinstance(image, ee.ImageCollection):
         image = image.first()
@@ -77,7 +129,7 @@ def maskCloudsAndShadowsLsr(image, water):
     # DETECT CLOUD SHADOWS
     # Find dark pixels in the image (used in the upcoming addTerrainShadow function)
     darkPixels = opticalBands.select(['SR_B4', 'SR_B5', 'SR_B7']).reduce(ee.Reducer.sum()).lt(0.25) \
-        .subtract(water).clamp(0, 1).rename('darkPixels')
+        .subtract(water_binary).clamp(0, 1).rename('darkPixels')
 
     # get the solar position
     meanAzimuth = ee.Number(image.get('SUN_AZIMUTH'))
@@ -150,7 +202,7 @@ def addNDSI_L(image):
 
 
 # This function detects terrain shadows
-def addTerrainShadow(image, DEM, water):
+def addTerrainShadow(image):
     """
     Detects and adds a terrain shadow mask to an image based on solar position and topography.
 
@@ -170,6 +222,8 @@ def addTerrainShadow(image, DEM, water):
         - water_binary: A binary mask of water bodies.
         The terrain shadow mask is refined using a buffer and dark pixel information.
     """
+    DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
+    water_binary = watermask()
 
     if isinstance(image, ee.ImageCollection):
         image = image.first()
@@ -184,7 +238,7 @@ def addTerrainShadow(image, DEM, water):
 
     # Terrain shadow
     terrainShadow = ee.Terrain.hillShadow(
-        DEM, meanAzimuth, meanZenith, 100, True)
+        DEM_sa3d, meanAzimuth, meanZenith, 100, True)
     terrainShadow = terrainShadow.Not()  # invert the binaries
 
     # buffering the terrain shadow
@@ -195,7 +249,7 @@ def addTerrainShadow(image, DEM, water):
     shadowBuffer = terrainShadow_buffer.subtract(terrainShadow)
 
     # removing dark water pixels from the buffer (as water is part of the darkPixels class, we exclude it from the buffer)
-    shadowBuffer = shadowBuffer.subtract(water).clamp(0, 1)
+    shadowBuffer = shadowBuffer.subtract(water_binary).clamp(0, 1)
 
     # add the new buffer
     terrainShadow_bufferNoWater = terrainShadow.add(
@@ -212,7 +266,7 @@ def addTerrainShadow(image, DEM, water):
 
 
 # This function calculates the illumination condition during the time of image acquisition
-def topoCorr_L(img, DEM):
+def topoCorr_L(img):
     """
     Calculates and adds the illumination condition to a Landsat image based on topography.
 
@@ -228,8 +282,12 @@ def topoCorr_L(img, DEM):
         ee.Image: The input image with added illumination condition and related bands.
 
     Note:
+        This function assumes the presence of global variables:
+        - DEM_sa3d: A digital elevation model for shadow calculation.
         The calculation uses radians for angular measurements.
     """
+    DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
+
     if isinstance(img, ee.ImageCollection):
         img = img.first()
 
@@ -243,9 +301,9 @@ def topoCorr_L(img, DEM):
     SA_rad = ee.Image.constant((meanAzimuth).multiply(math.pi).divide(180))
 
     # Creat terrain layers and covert from degree to radians
-    slp = ee.Terrain.slope(DEM)
-    slp_rad = ee.Terrain.slope(DEM).multiply(math.pi).divide(180)
-    asp_rad = ee.Terrain.aspect(DEM).multiply(math.pi).divide(180)
+    slp = ee.Terrain.slope(DEM_sa3d)
+    slp_rad = ee.Terrain.slope(DEM_sa3d).multiply(math.pi).divide(180)
+    asp_rad = ee.Terrain.aspect(DEM_sa3d).multiply(math.pi).divide(180)
 
     # Calculate the Illumination Condition (IC)
     # slope part of the illumination condition
@@ -515,8 +573,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     exportVegetationAsset = True
     exportForestAsset = True
     # options: True, False
-    exportVegetationDrive = False
-    exportForestDrive = False
+    exportVegetationDrive = True
+    exportForestDrive = True
     # options: True, False
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
@@ -528,22 +586,16 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
     ##############################
     # TIME
-    current_date = ee.Date(current_date_str)
-    moy = current_date.get('month')
-    year = current_date.get('year')
-    # get desired time coverage [in months]
     d = int(config.PRODUCT_VHI_HIST['temporal_coverage'])
+    
+    current_date = dateutil.parser.parse(current_date_str).replace(tzinfo=tz.tzutc(), hour=0, minute=0, second=0, microsecond=0)
 
-    startmoy = (ee.Number(moy).subtract(d).mod(12)).add(13).mod(12)
-    startmoy = startmoy.eq(0).multiply(12).add(startmoy)  # Replace 0 with 12 for December
+    start_date = current_date.replace(day = 1) - relativedelta(months = (d-1))
 
-    startyear = ee.Algorithms.If(startmoy.gt(moy), ee.Number(year).subtract(1), year) # only works for time frames < 1y
-
-    # Define item Name (first day of month for simplicity)
-    first_of_month = current_date.advance(1, 'day') \
-        .advance(ee.Number(current_date.get('day')).multiply(-1), 'day')
-    timestamp = first_of_month.format('yyyy-MM-dd\'T\'235959')
-    last_of_month = first_of_month.advance(d, 'month').advance(ee.Number(-1), 'day')
+    first_of_month = current_date.replace(day = 1)
+    end_date = first_of_month.replace(month=first_of_month.month+1) - timedelta(days = 1)
+    
+    timestamp = first_of_month.strftime('%Y-%m-%dT235959')
     
     ##############################
     # PARAMETERS
@@ -563,61 +615,14 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     forest_mask = ee.Image(
         'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
     
-    # Water mask
-    # The water mask is used to limit a buffering operation on the cast shadow mask.
-    # Here, it helps to better distinguish between dark areas and water bodies.
-    # This distinction is also used to limit the cloud shadow propagation.
-    # EU-Hydro River Network Database 2006-2012 data is derived from this data source:
-    # https:#land.copernicus.eu/en/products/eu-hydro/eu-hydro-river-network-database#download
-    # processing: reprojected in QGIS to epsg32632
-
-    # Lakes
-    # lakes = ee.FeatureCollection("users/michaelbrechbuehler/eu-hydro")
-    lakes = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_inlandWater")
-
-    # vector-to-image conversion based on the area attribute
-    lakes_img = lakes.reduceToImage(
-        properties=['AREA'],
-        reducer=ee.Reducer.first()
-    )
-
-    # Make a binary mask and clip to area of interest
-    lakes_binary = lakes_img.gt(0).unmask().clip(aoi)
-    # # Map.addLayer(lakes_binary, {min:0, max:1}, 'lake mask', False)
-
-    # Rivers
-    rivers = ee.FeatureCollection("projects/satromo-prod/assets/res/CH_RiverNet")
-    # print('rivers',rivers.first())
-    # Make an image out of the land area attribute.
-    rivers_img = rivers.reduceToImage(
-        properties=['AREA_GEO'],
-        reducer=ee.Reducer.first()
-    )
-
-    # Make a binary mask and clip to area of interest
-    rivers_binary = rivers_img.gt(0).unmask().clip(aoi)
-    # # Map.addLayer(rivers_binary, {min:0, max:1}, 'river mask', False)
-
-    # combine both water masks
-    water_binary = rivers_binary.Or(lakes_binary)
-    # # Map.addLayer(water_binary, {min:0, max:1}, 'water mask', False)
-
-    ##############################
-    # REFERENCE DATA
-    # SwissALTI3d - very precise digital terrain model in a 10 m resolution
-    # source: https:#www.swisstopo.admin.ch/de/geodata/height/alti3d.html#download (inside CH)
-    # source: https:#www.swisstopo.admin.ch/de/geodata/height/dhm25.html#download (outside CH)
-    # processing: GDAL warp (reproject) to epsg32632 while resampling DHM25 to 10 m resolution, GDAL merge of SwissALTI3d on DHM25
-    DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
-    # # Map.addLayer(DEM_sa3d, {min: 0, max: 4000}, 'swissALTI3d', False)
     
     ##############################
     # LANDSAT SR DATA
     # Landsat 5 (1984-2013)
     L5_sr = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2") \
         .filter(ee.Filter.bounds(aoi)) \
-        .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
-        .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
+        .filter(ee.Filter.calendarRange(start_date.year, end_date.year, 'year')) \
+        .filter(ee.Filter.calendarRange(start_date.month, end_date.month, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
         .filter(ee.Filter.eq('IMAGE_QUALITY', 9)) \
         .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
@@ -625,8 +630,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     # Landsat 7 (1999-...)
     L7_sr = ee.ImageCollection("LANDSAT/LE07/C02/T1_L2") \
         .filter(ee.Filter.bounds(aoi)) \
-        .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
-        .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
+        .filter(ee.Filter.calendarRange(start_date.year, end_date.year, 'year')) \
+        .filter(ee.Filter.calendarRange(start_date.month, end_date.month, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
         .filter(ee.Filter.eq('IMAGE_QUALITY', 9)) \
         .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
@@ -634,8 +639,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     # Landsat 8 (2013-...)
     L8_sr = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2") \
         .filter(ee.Filter.bounds(aoi)) \
-        .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
-        .filter(ee.Filter.calendarRange(startmoy, moy, 'month')) \
+        .filter(ee.Filter.calendarRange(start_date.year, end_date.year, 'year')) \
+        .filter(ee.Filter.calendarRange(start_date.month, end_date.month, 'month')) \
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
         .filter(ee.Filter.eq('IMAGE_QUALITY_OLI', 9)) \
         .select(['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL', 'QA_RADSAT'])
@@ -645,9 +650,9 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                          ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
 
     # Merge to one single ee.ImageCollection containing all the Landsat images
-    # L57_sr = ee.ImageCollection(L7_sr.merge(L5_sr))
-    # L_sr = ee.ImageCollection(L8_sr.merge(L57_sr))
-    L_sr = L5_sr
+    L57_sr = ee.ImageCollection(L7_sr.merge(L5_sr))
+    L_sr = ee.ImageCollection(L8_sr.merge(L57_sr))
+    # L_sr = L5_sr
 
     # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
     VHI_col = ee.ImageCollection(config.PRODUCT_VHI_HIST['step1_collection']) \
@@ -660,62 +665,60 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # PROCESSING
         
         # ----- Landsat data (pre-processing) -----
-        # apply the cloud and cloud shadow masking function
-        L_sr = L_sr.map(lambda image: maskCloudsAndShadowsLsr(L_sr, water_binary))
-        
+        # apply the function to generate a cloud and cloud shadow mask
+        L_sr = L_sr.map(maskCloudsAndShadowsLsr)
+
         # add the snow cover (NDSI)
         L_sr = L_sr.map(addNDSI_L)
-        
-        # apply the terrain shadow function
-        L_sr = L_sr.map(lambda image: addTerrainShadow(L_sr, DEM_sa3d, water_binary))
-        
-	    # apply the topographic correction function
-        L_sr = L_sr.map(lambda image: topoCorr_L(L_sr, DEM_sa3d)) \
-            .map(topoCorr_SCSc_L)
-        
+
+        # apply the function to generate a terrain shadow mask
+        L_sr = L_sr.map(addTerrainShadow)
+
+        # apply the topographic correction function
+        L_sr = L_sr.map(topoCorr_L).map(topoCorr_SCSc_L)
+
         # get collection info
-        sensor_stats = main_utils.get_collection_info(L_sr)
+        sensor_stats = main_utils.get_collection_info_landsat(L_sr)
         
         # ----- NDVI -----
         # add the NDVI 
         NDVI = L_sr.map(calculateNDVI_L)
         
         # Get the total number and indices of all images used for the NDVI generation
-        # Sort the collection by time in descending order
-        sortedCollection = L_sr.sort('system:time_start', False)
         # Create list with indices of all used data
-        NDVI_index_list = sortedCollection.aggregate_array('system:index')
+        NDVI_index_list = L_sr.aggregate_array('system:index')
         NDVI_index_list = NDVI_index_list.join(',')
-        NDVI_scene_count = sortedCollection.size()
+        NDVI_scene_count = L_sr.size().getInfo()
     
 	    # get current NDVI from the mean
         NDVIj = NDVI.mean()
     
 	    # get reference NDVI
-        NDVIref = loadNdviRefData(moy)
+        NDVIref = loadNdviRefData(end_date.month)
     
 
         # ----- LST -----
         # get current LST
         LST_col = ee.ImageCollection("projects/satromo-prod/assets/col/LST_SWISS") \
             .filter(ee.Filter.bounds(aoi)) \
-            .filter(ee.Filter.calendarRange(startyear, year, 'year')) \
-            .filter(ee.Filter.calendarRange(startmoy, moy, 'month'))
-
+            .filter(ee.Filter.calendarRange(start_date.year, end_date.year, 'year')) \
+            .filter(ee.Filter.calendarRange(start_date.month, end_date.month, 'month'))
+       
         # Sort the collection by time in descending order
         sortedCollection = LST_col.sort('system:time_start', False)
+        
         # Create list with indices of all used data
         LST_index_list = sortedCollection.aggregate_array('system:index')
         LST_index_list = LST_index_list.join(',')
-        LST_scene_count = sortedCollection.size()
+        LST_scene_count = sortedCollection.size().getInfo()
     
         # Create a mosaic from the LST data
         LST_mosaic = LST_col.mean()
         LST_scale = ee.Number(100)
         LSTj = LST_mosaic.divide(LST_scale)
-    
+
         # get reference LST
-        LSTref = loadLstRefData(moy)
+        LSTref = loadLstRefData(end_date.month)
     
     
         # ----- VHI -----
@@ -759,15 +762,15 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         # set properties to the product to be exported
         VHI = VHI.set({
-            'moy': moy,
+            'moy': end_date.month,
             'alpha': alpha,
             'temporal_coverage': config.PRODUCT_VHI_HIST['temporal_coverage'],
             'missing_data': config.PRODUCT_VHI_HIST['missing_data'],
             'no_data': config.PRODUCT_VHI_HIST['no_data'],
             'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
             'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
-            'system:time_start': first_of_month.advance((d-1), 'month').millis(),
-            'system:time_end': last_of_month.millis(),
+            'system:time_start': datetime.datetime.timestamp(start_date),
+            'system:time_end': datetime.datetime.timestamp(end_date),
             'NDVI_reference_data': config.PRODUCT_VHI_HIST['NDVI_reference_data'],
             'NDVI_index_list': NDVI_index_list,
             'NDVI_scene_count': NDVI_scene_count,
@@ -778,7 +781,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             'GEE_api_version': ee_version,
             'pixel_size_meter': 30,
         })
-    
+        
         # mask vegetation
         VHI_vegetation = VHI
         VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
@@ -799,37 +802,37 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         aoi_exp = aoi
     	
         # SWITCH export - vegetation (Asset)
-        task_description = 'VHI_SWISS_' + ee.Date(first_of_month).format('YYYY-MM-dd').getInfo()
+        task_description = 'VHI_SWISS_' + datetime.datetime.strftime(first_of_month,'%Y-%m-%d')
         if exportVegetationAsset is True:
             print('Launching VHI export for vegetation')
             # Export asset
-        task = ee.batch.Export.image.toAsset(
-                image=VHI_vegetation.clip(aoi_exp),
-                scale=30,
-                description=task_description + '_VEGETATION_30m',
-                crs='EPSG:2056',
-            region=aoi_exp,
-            maxPixels=1e10,
-                assetId=config.PRODUCT_VHI_HIST['step1_collection'] +
-                    '/' + task_description + '_VEGETATION_30m',
-        )
+            task = ee.batch.Export.image.toAsset(
+                    image=VHI_vegetation.clip(aoi_exp),
+                    scale=30,
+                    description=task_description + '_VEGETATION_30m',
+                    crs='EPSG:2056',
+                    region=aoi_exp,
+                    maxPixels=1e10,
+                    assetId=config.PRODUCT_VHI_HIST['step1_collection'] + \
+                        '/' + task_description + '_VEGETATION_30m',
+            )
         task.start()
     	
         # SWITCH export - forest (Asset)
         if exportForestAsset is True:
             print('Launching VHI export for forests')
             # Export asset
-        task = ee.batch.Export.image.toAsset(
-                image=VHI_forest.clip(aoi_exp),
-                scale=30,
-                description=task_description + '_FOREST_30m',
-                crs='EPSG:2056',
-                region=aoi_exp,
-                maxPixels=1e10,
-                assetId=config.PRODUCT_VHI_HIST['step1_collection'] +
-                    '/' + task_description + '_FOREST_30m',
-        )
-        task.start()
+            task = ee.batch.Export.image.toAsset(
+                    image=VHI_forest.clip(aoi_exp),
+                    scale=30,
+                    description=task_description + '_FOREST_30m',
+                    crs='EPSG:2056',
+                    region=aoi_exp,
+                    maxPixels=1e10,
+                    assetId=config.PRODUCT_VHI_HIST['step1_collection'] + \
+                        '/' + task_description + '_FOREST_30m',
+            )
+            task.start()
     
     else:
         print(current_date_str+' is already in ' +
@@ -844,7 +847,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # Generate the filename
         ee_string = ee.String(config.PRODUCT_VHI_HIST['product_name'])
         py_string = ee_string.getInfo()
-        py_timestamp = timestamp.getInfo()
+        py_timestamp = timestamp
         filename = py_string + '_mosaic_' + py_timestamp + '_vegetation-30m'
         main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_vegetation,
@@ -854,7 +857,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # Generate the filename
         ee_string = ee.String(config.PRODUCT_VHI_HIST['product_name'])
         py_string = ee_string.getInfo()
-        py_timestamp = timestamp.getInfo()
+        py_timestamp = timestamp
         filename = py_string + '_mosaic_' + py_timestamp + '_forest-30m'
         main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_forest,
