@@ -6,6 +6,7 @@ import csv
 import os
 import json
 import pandas as pd
+import dateutil
 
 
 def is_date_in_empty_asset_list(collection, check_date_str):
@@ -175,6 +176,7 @@ def get_collection_info(collection):
         Returns (None, None, 0) for empty collections.
     """
     # Sort the collection by date in ascending order
+    breakpoint()
     sorted_collection = collection.sort('system:time_start')
 
     # Get the first and last image from the sorted collection
@@ -452,7 +454,7 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     Returns:
         None
     """
-
+    breakpoint()
     # Get current Processor Version from GitHub
     processor_version = get_github_info()
 
@@ -508,3 +510,28 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         json.dump(image_info_gee, json_file)
 
     return None
+
+
+def get_collection_info_landsat(collection):
+    """
+    Retrieves information about an image collection for the line of Landsat satellites
+
+    Args:
+        collection: The landsat image collection to retrieve information from.
+
+    Returns:
+        A tuple containing the first date, last date, and total number of images in the collection.
+        Returns (None, None, 0) for empty collections.
+    """
+    # Sort the collection by date in ascending order
+    index_list = collection.aggregate_array('system:index')
+
+    dates_list = [dateutil.parser.parse(i.split('_')[-1]) for i in index_list.getInfo()]
+
+    # Get the first and last image and size of image collection
+    image_count = len(dates_list) if len(dates_list)>0 else 0
+    first_date = min(dates_list) if image_count>0 else None
+    last_date = max(dates_list) if image_count>0 else None
+
+    # Return the first date, last date, and total number of scenes
+    return first_date, last_date, image_count
