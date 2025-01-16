@@ -1,7 +1,42 @@
 import geopandas as gpd
+"""
+This script generates maps for CDI (Combined Drought Index) and VHI (Vegetation Health Index) for different regions over multiple years. The maps are created using shapefiles and CSV data, and the output is saved as PNG images.
+Modules:
+    - geopandas: For handling geospatial data.
+    - pandas: For data manipulation and analysis.
+    - matplotlib.pyplot: For plotting maps.
+    - os: For handling file paths and directories.
+File paths:
+    - shapefile_path: Path to the shapefile containing region boundaries.
+    - csv_path: Path to the CSV file containing CDI and VHI data.
+    - output_folder: Path to the folder where output maps will be saved.
+VHI to HEX color mapping:
+    - vhi_ranges: List of tuples defining VHI value ranges.
+    - hex_colors: List of HEX color codes corresponding to VHI ranges.
+CDI to HEX color mapping:
+    - cdi_ranges: List of CDI values.
+    - cdi_hex_colors: List of HEX color codes corresponding to CDI values.
+Threshold:
+    - threshold_availability: Minimum availability threshold for VHI data.
+Functions:
+    - vhi_to_color(vhi): Maps VHI values to corresponding HEX colors.
+    - cdi_to_color(cdi): Maps CDI values to corresponding HEX colors.
+Workflow:
+    1. Create output folder if it doesn't exist.
+    2. Load shapefile and CSV data.
+    3. Ensure correct data types for date columns.
+    4. Map CDI values to colors and generate CDI maps.
+    5. Map VHI values to colors and generate VHI maps.
+    6. Save the generated maps as PNG images in the output folder.
+Output:
+    - CDI_all_years.png: Map showing CDI data for all years.
+    - VHI_all_years.png: Map showing VHI data for all years.
+"""
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+
+#
 
 # File paths
 shapefile_path = r"C:\temp\satromo-dev\assets\warnregionen_vhi_2056.shp"
