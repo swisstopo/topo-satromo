@@ -1,4 +1,4 @@
-import geopandas as gpd
+
 """
 This script generates maps for CDI (Combined Drought Index) and VHI (Vegetation Health Index) for different regions over multiple years. The maps are created using shapefiles and CSV data, and the output is saved as PNG images.
 Modules:
@@ -35,6 +35,7 @@ Output:
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import geopandas as gpd
 
 #
 
