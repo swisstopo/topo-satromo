@@ -14,7 +14,43 @@ import logging
 from functools import wraps
 import requests
 from collections import defaultdict
+"""
+util_treenet_extract.py
 
+This module provides utility functions for extracting and processing
+tree network data from various geospatial sources. It includes functions
+for constructing URLs, handling API retries, and other helper functions.
+ons
+ works with data  delivered by the Swiss Federal Office for the Environment (BAFU) as part of the TreeNet project.
+ adds new columns to the resulting CSV file:
+        - `mask_value`: The value from the mask data indicating the presence or absence of cloud / shadow, based on the MASK-10m bansd of SwissEO S2-SR.
+        - `vhi_value`: The Vegetation Health Index value extracted from the VHI data from FOREST-10m band of SwissEO VHI.
+
+
+"""
+
+import pystac_client
+import rasterio
+import geopandas as gpd
+from pyproj import CRS, Transformer
+from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+from shapely.geometry import Point
+import os
+from datetime import datetime
+from tqdm import tqdm
+import time
+import logging
+from functools import wraps
+import requests
+from collections import defaultdict
+
+# Previous helper functions remain the same
+def construct_url(datetime_str):
+    base_url = "https://data.geo.admin.ch/ch.swisstopo.swisseo_vhi_v100/"
+    timestamp = f"{datetime_str}t235959"
+    file_name = f"ch.swisstopo.swisseo_vhi_v100_mosaic_{timestamp}_forest-10m.tif"
 # Previous helper functions remain the same
 def construct_url(datetime_str):
     base_url = "https://data.geo.admin.ch/ch.swisstopo.swisseo_vhi_v100/"
