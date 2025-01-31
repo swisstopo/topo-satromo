@@ -100,8 +100,6 @@ def maskCloudsAndShadowsLsr(image):
                   and additional mask bands added.
 
     Note:
-        This function assumes the presence of global variables:
-        - water_binary: A binary mask of water bodies.
         This function assumes working in a UTM projection for shadow projection calculations.
         This function assumes band names according to Landsat 5 or 7.
     """
@@ -217,9 +215,6 @@ def addTerrainShadow(image):
         ee.Image: The input image with an additional 'terrainShadowMask' band.
 
     Note:
-        This function assumes the presence of global variables:
-        - DEM_sa3d: A digital elevation model for shadow calculation.
-        - water_binary: A binary mask of water bodies.
         The terrain shadow mask is refined using a buffer and dark pixel information.
     """
     DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
@@ -282,8 +277,6 @@ def topoCorr_L(img):
         ee.Image: The input image with added illumination condition and related bands.
 
     Note:
-        This function assumes the presence of global variables:
-        - DEM_sa3d: A digital elevation model for shadow calculation.
         The calculation uses radians for angular measurements.
     """
     DEM_sa3d = ee.Image("projects/satromo-prod/assets/res/SwissALTI3d_20kmBuffer_epsg32632")
@@ -360,6 +353,27 @@ def topoCorr_SCSc_L(img):
     # Specify Bands to topographically correct
     bandList = ee.List(
         ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'])
+    
+    def check_band_validity(image, band):
+        band_stats = image.select([band]).reduceRegion(
+            reducer=ee.Reducer.count(),
+            geometry=image.geometry(),
+            scale=30,
+            maxPixels=1e9
+        )
+        return ee.Number(band_stats.get(band)).gt(0)
+    
+    valid_bands = bandList.map(lambda band: ee.Algorithms.If(
+        check_band_validity(img_plus_ic_mask, band),
+        band,
+        None
+    )).removeAll([None])
+
+    empty_bands = bandList.map(lambda band: ee.Algorithms.If(
+        check_band_validity(img_plus_ic_mask, band),
+        None,
+        band
+    )).removeAll([None])
 
     # This function quantifies the linear relation between illumination and reflectance and corrects for it
     def apply_SCSccorr(band):
@@ -392,9 +406,10 @@ def topoCorr_SCSc_L(img):
         )
         out_c = ee.Number(out.get('offset')).divide(
             ee.Number(out.get('scale')))
-        # apply the SCSc correction
+
+        # Apply the SCSc correction
         SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
-            'image': img_plus_ic_mask.select([band, ]),
+            'image': img_plus_ic_mask.select([band]),
             'ic': img_plus_ic_mask.select('TC_illumination'),
             'cosB': img_plus_ic_mask.select('cosS'),
             'cosZ': img_plus_ic_mask.select('cosZ'),
@@ -402,24 +417,26 @@ def topoCorr_SCSc_L(img):
         })
         return ee.Image(SCSc_output)
 
-    # list all bands without topographic correction (to be added to the TC image)
+    # List all bands without topographic correction (to be added to the TC image)
     bandsWithoutTC = ee.List(
         ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask', 'ndsi'])
 
-    # add all bands and properties to the TC bands
+    # Add all bands and properties to the TC bands
     img_SCSccorr = ee.ImageCollection.fromImages(
-        bandList.map(apply_SCSccorr)).toBands().rename(bandList)
+        valid_bands.map(apply_SCSccorr)).toBands().rename(valid_bands)
 
+    img_SCSccorr = img_SCSccorr.addBands(
+        img_plus_ic.select(empty_bands))
+    
     img_SCSccorr = img_SCSccorr.addBands(
         img_plus_ic.select(bandsWithoutTC))
 
     img_SCSccorr = img_SCSccorr.copyProperties(
         img_plus_ic, img_plus_ic.propertyNames())
 
-    # flatten both lists into one
-    bandList_IC = ee.List([bandList, bandsWithoutTC]).flatten()
-
-    # unmasked the uncorrected pixel using the orignal image
+    # Flatten both lists into one
+    bandList_IC = ee.List([valid_bands, empty_bands, bandsWithoutTC]).flatten()
+    # Unmask the uncorrected pixel using the original image
     return ee.Image(img_SCSccorr).unmask(img_plus_ic.select(bandList_IC)).addBands(mask.rename('TC_mask'))
 
 
@@ -476,10 +493,7 @@ def calculateNDVI_L(image):
         image (ee.ImageCollection): Input Landsat image collection with required bands and masks.
 
     Returns:
-        tuple: A tuple containing:
-            - ee.Image: Single-band image containing NDVI values.
-            - ee.String: Comma-separated list of indices of all used scenes.
-            - ee.Number: Count of scenes used in the NDVI calculation.
+        ee.Image: Single-band image containing NDVI values.
 
     Note:
         This function assumes the input images have 'terrainShadowMask', 'cloudAndCloudShadowMask',
@@ -593,7 +607,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     start_date = current_date.replace(day = 1) - relativedelta(months = (d-1))
 
     first_of_month = current_date.replace(day = 1)
-    end_date = first_of_month.replace(month=first_of_month.month+1) - timedelta(days = 1)
+    end_date = first_of_month.replace(month=first_of_month.month+1) - timedelta(seconds = 1)
     
     timestamp = first_of_month.strftime('%Y-%m-%dT235959')
     
@@ -650,9 +664,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                          ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
 
     # Merge to one single ee.ImageCollection containing all the Landsat images
-    L57_sr = ee.ImageCollection(L7_sr.merge(L5_sr))
-    L_sr = ee.ImageCollection(L8_sr.merge(L57_sr))
-    # L_sr = L5_sr
+    L_sr = ee.ImageCollection(L5_sr.merge(L7_sr.merge(L8_sr)))
+
 
     # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
     VHI_col = ee.ImageCollection(config.PRODUCT_VHI_HIST['step1_collection']) \
@@ -665,17 +678,10 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # PROCESSING
         
         # ----- Landsat data (pre-processing) -----
-        # apply the function to generate a cloud and cloud shadow mask
-        L_sr = L_sr.map(maskCloudsAndShadowsLsr)
-
-        # add the snow cover (NDSI)
-        L_sr = L_sr.map(addNDSI_L)
-
-        # apply the function to generate a terrain shadow mask
-        L_sr = L_sr.map(addTerrainShadow)
-
-        # apply the topographic correction function
-        L_sr = L_sr.map(topoCorr_L).map(topoCorr_SCSc_L)
+        L_sr = L_sr.map(maskCloudsAndShadowsLsr) \
+            .map(addNDSI_L) \
+            .map(addTerrainShadow) \
+            .map(topoCorr_L).map(topoCorr_SCSc_L)
 
         # get collection info
         sensor_stats = main_utils.get_collection_info_landsat(L_sr)
@@ -683,14 +689,14 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # ----- NDVI -----
         # add the NDVI 
         NDVI = L_sr.map(calculateNDVI_L)
-        
+
         # Get the total number and indices of all images used for the NDVI generation
         # Create list with indices of all used data
         NDVI_index_list = L_sr.aggregate_array('system:index')
         NDVI_index_list = NDVI_index_list.join(',')
         NDVI_scene_count = L_sr.size().getInfo()
     
-	    # get current NDVI from the mean
+	    # get current NDVI
         NDVIj = NDVI.mean()
     
 	    # get reference NDVI
@@ -769,8 +775,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             'no_data': config.PRODUCT_VHI_HIST['no_data'],
             'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
             'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
-            'system:time_start': datetime.datetime.timestamp(start_date),
-            'system:time_end': datetime.datetime.timestamp(end_date),
+            'system:time_start': int(datetime.datetime.timestamp(start_date) *1000),
+            'system:time_end': int(datetime.datetime.timestamp(end_date) * 1000),
             'NDVI_reference_data': config.PRODUCT_VHI_HIST['NDVI_reference_data'],
             'NDVI_index_list': NDVI_index_list,
             'NDVI_scene_count': NDVI_scene_count,
@@ -800,7 +806,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     	
         # define the export aoi
         aoi_exp = aoi
-    	
+    
+
         # SWITCH export - vegetation (Asset)
         task_description = 'VHI_SWISS_' + datetime.datetime.strftime(first_of_month,'%Y-%m-%d')
         if exportVegetationAsset is True:
