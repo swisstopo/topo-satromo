@@ -875,7 +875,7 @@ if __name__ == "__main__":
                         # swisseo-vhi warnregions: create
 
                         # Check if we deal with VHI Vegetation or Forest files
-                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif','vegetation-30m.tif', 'forest-30m.tif']) is True:
                             print("Extracting warnregions stats...")
                             warnregionfilename = metadata['SWISSTOPO']['PRODUCT']+"_"+metadata['SWISSTOPO']['ITEM'] + \
                                 "_" + \
@@ -938,7 +938,7 @@ if __name__ == "__main__":
                             os.rename(file_merged_current, file_merged)
 
                             # Pushing Warnregions CSV , GEOJSON and PARQUET
-                            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                            if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif','vegetation-30m.tif', 'forest-30m.tif']) is True:
                                 # create filepath
                                 warnregionfilename_current = re.sub(
                                     r'\d{4}-\d{2}-\d{2}T\d{6}', 'current', warnregionfilename)
@@ -961,7 +961,7 @@ if __name__ == "__main__":
                             file_merged, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))
 
                         # Pushing Warnregions CSV , GEOJSON and PARQUET
-                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif']) is True:
+                        if check_substrings_presence(file_merged, metadata['SWISSTOPO']['PRODUCT'], ['vegetation-10m.tif', 'forest-10m.tif','vegetation-30m.tif', 'forest-30m.tif']) is True:
                             for format in warnformats:
                                 move_files_with_rclone(
                                     warnregionfilename+format, os.path.join(S3_DESTINATION, metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['ITEM']))

@@ -104,7 +104,7 @@ def maskCloudsAndShadowsLsr(image):
         This function assumes band names according to Landsat 5 or 7.
     """
     water_binary = watermask()
-    
+
     if isinstance(image, ee.ImageCollection):
         image = image.first()
 
@@ -324,19 +324,19 @@ def topoCorr_SCSc_L(img):
     """
     Applies the sun-canopy-sensor+C (SCSc) topographic correction to a Landsat image.
 
-    This function implements the SCSc topographic correction method (Soenen et al. 2005) 
-    to adjust reflectance values in mountainous terrain. It corrects for illumination 
+    This function implements the SCSc topographic correction method (Soenen et al. 2005)
+    to adjust reflectance values in mountainous terrain. It corrects for illumination
     differences due to topography in specified bands.
 
     Args:
-        img (ee.Image): Input Landsat image with added illumination condition bands 
+        img (ee.Image): Input Landsat image with added illumination condition bands
                         (output from topoCorr_L function).
 
     Returns:
         ee.Image: Topographically corrected image with original properties and additional 'TC_mask' band.
 
     Note:
-        - This function assumes the input image has 'slope', 'TC_illumination', and other bands 
+        - This function assumes the input image has 'slope', 'TC_illumination', and other bands
           added by the topoCorr_L function.
         - It applies correction to bands 'SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'.
         - Pixels with slope < 5 degrees or TC_illumination < 0.1 are masked from correction.
@@ -353,7 +353,7 @@ def topoCorr_SCSc_L(img):
     # Specify Bands to topographically correct
     bandList = ee.List(
         ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'])
-    
+
     def check_band_validity(image, band):
         band_stats = image.select([band]).reduceRegion(
             reducer=ee.Reducer.count(),
@@ -362,7 +362,7 @@ def topoCorr_SCSc_L(img):
             maxPixels=1e9
         )
         return ee.Number(band_stats.get(band)).gt(0)
-    
+
     valid_bands = bandList.map(lambda band: ee.Algorithms.If(
         check_band_validity(img_plus_ic_mask, band),
         band,
@@ -427,7 +427,7 @@ def topoCorr_SCSc_L(img):
 
     img_SCSccorr = img_SCSccorr.addBands(
         img_plus_ic.select(empty_bands))
-    
+
     img_SCSccorr = img_SCSccorr.addBands(
         img_plus_ic.select(bandsWithoutTC))
 
@@ -458,10 +458,10 @@ def loadNdviRefData(moy):
         ee.Image: Processed NDVI reference data for the specified month.
 
     Note:
-        - This function assumes the presence of a 'config' object with a 'PRODUCT_VHI_HIST' 
+        - This function assumes the presence of a 'config' object with a 'PRODUCT_VHI_HIST'
           dictionary containing 'NDVI_reference_data' key.
         - The asset name is constructed using the month number (zero-padded to two digits).
-        - The function applies offset and scale corrections based on properties stored 
+        - The function applies offset and scale corrections based on properties stored
           in the original asset.
     """
     moy2 = ee.String(ee.Number(moy).format('%02d')).getInfo()  # 1 -> 01
@@ -531,7 +531,7 @@ def loadLstRefData(moy):
         ee.Image: Processed LST reference data for the specified month.
 
     Note:
-        - This function assumes the presence of a 'config' object with a 'PRODUCT_VHI_HIST' 
+        - This function assumes the presence of a 'config' object with a 'PRODUCT_VHI_HIST'
           dictionary containing 'LST_reference_data' key.
         - The asset name is constructed using the month number (zero-padded to two digits).
         - The function applies scale correction based on a property stored in the original asset.
@@ -580,7 +580,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     # PRODUCT
     product_name = config.PRODUCT_VHI_HIST['product_name']
     print("********* processing {} *********".format(product_name))
-    
+
     ##############################
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
@@ -601,16 +601,16 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     ##############################
     # TIME
     d = int(config.PRODUCT_VHI_HIST['temporal_coverage'])
-    
+
     current_date = dateutil.parser.parse(current_date_str).replace(tzinfo=tz.tzutc(), hour=0, minute=0, second=0, microsecond=0)
 
     start_date = current_date.replace(day = 1) - relativedelta(months = (d-1))
 
     first_of_month = current_date.replace(day = 1)
     end_date = first_of_month + relativedelta(months=1) - timedelta(seconds=1)
-    
+
     timestamp = first_of_month.strftime('%Y-%m-%dT235959')
-    
+
     ##############################
     # PARAMETERS
     alpha = 0.5
@@ -619,7 +619,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         CI_method = '5th_and_95th_percentile'
     else:
         CI_method = 'min_and_max'
-    
+
     ##############################
     # MASKS
     # Vegetation masks
@@ -628,8 +628,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     # Mask for the forest
     forest_mask = ee.Image(
         'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
-    
-    
+
+
     ##############################
     # LANDSAT SR DATA
     # Landsat 5 (1984-2013)
@@ -649,7 +649,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
         .filter(ee.Filter.eq('IMAGE_QUALITY', 9)) \
         .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
-    
+
     # Landsat 8 (2013-...)
     L8_sr = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2") \
         .filter(ee.Filter.bounds(aoi)) \
@@ -658,7 +658,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         .filter(ee.Filter.lt('GEOMETRIC_RMSE_MODEL', 15)) \
         .filter(ee.Filter.eq('IMAGE_QUALITY_OLI', 9)) \
         .select(['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL', 'QA_RADSAT'])
-    
+
     # Rename the bands for Landsat 8 to correspond to the band names of Landsat 5 and 7
     L8_sr = L8_sr.select(['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
                          ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
@@ -676,7 +676,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         ###########################################
         # PROCESSING
-        
+
         # ----- Landsat data (pre-processing) -----
         L_sr = L_sr.map(maskCloudsAndShadowsLsr) \
             .map(addNDSI_L) \
@@ -685,9 +685,9 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         # get collection info
         sensor_stats = main_utils.get_collection_info_landsat(L_sr)
-        
+
         # ----- NDVI -----
-        # add the NDVI 
+        # add the NDVI
         NDVI = L_sr.map(calculateNDVI_L)
 
         # Get the total number and indices of all images used for the NDVI generation
@@ -695,13 +695,13 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         NDVI_index_list = L_sr.aggregate_array('system:index')
         NDVI_index_list = NDVI_index_list.join(',')
         NDVI_scene_count = L_sr.size().getInfo()
-    
+
 	    # get current NDVI
         NDVIj = NDVI.mean()
-    
+
 	    # get reference NDVI
         NDVIref = loadNdviRefData(end_date.month)
-    
+
 
         # ----- LST -----
         # get current LST
@@ -709,15 +709,15 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             .filter(ee.Filter.bounds(aoi)) \
             .filter(ee.Filter.calendarRange(start_date.year, end_date.year, 'year')) \
             .filter(ee.Filter.calendarRange(start_date.month, end_date.month, 'month'))
-       
+
         # Sort the collection by time in descending order
         sortedCollection = LST_col.sort('system:time_start', False)
-        
+
         # Create list with indices of all used data
         LST_index_list = sortedCollection.aggregate_array('system:index')
         LST_index_list = LST_index_list.join(',')
         LST_scene_count = sortedCollection.size().getInfo()
-    
+
         # Create a mosaic from the LST data
         LST_mosaic = LST_col.mean()
         LST_scale = ee.Number(100)
@@ -725,8 +725,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         # get reference LST
         LSTref = loadLstRefData(end_date.month)
-    
-    
+
+
         # ----- VHI -----
         # Calculate VCI
         if workWithPercentiles is True:
@@ -749,24 +749,31 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
             'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
             print('--- TCI calculated (with min and max reference values) ---')
-    
+
         # Calculate VHI
         VHI = VCI.multiply(alpha).add(TCI.multiply(1-alpha)).rename('vhi')
         print('--- VHI calculated ---')
-    
+
         # converting the data type (to UINT8) and force data range (to [0 100])
         VHI = VHI.uint8().clamp(0, 100)
-    
+
         # add no data value for when one of the datasets is unavailable
         VHI = VHI.unmask(config.PRODUCT_VHI_HIST['missing_data'])
-    
+
         # Set data properties
         # Getting swisstopo Processor Version
         processor_version = main_utils.get_github_info()
         # Earth Engine version
         ee_version = ee.__version__
 
+        # Get the collections used
+        collections = main_utils.config.PRODUCT_VHI_HIST['image_collection']
+
+        # Extract the set from the list and join the elements
+        collection_string = " ".join(list(collections)[0])
+
         # set properties to the product to be exported
+        
         VHI = VHI.set({
             'moy': end_date.month,
             'alpha': alpha,
@@ -775,6 +782,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             'no_data': config.PRODUCT_VHI_HIST['no_data'],
             'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
             'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
+            'collection': collection_string,
             'system:time_start': int(datetime.datetime.timestamp(start_date) *1000),
             'system:time_end': int(datetime.datetime.timestamp(end_date) * 1000),
             'NDVI_reference_data': config.PRODUCT_VHI_HIST['NDVI_reference_data'],
@@ -787,7 +795,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             'GEE_api_version': ee_version,
             'pixel_size_meter': 30,
         })
-        
+
         # mask vegetation
         VHI_vegetation = VHI
         VHI_vegetation = VHI_vegetation.updateMask(vegetation_mask.eq(1))
@@ -799,14 +807,14 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         VHI_forest = VHI_forest.updateMask(forest_mask.eq(1))
         # add the no data value to all masked pixels
         VHI_forest = VHI_forest.unmask(config.PRODUCT_VHI_HIST['no_data'])
-    
+
 
         ##############################
         # EXPORT
-    	
+
         # define the export aoi
         aoi_exp = aoi
-    
+
 
         # SWITCH export - vegetation (Asset)
         task_description = 'VHI_SWISS_' + datetime.datetime.strftime(first_of_month,'%Y-%m-%d')
@@ -824,7 +832,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                         '/' + task_description + '_VEGETATION_30m',
             )
         task.start()
-    	
+
         # SWITCH export - forest (Asset)
         if exportForestAsset is True:
             print('Launching VHI export for forests')
@@ -840,7 +848,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                         '/' + task_description + '_FOREST_30m',
             )
             task.start()
-    
+
     else:
         print(current_date_str+' is already in ' +
             config.PRODUCT_VHI_HIST['step1_collection'])
@@ -869,4 +877,4 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_forest,
                                 sensor_stats, current_date_str)
-        
+

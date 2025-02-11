@@ -87,15 +87,15 @@ def get_github_info():
 
 def get_product_from_techname(techname):
     """
-    This function searches for a dictionary in the 'config' module that contains 
+    This function searches for a dictionary in the 'config' module that contains
     'product_name' with a specified value and returns it.
 
     Parameters:
-    techname (str): The value of 'product_name' to search for. 
+    techname (str): The value of 'product_name' to search for.
                     For example, 'ch.swisstopo.swisseo_s2-sr_v100'.
 
     Returns:
-    dict: The dictionary that contains 'product_name' with the value of 'techname'. 
+    dict: The dictionary that contains 'product_name' with the value of 'techname'.
           If no such dictionary is found, it returns None.
     """
 
@@ -182,7 +182,7 @@ def get_collection_info(collection):
     # Get the first and last image from the sorted collection
     first_image = sorted_collection.first()
     last_image = sorted_collection.sort('system:time_start', False).first()
-    
+
     try:
         # Get the count of images in the collection
         image_count = collection.size().getInfo()
@@ -443,7 +443,7 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
 
     Args:
         roi (ee.Geometry): Region of interest for the export.
-        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT235959" for a day 
+        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT235959" for a day
         productasset (str): Base filename for the exported files.
         productname (str): Product name of the exported files.
         scale (str): Scalenumber in [m] of the exported file
@@ -454,7 +454,7 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
     Returns:
         None
     """
-    breakpoint()
+
     # Get current Processor Version from GitHub
     processor_version = get_github_info()
 
