@@ -607,7 +607,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     start_date = current_date.replace(day = 1) - relativedelta(months = (d-1))
 
     first_of_month = current_date.replace(day = 1)
-    end_date = first_of_month.replace(month=first_of_month.month+1) - timedelta(seconds = 1)
+    end_date = first_of_month + relativedelta(months=1) - timedelta(seconds=1)
     
     timestamp = first_of_month.strftime('%Y-%m-%dT235959')
     
