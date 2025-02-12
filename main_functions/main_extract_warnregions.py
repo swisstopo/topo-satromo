@@ -20,7 +20,7 @@ Usage:
 # shapefile with warnregions
 shape_file = r"C:\temp\topo-satromo\assets\warnregionen_vhi_2056.shp"
 
-# raster file from URL / file 
+# raster file from URL / file
 raster_url = r"C:\temp\topo-satromo\ch.swisstopo.swisseo_vhi_v100_mosaic_2023-07-13T235959_vegetation-10m.tif"
 
 # missing data values
@@ -134,7 +134,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
 
     # Add the date to each region in UTC
     # gdf[date_column] = datetime.strptime(dateISO8601, "%Y-%m-%dT%H:%M:%SZ")
-    gdf[date_column] = pd.to_datetime(dateISO8601).tz_convert('UTC')
+    gdf[date_column]= pd.to_datetime(dateISO8601).tz_convert('UTC').floor('S')
     # gdf[date_column] = gdf[date_column].astype()
 
     # Export the converted GeoDataFrame to a geoparquet file
