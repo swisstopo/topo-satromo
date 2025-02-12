@@ -87,13 +87,14 @@ def watermask():
 # which Landsat sensor does the used data originate from?
 def get_collection_strings(merged_collection):
     """
-    Identifies which Landsat collections are present in a merged ImageCollection.
+    Identifies which Landsat collections are present in a merged ImageCollection
+    using collection filtering instead of aggregations.
     
     Args:
         merged_collection: ee.ImageCollection - Merged collection of Landsat images
         
     Returns:
-        list: List of collection ID strings for the collections present in the merged collection
+        list: List of collection ID strings present in the merged collection
     """
     # Define the possible collection IDs
     collection_ids = [
@@ -102,25 +103,20 @@ def get_collection_strings(merged_collection):
         'LANDSAT/LC08/C02/T1_L2'
     ]
     
-    # Get all images in the collection
-    image_list = merged_collection.toList(merged_collection.size())
+    found_collections = []
     
-    # Initialize an empty set to store found collections
-    found_collections = set()
-    
-    # Map over the collection to get collection IDs
-    size = image_list.size().getInfo()
-    
-    for i in range(size):
-        image = ee.Image(image_list.get(i))
-        system_id = image.get('system:id').getInfo()
+    # Check for each collection's presence using size()
+    for collection_id in collection_ids:
+        # Filter images that contain this collection ID in their system:id
+        filtered = merged_collection.filter(
+            ee.Filter.stringContains('system:id', collection_id)
+        )
         
-        # Extract collection ID from system:id
-        for collection_id in collection_ids:
-            if collection_id in system_id:
-                found_collections.add(collection_id)
-                
-    return list(found_collections)
+        # If the filtered collection has any images, add this collection_id
+        if filtered.size().getInfo() > 0:
+            found_collections.append(collection_id)
+    
+    return found_collections
 
 # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
 def maskCloudsAndShadowsLsr(image):
