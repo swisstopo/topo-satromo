@@ -84,6 +84,44 @@ def watermask():
 # Functions for processing Landsat data
 # -----------------------------------------
 
+# which Landsat sensor does the used data originate from?
+def get_collection_strings(merged_collection):
+    """
+    Identifies which Landsat collections are present in a merged ImageCollection.
+    
+    Args:
+        merged_collection: ee.ImageCollection - Merged collection of Landsat images
+        
+    Returns:
+        list: List of collection ID strings for the collections present in the merged collection
+    """
+    # Define the possible collection IDs
+    collection_ids = [
+        'LANDSAT/LT05/C02/T1_L2',
+        'LANDSAT/LE07/C02/T1_L2',
+        'LANDSAT/LC08/C02/T1_L2'
+    ]
+    
+    # Get all images in the collection
+    image_list = merged_collection.toList(merged_collection.size())
+    
+    # Initialize an empty set to store found collections
+    found_collections = set()
+    
+    # Map over the collection to get collection IDs
+    size = image_list.size().getInfo()
+    
+    for i in range(size):
+        image = ee.Image(image_list.get(i))
+        system_id = image.get('system:id').getInfo()
+        
+        # Extract collection ID from system:id
+        for collection_id in collection_ids:
+            if collection_id in system_id:
+                found_collections.add(collection_id)
+                
+    return list(found_collections)
+
 # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
 def maskCloudsAndShadowsLsr(image):
     """
@@ -664,7 +702,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                          ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL', 'QA_RADSAT'])
 
     # Merge to one single ee.ImageCollection containing all the Landsat images
-    L_sr = ee.ImageCollection(L5_sr.merge(L7_sr.merge(L8_sr)))
+    L_sr = L5_sr.merge(L7_sr).merge(L8_sr)
 
 
     # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
@@ -767,10 +805,9 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         ee_version = ee.__version__
 
         # Get the collections used
-        collections = main_utils.config.PRODUCT_VHI_HIST['image_collection']
-
+        collections = get_collection_strings(L_sr)
         # Extract the set from the list and join the elements
-        collection_string = " ".join(list(collections)[0])
+        collection_string = ', '.join(collections)
 
         # set properties to the product to be exported
         
