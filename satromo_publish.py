@@ -338,8 +338,15 @@ def merge_files_with_gdal_warp(source):
                # "-r", "near", #enforce nearest with cutline
                ]
     # print(command)
-    result = subprocess.run(command, check=True,
-                            capture_output=True, text=True)
+    try:
+        result = subprocess.run(command, check=True,
+                                capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occured in gdalwarp process: {e}")
+        print("Output")
+        print(e.output)
+        raise
+        
     # print(result)
 
     # For Debugging uncomment  below
