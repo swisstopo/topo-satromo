@@ -84,40 +84,6 @@ def watermask():
 # Functions for processing Landsat data
 # -----------------------------------------
 
-# which Landsat sensor does the used data originate from?
-def get_collection_strings(merged_collection):
-    """
-    Identifies which Landsat collections are present in a merged ImageCollection
-    using collection filtering instead of aggregations.
-    
-    Args:
-        merged_collection: ee.ImageCollection - Merged collection of Landsat images
-        
-    Returns:
-        list: List of collection ID strings present in the merged collection
-    """
-    # Define the possible collection IDs
-    collection_ids = [
-        'LANDSAT/LT05/C02/T1_L2',
-        'LANDSAT/LE07/C02/T1_L2',
-        'LANDSAT/LC08/C02/T1_L2'
-    ]
-    
-    found_collections = []
-    
-    # Check for each collection's presence using size()
-    for collection_id in collection_ids:
-        # Filter images that contain this collection ID in their system:id
-        filtered = merged_collection.filter(
-            ee.Filter.stringContains('system:id', collection_id)
-        )
-        
-        # If the filtered collection has any images, add this collection_id
-        if filtered.size().getInfo() > 0:
-            found_collections.append(collection_id)
-    
-    return found_collections
-
 # This function masks clouds & cloud shadows based on the QA quality bands of Landsat
 def maskCloudsAndShadowsLsr(image):
     """
@@ -621,8 +587,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     exportVegetationAsset = True
     exportForestAsset = True
     # options: True, False
-    exportVegetationDrive = True
-    exportForestDrive = True
+    exportVegetationDrive = False
+    exportForestDrive = False
     # options: True, False
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
@@ -801,9 +767,10 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         ee_version = ee.__version__
 
         # Get the collections used
-        collections = get_collection_strings(L_sr)
+        collections = main_utils.config.PRODUCT_VHI_HIST['image_collection']
+
         # Extract the set from the list and join the elements
-        collection_string = ', '.join(collections)
+        collection_string = " ".join(list(collections)[0])
 
         # set properties to the product to be exported
         
