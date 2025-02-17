@@ -351,12 +351,12 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
 
             # Calculate TCI
             if workWithPercentiles is True:
-                TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
+                TCI = LSTref.select('p95').subtract(LSTj).divide(LSTref.select(
                     'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
                 print(
                     '--- TCI calculated (with 5th and 95th percentile reference values) ---')
             else:
-                TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
+                TCI = LSTref.select('max').subtract(LSTj).divide(LSTref.select(
                     'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
                 print('--- TCI calculated (with min and max reference values) ---')
 
