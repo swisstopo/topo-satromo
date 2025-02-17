@@ -230,6 +230,8 @@ def create_thumbnail(inputfile_name, product):
 
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
+            print("Output")
+            print(e.output)
             return False
 
     # VHI Use case
