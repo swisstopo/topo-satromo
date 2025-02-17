@@ -404,17 +404,33 @@ def topoCorr_SCSc_L(img):
             bestEffort=True,
             tileScale=16
         )
-        out_c = ee.Number(out.get('offset')).divide(
-            ee.Number(out.get('scale')))
 
+        # Get coefficients with error handling
+        scale = ee.Number(out.get('scale'))
+        offset = ee.Number(out.get('offset'))
+
+        out_c = ee.Number(offset.divide(scale))\
+                    .max(0.01)\
+                    .min(2.0)  # Limit c-value to reasonable range
+
+        # Create a condition to check if correction should be applied
+        valid_correction = scale.neq(0)\
+                            .And(offset.neq(None))\
+                            .And(scale.neq(None))
+    
         # Apply the SCSc correction
-        SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
-            'image': img_plus_ic_mask.select([band]),
-            'ic': img_plus_ic_mask.select('TC_illumination'),
-            'cosB': img_plus_ic_mask.select('cosS'),
-            'cosZ': img_plus_ic_mask.select('cosZ'),
-            'cvalue': out_c
-        })
+        SCSc_output = ee.Image(ee.Algorithms.If(
+            valid_correction,
+            img_plus_ic_mask.expression(
+                "((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
+                'image': img_plus_ic_mask.select([band]),
+                'ic': img_plus_ic_mask.select('TC_illumination'),
+                'cosB': img_plus_ic_mask.select('cosS'),
+                'cosZ': img_plus_ic_mask.select('cosZ'),
+                'cvalue': out_c
+            }),
+            img_plus_ic_mask.select([band])
+        ))
         return ee.Image(SCSc_output)
 
     # List all bands without topographic correction (to be added to the TC image)
@@ -741,13 +757,13 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
         # Calculate TCI
         if workWithPercentiles is True:
-            TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
+            TCI = LSTref.select('p95').subtract(LSTj).divide(LSTref.select(
                 'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
             print(
-            '--- TCI calculated (with 5th and 95th percentile reference values) ---')
+                '--- TCI calculated (with 5th and 95th percentile reference values) ---')
         else:
-            TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
-            'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
+            TCI = LSTref.select('max').subtract(LSTj).divide(LSTref.select(
+                'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
             print('--- TCI calculated (with min and max reference values) ---')
 
         # Calculate VHI
