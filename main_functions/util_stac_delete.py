@@ -40,13 +40,6 @@ import requests
 from urllib.parse import urljoin
 import json
 
-# ...rest of the code...
-import pystac_client
-from typing import Dict, List, Generator
-import logging
-import requests
-from urllib.parse import urljoin
-import json
 
 def load_credentials(config_path: str) -> tuple:
     """
