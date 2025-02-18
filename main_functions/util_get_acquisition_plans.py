@@ -177,6 +177,7 @@ s2_tree = html.parse(ul.urlopen(S2_URL))
 
 liElementsS2A = []
 liElementsS2B = []
+liElementsS2C = []
 for tree in [s2_tree]:
     bodyElement = tree.findall('./')[1]
 
@@ -188,41 +189,53 @@ for tree in [s2_tree]:
         for li in div.findall('.//li'):
             liElementsS2B.append(li)
 
-# Extract .kml file links for Sentinel-2A and Sentinel-2B
+    for div in bodyElement.find(".//div[@class='sentinel-2c']"):
+        for li in div.findall('.//li'):
+            liElementsS2C.append(li)
+
+# Extract .kml file links for Sentinel-2A and Sentinel-2B and Sentinel-2C
 kml_dict_s2a = parse_kml_elements(liElementsS2A, URL_KML_PREFIX)
 kml_dict_s2b = parse_kml_elements(liElementsS2B, URL_KML_PREFIX)
+kml_dict_s2c = parse_kml_elements(liElementsS2C, URL_KML_PREFIX)
 
-# Find the latest .kml file for Sentinel-2A and Sentinel-2B
+# Find the latest .kml file for Sentinel-2A and Sentinel-2B and Sentinel-2C
 s2a_key = get_latest_kml(kml_dict_s2a)
 s2b_key = get_latest_kml(kml_dict_s2b)
+s2c_key = get_latest_kml(kml_dict_s2c)
 
-# Download and process the .kml files for Sentinel-2A and Sentinel-2B
+# Download and process the .kml files for Sentinel-2A and Sentinel-2B and Sentinel-2C
 S2A_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2a[s2a_key], 'S2A_acquisition_plan', STORAGE_PATH, extract_area=True) if s2a_key else False
 S2B_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2b[s2b_key], 'S2B_acquisition_plan', STORAGE_PATH, extract_area=True) if s2b_key else False
+S2C_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2c[s2c_key], 'S2C_acquisition_plan', STORAGE_PATH, extract_area=True) if s2c_key else False
 
 # Merge the two files, add publish date and remove dates older than today
 MERGE_OK = merge_aoi_files(STORAGE_PATH,os.path.join(STORAGE_PATH,'tools','acquisitionplan.csv'))
 
 # Report success or failure
-if not (S2A_OK and S2B_OK and MERGE_OK ):
-    print("\nFailed to download and extract all Sentinel-2 data.")
+if not (S2A_OK and S2B_OK and S2C_OK and MERGE_OK):
+    print(f"")
+    print(f"**********************")
+    print(f"Sentinel-2A: {'Success' if S2A_OK else 'no planned aquisitions'}")
+    print(f"Sentinel-2B: {'Success' if S2B_OK else 'no planned aquisitions'}")
+    print(f"Sentinel-2C: {'Success' if S2C_OK else 'no planned aquisitions'}")
+    print(f"Merge: {'Success' if MERGE_OK else 'Failed'}")
 else:
     print("\nAll Sentinel-2 downloads and operations completed successfully.")
 
-    # Clean pattern
-    # Pattern for files to delete
-    patterns = ["S2A_acquisition_plan*", "S2B_acquisition_plan*"]
+# Clean pattern
+# Pattern for files to delete
+patterns = ["S2A_acquisition_plan*", "S2B_acquisition_plan*", "S2C_acquisition_plan*"]
 
-    # Iterate through the patterns
-    for pattern in patterns:
-        # Find all files matching the pattern
-        matching_files = glob.glob(os.path.join(STORAGE_PATH, pattern))
+# Iterate through the patterns
+for pattern in patterns:
+    # Find all files matching the pattern
+    matching_files = glob.glob(os.path.join(STORAGE_PATH, pattern))
 
-        # Delete each matching file
-        for file in matching_files:
-            try:
-                os.remove(file)
-                #print(f"Deleted: {file}")
-            except OSError as e:
-                print(f"Error deleting {file}: {e}")
+    # Delete each matching file
+    for file in matching_files:
+        try:
+            os.remove(file)
+            #print(f"Deleted: {file}")
+        except OSError as e:
+            print(f"Error deleting {file}: {e}")
 
