@@ -34,7 +34,7 @@ def extract_S2_entries(platform, infile, outfile, outpath, polygon_wkt):
     Returns:
         bool: True if extraction succeeds, False otherwise.
     """
-    
+
     # Create the AOI geometry from the WKT string
     aoi_polygon = loads(polygon_wkt)
 
@@ -112,7 +112,7 @@ def main():
 
     # Perform the extraction
     success = extract_S2_entries(platform, infile, outfile, outpath, polygon_wkt)
-    
+
     if success:
         print("Script completed successfully.")
     else:

@@ -176,7 +176,7 @@ def get_collection_info(collection):
         Returns (None, None, 0) for empty collections.
     """
     # Sort the collection by date in ascending order
-    breakpoint()
+
     sorted_collection = collection.sort('system:time_start')
 
     # Get the first and last image from the sorted collection

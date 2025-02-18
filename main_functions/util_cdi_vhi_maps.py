@@ -50,7 +50,7 @@ hex_colors = ['#b56a29', '#ce8540', '#f5cd85', '#fff5ba', '#cbffca', '#52bd9f', 
 
 # CDI to HEX color mapping
 cdi_ranges = [1,2,3,4,5]
-cdi_hex_colors = ['#8bbb7d','#f5cd85','#e1a664','#b87437']
+cdi_hex_colors = ['#6EAAC8','#FFF5BA','#F5CD84','#CD853F','#965123']
 
 # THRESHOLD AVILABILITY
 threshold_availability = 20
