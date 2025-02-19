@@ -167,6 +167,60 @@ def maskCloudsAndShadowsLsr(image):
 
     return image
 
+def filter_by_valid_pixels(image_collection, aoi=None, mask_band='cloudAndCloudShadowMask', min_valid_pixels=1000):
+    """
+    Filter an image collection to remove images where the mask covers too much of the image within an AOI.
+    Uses server-side functions compatible with GEE.
+    
+    Args:
+        image_collection: ee.ImageCollection
+            The input image collection to filter
+        aoi: ee.Geometry or None
+            Area of interest to consider when counting valid pixels. 
+            If None, uses the entire image geometry
+        mask_band: str
+            Name of the mask band to check
+        min_valid_pixels: int
+            Minimum number of unmasked pixels required to keep an image
+            
+    Returns:
+        ee.ImageCollection: Filtered collection containing only images with sufficient valid pixels
+    """
+    # Convert min_valid_pixels to ee.Number to ensure server-side computation
+    min_pixels = ee.Number(min_valid_pixels)
+    
+    def count_valid_pixels(image):
+        # Get the mask band
+        mask = image.select(mask_band)
+        
+        # Define the geometry to use
+        count_geometry = ee.Algorithms.If(
+            ee.Algorithms.IsEqual(aoi, None),
+            image.geometry(),
+            aoi
+        )
+        
+        # Count pixels that are not masked (value = 0 typically means unmasked)
+        valid_pixels = mask.eq(0).reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=count_geometry,
+            scale=30,  # Landsat resolution
+            maxPixels=1e9
+        ).get(mask_band)
+        
+        # Add the count as a property
+        return image.set('valid_pixel_count', valid_pixels)
+
+    # Add valid pixel count as a property to each image
+    collection_with_counts = image_collection.map(lambda image: count_valid_pixels(image))
+    
+    # Filter based on minimum pixel requirement using ee.Filter
+    filtered_collection = collection_with_counts.filter(
+        ee.Filter.gte('valid_pixel_count', min_pixels)
+    )
+    
+    return filtered_collection
+
 
 # This function detects snow cover
 def addNDSI_L(image):
@@ -712,8 +766,13 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         # PROCESSING
 
         # ----- Landsat data (pre-processing) -----
-        L_sr = L_sr.map(maskCloudsAndShadowsLsr) \
-            .map(addNDSI_L) \
+        L_sr = L_sr.map(maskCloudsAndShadowsLsr)
+
+        # Exlcude images with too many cloud masked pixels from the collection
+        L_sr = filter_by_valid_pixels(
+            L_sr, aoi=aoi, mask_band='cloudAndCloudShadowMask', min_valid_pixels=10000)
+
+        L_sr = L_sr.map(addNDSI_L) \
             .map(addTerrainShadow) \
             .map(topoCorr_L).map(topoCorr_SCSc_L)
 
