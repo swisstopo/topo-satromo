@@ -319,6 +319,7 @@ def topoCorr_L(img):
             slp.rename('slope')))
     return img_plus_ic
 
+
 # This function applies the sun-canopy-sensor+C topographic correction (Soenen et al. 2005)
 def topoCorr_SCSc_L(img):
     """
@@ -344,15 +345,23 @@ def topoCorr_SCSc_L(img):
     """
     img_plus_ic = img
 
-    # masking flat, shadowed, and incorrect pixels (these get excluded from the topographic correction)
+    # masking flat, shadowed, and incorrect pixels
     mask = img_plus_ic.select('slope').gte(5) \
         .And(img_plus_ic.select('TC_illumination').gte(0.1)) \
         .And(img_plus_ic.select('SR_B4').gt(-0.1))
+    
+    # Check if mask leaves enough valid pixels
+    mask_stats = mask.reduceRegion(
+        reducer=ee.Reducer.sum(),
+        geometry=img.geometry(),
+        scale=30,
+        maxPixels=1e9
+    )
+    valid_pixel_count = ee.Number(mask_stats.get(mask_stats.keys().get(0)))
+    
     img_plus_ic_mask = ee.Image(img_plus_ic.updateMask(mask))
 
-    # Specify Bands to topographically correct
-    bandList = ee.List(
-        ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'])
+    bandList = ee.List(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'])
 
     def check_band_validity(image, band):
         band_stats = image.select([band]).reduceRegion(
@@ -375,85 +384,94 @@ def topoCorr_SCSc_L(img):
         band
     )).removeAll([None])
 
-    # This function quantifies the linear relation between illumination and reflectance and corrects for it
     def apply_SCSccorr(band):
-        """
-        Applies the SCSc correction to a single band of a Landsat image.
-
-        This function is used within topoCorr_SCSc_L to perform the actual correction
-        calculations for each specified band. It computes the linear relationship between
-        illumination and reflectance, then applies the SCSc correction.
-
-        Args:
-            band (str): Name of the band to correct.
-
-        Returns:
-            ee.Image: Single-band image with SCSc correction applied.
-
-        Note:
-            This function is intended to be used as a mapping function within topoCorr_SCSc_L
-            and relies on variables defined in that outer scope.
-        """
+        # Get linear regression coefficients
         out = img_plus_ic_mask.select('TC_illumination', band).reduceRegion(
-            # Compute coefficients': a(slope), b(offset), c(b/a)
             reducer=ee.Reducer.linearFit(),
             geometry=ee.Geometry(img.geometry().buffer(-5000)),
-            # trim off the outer edges of the image for linear relationship
             scale=30,
             maxPixels=1e6,
             bestEffort=True,
             tileScale=16
         )
-
-        # Get coefficients with error handling
+        
+        # Check if coefficients are valid
         scale = ee.Number(out.get('scale'))
+        
+        # Check if scale is non-zero
+        valid_scale = scale.neq(0)
+        
+        # Compute corrected values
         offset = ee.Number(out.get('offset'))
-
-        out_c = ee.Number(offset.divide(scale))\
-                    .max(0.01)\
-                    .min(2.0)  # Limit c-value to reasonable range
-
-        # Create a condition to check if correction should be applied
-        valid_correction = scale.neq(0)\
-                            .And(offset.neq(None))\
-                            .And(scale.neq(None))
-    
-        # Apply the SCSc correction
-        SCSc_output = ee.Image(ee.Algorithms.If(
-            valid_correction,
-            img_plus_ic_mask.expression(
-                "((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
+        corrected = img_plus_ic_mask.expression(
+            "((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
                 'image': img_plus_ic_mask.select([band]),
                 'ic': img_plus_ic_mask.select('TC_illumination'),
                 'cosB': img_plus_ic_mask.select('cosS'),
                 'cosZ': img_plus_ic_mask.select('cosZ'),
-                'cvalue': out_c
-            }),
-            img_plus_ic_mask.select([band])
-        ))
-        return ee.Image(SCSc_output)
+                'cvalue': offset.divide(scale)
+            })
+        
+        return ee.Image(ee.Algorithms.If(valid_scale,
+                                       corrected,
+                                       img_plus_ic.select([band])))
 
-    # List all bands without topographic correction (to be added to the TC image)
-    bandsWithoutTC = ee.List(
-        ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask', 'ndsi'])
-
-    # Add all bands and properties to the TC bands
-    img_SCSccorr = ee.ImageCollection.fromImages(
-        valid_bands.map(apply_SCSccorr)).toBands().rename(valid_bands)
-
-    img_SCSccorr = img_SCSccorr.addBands(
-        img_plus_ic.select(empty_bands))
-
-    img_SCSccorr = img_SCSccorr.addBands(
-        img_plus_ic.select(bandsWithoutTC))
-
-    img_SCSccorr = img_SCSccorr.copyProperties(
+    # Create corrected image, ensuring proper casting at each step
+    corrected_bands = ee.ImageCollection.fromImages(
+        valid_bands.map(apply_SCSccorr)
+    ).toBands()
+    
+    # Rename bands immediately after toBands()
+    corrected_img = ee.Image(corrected_bands).rename(valid_bands)
+    
+    # Build the complete image step by step, ensuring proper casting
+    img_with_empty = ee.Image(corrected_img).addBands(img_plus_ic.select(empty_bands))
+    
+    other_bands = ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 
+                   'QA_RADSAT', 'terrainShadowMask', 'ndsi']
+    img_with_other = ee.Image(img_with_empty).addBands(img_plus_ic.select(other_bands))
+    
+    img_with_props = ee.Image(img_with_other).copyProperties(
         img_plus_ic, img_plus_ic.propertyNames())
+        
+    final_corrected = ee.Image(img_with_props).addBands(mask.rename('TC_mask'))
 
-    # Flatten both lists into one
-    bandList_IC = ee.List([valid_bands, empty_bands, bandsWithoutTC]).flatten()
-    # Unmask the uncorrected pixel using the original image
-    return ee.Image(img_SCSccorr).unmask(img_plus_ic.select(bandList_IC)).addBands(mask.rename('TC_mask'))
+    # Return either the corrected image or original based on valid pixel count
+    return ee.Image(ee.Algorithms.If(valid_pixel_count.gt(1000),
+                                   final_corrected,
+                                   img_plus_ic))
+
+    #     # Apply the SCSc correction
+    #     SCSc_output = img_plus_ic_mask.expression("((image * (cosB * cosZ + cvalue)) / (ic + cvalue))", {
+    #         'image': img_plus_ic_mask.select([band]),
+    #         'ic': img_plus_ic_mask.select('TC_illumination'),
+    #         'cosB': img_plus_ic_mask.select('cosS'),
+    #         'cosZ': img_plus_ic_mask.select('cosZ'),
+    #         'cvalue': offset.divide(scale)
+    #     })
+    #     return ee.Image(SCSc_output)
+
+    # # List all bands without topographic correction (to be added to the TC image)
+    # bandsWithoutTC = ee.List(
+    #     ['ST_B6', 'cloudAndCloudShadowMask', 'QA_PIXEL', 'QA_RADSAT', 'terrainShadowMask', 'ndsi'])
+
+    # # Add all bands and properties to the TC bands
+    # img_SCSccorr = ee.ImageCollection.fromImages(
+    #     valid_bands.map(apply_SCSccorr)).toBands().rename(valid_bands)
+
+    # img_SCSccorr = img_SCSccorr.addBands(
+    #     img_plus_ic.select(empty_bands))
+
+    # img_SCSccorr = img_SCSccorr.addBands(
+    #     img_plus_ic.select(bandsWithoutTC))
+
+    # img_SCSccorr = img_SCSccorr.copyProperties(
+    #     img_plus_ic, img_plus_ic.propertyNames())
+
+    # # Flatten both lists into one
+    # bandList_IC = ee.List([valid_bands, empty_bands, bandsWithoutTC]).flatten()
+    # # Unmask the uncorrected pixel using the original image
+    # return ee.Image(img_SCSccorr).unmask(img_plus_ic.select(bandList_IC)).addBands(mask.rename('TC_mask'))
 
 
 # -----------------------------------------
