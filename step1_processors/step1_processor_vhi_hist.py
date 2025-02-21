@@ -675,8 +675,8 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     exportVegetationAsset = True
     exportForestAsset = True
     # options: True, False
-    exportVegetationDrive = False
-    exportForestDrive = False
+    exportVegetationDrive = True
+    exportForestDrive = True
     # options: True, False
     workWithPercentiles = True
     # options: True, False - defines if the p05 and p95 percentiles of the reference data sets are used,
@@ -695,6 +695,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
     start_date = current_date.replace(day = 1) - relativedelta(months = (d-1))
 
     first_of_month = current_date.replace(day = 1)
+    date_str = first_of_month.strftime("%Y-%m-%d")
     end_date = first_of_month + relativedelta(months=1) - timedelta(seconds=1)
 
     timestamp = first_of_month.strftime('%Y-%m-%dT235959')
@@ -757,7 +758,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
 
     # TEST VHI GEE: VHI GEE Asset already exists ?? if not 2 assets, in GEE then geneerate assets and export
     VHI_col = ee.ImageCollection(config.PRODUCT_VHI_HIST['step1_collection']) \
-        .filterMetadata('system:index', 'contains', current_date_str) \
+        .filterMetadata('system:index', 'contains', date_str) \
         .filterBounds(aoi)
     VHI_count = VHI_col.size().getInfo()
     if VHI_count == 0:
@@ -924,7 +925,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
                     assetId=config.PRODUCT_VHI_HIST['step1_collection'] + \
                         '/' + task_description + '_VEGETATION_30m',
             )
-        task.start()
+            task.start()
 
         # SWITCH export - forest (Asset)
         if exportForestAsset is True:
@@ -943,7 +944,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
             task.start()
 
     else:
-        print(current_date_str+' is already in ' +
+        print(date_str+' is already in ' +
             config.PRODUCT_VHI_HIST['step1_collection'])
 
         # Load from GEE Asset
@@ -959,7 +960,7 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         filename = py_string + '_mosaic_' + py_timestamp + '_vegetation-30m'
         main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_vegetation,
-                                sensor_stats, current_date_str)
+                                sensor_stats, date_str)
 
     if exportForestDrive is True:
         # Generate the filename
@@ -969,5 +970,5 @@ def process_PRODUCT_VHI_HIST(roi, current_date_str):
         filename = py_string + '_mosaic_' + py_timestamp + '_forest-30m'
         main_utils.prepare_export(roi, py_timestamp, filename, config.PRODUCT_VHI_HIST['product_name'],
                                 config.PRODUCT_VHI_HIST['spatial_scale_export'], VHI_forest,
-                                sensor_stats, current_date_str)
+                                sensor_stats, date_str)
 
