@@ -1,4 +1,4 @@
 Product,LastSceneDate,RunDate,Status
 NDVI-MAX,2024-02-15,2024-02-15,complete
-ch.swisstopo.swisseo_vhi_v100,2025-02-19,2025-02-20,complete
-ch.swisstopo.swisseo_s2-sr_v100,2025-02-19,2025-02-22T22:02,complete
+ch.swisstopo.swisseo_vhi_v100,2025-02-21,2025-02-21,RUNNING
+ch.swisstopo.swisseo_s2-sr_v100,2025-02-21,2025-02-24T22:03,RUNNING
