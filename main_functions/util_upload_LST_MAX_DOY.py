@@ -1,7 +1,6 @@
 import ee
 import netCDF4
 import subprocess
-import rasterio
 import os
 import sys
 sys.path.append(os.path.abspath(r"C:\temp\topo-satromo\step0_processors"))
@@ -10,35 +9,35 @@ sys.path.append(os.path.abspath(r"C:\temp\topo-satromo"))
 from main_functions import main_utils
 import numpy as np
 from datetime import datetime, timezone
-import requests
-import urllib.request
-import configuration as config
 from pydrive.auth import GoogleAuth
 import json
 import time
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
-
 import tempfile
 """
-Header:
--------
-.
+util_upload_LST_MAX_DOY.py
 
-Content:
---------
+This script contains functions to determine the run environment, generate LST mosaics for a single day of the year (DOY),
+and upload the generated GeoTIFF files to Google Cloud Storage (GCS) and Google Earth Engine (GEE).
+
+Functions:
+----------
 1. determine_run_type():
     - Determines the run environment (local or production).
     - Initializes Google Cloud and Google Earth Engine credentials.
-2. upload_dx_dy_mosaic_for_single_date(day_to_process, collection):
-    - Uploads a specified GeoTIFF file to Google Cloud Storage.
-    - Configures and processes the image within Google Earth Engine.
-    - Manages metadata, checks for existing assets, and starts task execution for upload to GEE colleaction as asset.
 
-Example:
-----------
-python util_upload_dxdy.py -d "/path/to/your/dx file.tif"
+2. generate_lst_mosaic_for_single_doy(doy_to_process, collection, netcdf_path, task_description, set_timeframe, set_scale, tiffpath, percentiles):
+    - Generates a MSG MFG LST mosaic for a single date and uploads it to Google Cloud Storage and Google Earth Engine.
+    - Manages metadata, checks for existing assets, and starts task execution for upload to GEE collection as an asset.
 
+3. export_doy_bands_to_geotiff(netcdf_path, output_path, percentiles, doy):
+    - Exports all 4 percentile bands for a specific day of year (DOY) from a NetCDF file to a GeoTIFF using subprocess calls to GDAL utilities.
+    - Multiplies values by 100 and converts to UInt16.
+
+Example Usage:
+--------------
+python util_upload_LST_MAX_DOY.py -d "/path/to/your/dx file.tif"
 
 
 """
@@ -109,16 +108,19 @@ def determine_run_type():
 
 
 
-
-
 def generate_lst_mosaic_for_single_doy(doy_to_process: str, collection: str,netcdf_path, task_description: str,set_timeframe,set_scale, tiffpath,percentiles) -> None:
     """
     Generates a MSG MFG LST mosaic for a single date and uploads it to Google Cloud Storage and Google Earth Engine.
 
     Args:
-        doy_to_process (str): The date to process (format: DDD).
+        doy_to_process (str): The day of year to process (format: DDD).
         collection (str): The collection name for the asset.
+        netcdf_path (str): Path to the NetCDF file.
         task_description (str): Description of the task.
+        set_timeframe (int): Timeframe in days.
+        set_scale (int): Scale for the asset.
+        tiffpath (str): Path to save the output GeoTIFF.
+        percentiles (list): List of percentiles to process.
     """
 
     # Band name
@@ -268,6 +270,8 @@ def export_doy_bands_to_geotiff(netcdf_path, output_path, percentiles, doy):
         Path to the NetCDF file
     output_path : str
         Path where the output GeoTIFF will be saved
+    percentiles : list
+        List of percentiles to process
     doy : int
         The day of year to extract (1-366)
     """
@@ -382,14 +386,18 @@ if __name__ == "__main__":
     global config_GDRIVE_SECRETS
     config_GDRIVE_SECRETS = r'C:\temp\topo-satromo\secrets\geetest-credentials-int.secret'
 
-    collection="projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS"
+    # Set parameters for processing
+    collection = "projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS"
     percentiles = [0.02, 0.05, 0.95, 0.98]
-    doy_to_process="1"
+    doy_to_process="1" # add a loop
     set_timeframe=15
     set_scale=100
     task_description=str(doy_to_process)+" 2004-2021_LST_MAX_AS_SWISS"
     tiff_path = r"C:\temp\temp\output_doy"
     netcdf_path = r"C:\temp\geosatclim\ch.meteoswiss.geosatclim.custom_delivery_to_swisstopo_by_huv.percentiles_prelim\LST_percentiles\msg.LST1max_percentile.H_ch02.lonlat.nc"
+
+
+
     generate_lst_mosaic_for_single_doy(doy_to_process, collection,netcdf_path, task_description,set_timeframe,set_scale,tiff_path,percentiles)
 
 
