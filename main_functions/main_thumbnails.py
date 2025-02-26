@@ -230,11 +230,12 @@ def create_thumbnail(inputfile_name, product):
 
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
+            print("Output")
+            print(e.output)
             return False
 
     # VHI Use case
-
-    elif product.startswith("ch.swisstopo.swisseo_vhi") and inputfile_name.endswith("forest-10m.tif"):
+    elif product.startswith("ch.swisstopo.swisseo_vhi") and (inputfile_name.endswith("forest-10m.tif") or inputfile_name.endswith("forest-30m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(

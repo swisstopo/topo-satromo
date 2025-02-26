@@ -6,6 +6,7 @@ import csv
 import os
 import json
 import pandas as pd
+import dateutil
 
 
 def is_date_in_empty_asset_list(collection, check_date_str):
@@ -86,15 +87,15 @@ def get_github_info():
 
 def get_product_from_techname(techname):
     """
-    This function searches for a dictionary in the 'config' module that contains 
+    This function searches for a dictionary in the 'config' module that contains
     'product_name' with a specified value and returns it.
 
     Parameters:
-    techname (str): The value of 'product_name' to search for. 
+    techname (str): The value of 'product_name' to search for.
                     For example, 'ch.swisstopo.swisseo_s2-sr_v100'.
 
     Returns:
-    dict: The dictionary that contains 'product_name' with the value of 'techname'. 
+    dict: The dictionary that contains 'product_name' with the value of 'techname'.
           If no such dictionary is found, it returns None.
     """
 
@@ -172,28 +173,30 @@ def get_collection_info(collection):
 
     Returns:
         A tuple containing the first date, last date, and total number of images in the collection.
+        Returns (None, None, 0) for empty collections.
     """
     # Sort the collection by date in ascending order
+
     sorted_collection = collection.sort('system:time_start')
 
     # Get the first and last image from the sorted collection
     first_image = sorted_collection.first()
     last_image = sorted_collection.sort('system:time_start', False).first()
 
-    # Get the dates of the first and last image
-    first_date = ee.Date(first_image.get('system:time_start')
-                         ).format('YYYY-MM-dd').getInfo()
-    last_date = ee.Date(last_image.get('system:time_start')
-                        ).format('YYYY-MM-dd').getInfo()
-
-    # Get the count of images in the filtered collection
-    image_count = collection.size()
-
-    # Get the scenes count
-    total_scenes = image_count.getInfo()
+    try:
+        # Get the count of images in the collection
+        image_count = collection.size().getInfo()
+        # Get the dates of the first and last image
+        first_date = ee.Date(first_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+        last_date = ee.Date(last_image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
+    except ee.EEException:
+        image_count = 0
+        # Handle cases where date information might be missing
+        first_date = None
+        last_date = None
 
     # Return the first date, last date, and total number of scenes
-    return first_date, last_date, total_scenes
+    return first_date, last_date, image_count
 
 
 def get_quadrants(roi):
@@ -440,7 +443,7 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
 
     Args:
         roi (ee.Geometry): Region of interest for the export.
-        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT235959" for a day 
+        productitem (str): Timestamp of assets YYYYMMDThhmmss, "YYYYMMDDT235959" for a day
         productasset (str): Base filename for the exported files.
         productname (str): Product name of the exported files.
         scale (str): Scalenumber in [m] of the exported file
@@ -507,3 +510,28 @@ def prepare_export(roi, productitem, productasset, productname, scale, image, se
         json.dump(image_info_gee, json_file)
 
     return None
+
+
+def get_collection_info_landsat(collection):
+    """
+    Retrieves information about an image collection for the line of Landsat satellites
+
+    Args:
+        collection: The landsat image collection to retrieve information from.
+
+    Returns:
+        A tuple containing the first date, last date, and total number of images in the collection.
+        Returns (None, None, 0) for empty collections.
+    """
+    # Sort the collection by date in ascending order
+    index_list = collection.aggregate_array('system:index')
+
+    dates_list = [dateutil.parser.parse(i.split('_')[-1]) for i in index_list.getInfo()]
+
+    # Get the first and last image and size of image collection
+    image_count = len(dates_list) if len(dates_list)>0 else 0
+    first_date = min(dates_list) if image_count>0 else None
+    last_date = max(dates_list) if image_count>0 else None
+
+    # Return the first date, last date, and total number of scenes
+    return first_date, last_date, image_count

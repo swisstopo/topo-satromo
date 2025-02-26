@@ -231,7 +231,7 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         .filterDate(start_date, end_date) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '20m'))
-    
+
     # Get information about the available sensor data for the range
     # Get the number of images in the filtered collection
     image_count = S2_col.size().getInfo()
@@ -240,7 +240,7 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
         write_asset_as_empty(
             config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
         return
-    
+
     ###########################################
     # Test PRE conditions
 
@@ -351,12 +351,12 @@ def process_PRODUCT_VHI(roi, collection_ready, current_date_str):
 
             # Calculate TCI
             if workWithPercentiles is True:
-                TCI = LSTj.subtract(LSTref.select('p05')).divide(LSTref.select(
+                TCI = LSTref.select('p95').subtract(LSTj).divide(LSTref.select(
                     'p95').subtract(LSTref.select('p05'))).multiply(100).rename('tci')
                 print(
                     '--- TCI calculated (with 5th and 95th percentile reference values) ---')
             else:
-                TCI = LSTj.subtract(LSTref.select('min')).divide(LSTref.select(
+                TCI = LSTref.select('max').subtract(LSTj).divide(LSTref.select(
                     'max').subtract(LSTref.select('min'))).multiply(100).rename('tci')
                 print('--- TCI calculated (with min and max reference values) ---')
 

@@ -11,7 +11,7 @@ import os
 import ee
 import configuration as config
 from step0_functions import get_step0_dict, step0_main
-from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi
+from step1_processors import step1_processor_l57_sr, step1_processor_l57_toa, step1_processor_l89_sr, step1_processor_l89_toa, step1_processor_s3_toa, step1_processor_vhi, step1_processor_vhi_hist
 from main_functions import main_utils
 import pandas as pd
 from google.cloud import storage
@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    # current_date_str = "2003-06-01"
+    # current_date_str = "2015-08-05"
 
     # print("*****************************\n")
     # print("using a manual set Date: " + current_date_str)
@@ -545,10 +545,16 @@ if __name__ == "__main__":
                 result = step1_processor_vhi.process_PRODUCT_VHI(
                     roi, collection_ready, current_date_str)
 
-            # elif product_to_be_processed == 'PRODUCT_VHI_HIST':
-            #     roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
-            #     result = step1_processor_vhi_hist.process_PRODUCT_VHI_HIST(
-            #         roi, collection_ready, current_date_str)
+            elif product_to_be_processed == 'PRODUCT_VHI_HIST':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                # roi = ee.Geometry.Rectangle(
+                #     [8.06, 47.14, 8.72, 47.18])  # Raten ZG/SZ
+                # roi = ee.Geometry.Rectangle(
+                #     [9.41, 46.83, 9.65, 47.02])  # Chur/Landquart
+                # roi = ee.Geometry.Rectangle(
+                #     [6.40, 46.47, 6.81, 46.61])  # Lausanne VD
+                result = step1_processor_vhi_hist.process_PRODUCT_VHI_HIST(
+                    roi, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
                 roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)

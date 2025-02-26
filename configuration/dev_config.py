@@ -124,14 +124,14 @@ PRODUCT_VHI_HIST = {
     "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
     "temporal_coverage": 1,  # Months
     "spatial_scale_export": 30,  # Meters
-    "product_name": "ch.swisstopo.swisseo_vhi_hist_v100",
+    "product_name": "ch.swisstopo.swisseo_vhi_v100",
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
-    "step1_collection": 'projects/satromo-int/assets/VHI_HIST_SWISS',
+    "step1_collection": 'projects/satromo-prod/assets/col/VHI_HIST_SWISS',
     "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
