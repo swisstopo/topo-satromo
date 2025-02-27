@@ -127,7 +127,7 @@ def initialize_gee_and_drive():
         if config.GDRIVE_TYPE != "GCS":
             # GDRIVE Mount
             command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
-                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode", "full"]
+                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "full"]
         else:
             # GCS Mount
             command = ["rclone", "mount", "--config", "rclone.conf",
