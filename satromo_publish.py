@@ -127,11 +127,11 @@ def initialize_gee_and_drive():
         if config.GDRIVE_TYPE != "GCS":
             # GDRIVE Mount
             command = ["rclone", "mount", "--config", "rclone.conf",  # "--allow-other",
-                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "full"]
+                    os.path.join(GDRIVE_SOURCE), GDRIVE_MOUNT, "--vfs-cache-mode","full"]
         else:
             # GCS Mount
             command = ["rclone", "mount", "--config", "rclone.conf",
-                    GDRIVE_SOURCE+config.GCLOUD_BUCKET, GDRIVE_MOUNT, "--gcs-bucket-policy-only","--vfs-cache-mode writes" ]
+                    GDRIVE_SOURCE+config.GCLOUD_BUCKET, GDRIVE_MOUNT, "--gcs-bucket-policy-only" ]
             # add path on Bucket to drive
             #GDRIVE_MOUNT=os.path.join(GDRIVE_MOUNT,config.GCLOUD_BUCKET)
         print(command)
