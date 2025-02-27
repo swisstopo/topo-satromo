@@ -398,7 +398,24 @@ if __name__ == "__main__":
 
 
 
-    generate_lst_mosaic_for_single_doy(doy_to_process, collection,netcdf_path, task_description,set_timeframe,set_scale,tiff_path,percentiles)
+    #generate_lst_mosaic_for_single_doy(doy_to_process, collection,netcdf_path, task_description,set_timeframe,set_scale,tiff_path,percentiles)
+
+        # Loop through all days of the year (1-366 to include leap years)
+    for doy_to_process in range(1, 367):
+        task_description = f"{doy_to_process} 2004-2021_LST_MAX_AS_SWISS"
+        print(f"Processing day {doy_to_process}...")
+        
+        # Call your processing function for each day
+        generate_lst_mosaic_for_single_doy(
+            str(doy_to_process),  # Convert to string as your function seems to expect a string
+            collection,
+            netcdf_path,
+            task_description,
+            set_timeframe,
+            set_scale,
+            tiff_path,
+            percentiles
+        )
 
 
 
