@@ -176,7 +176,7 @@ def calc_LST_for_date(date_str, satellite, channel, base_url, output_path):
             return None
 
         # Merge datasets
-        ds = xr.merge([sol_ds, sdl_ds])
+        ds = xr.merge([sol_ds, sdl_ds], compat='override')
 
         # Calculate LST
         Boltzmann = 5.670374419e-8
@@ -221,7 +221,7 @@ def main():
     OUTPUT_PATH = r"C:\temp\temp"
 
     # Define parameters
-    date_str = "20040102"  # Example: January 2, 2004
+    date_str = "20180615"  # Example: January 2, 2004
 
     # Calculate MAX LST for different satellite/channel combinations
     results = []
