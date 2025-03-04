@@ -3,7 +3,7 @@ from pydrive.auth import GoogleAuth
 import ee
 import json
 import os
-# Assuming configuration.py is in ../configuration directory
+# Assuming configuration.py is in ../configuration directory you can create the list with https://code.earthengine.google.com/765436590a4353699e9455d75f25bd45 
 
 
 config = r'C:\temp\topo-satromo\secrets\geetest-credentials-int.secret'

@@ -6,55 +6,50 @@ from datetime import datetime
 import requests
 import os
 import tempfile
+from io import BytesIO
+import netCDF4
+import subprocess
 
-def download_netcdf(url, local_path=None):
+def download_netcdf_to_memory(url):
     """
-    Download a netCDF file from a URL
+    Download a netCDF file from a URL and return as a BytesIO object
 
     Args:
         url: URL to download
-        local_path: Local path to save the file, if None a temporary file is created
 
     Returns:
-        Path to the downloaded file
+        BytesIO object containing the file data or None if download failed
     """
-    if local_path is None:
-        # Create a temporary file
-        fd, local_path = tempfile.mkstemp(suffix='.nc')
-        os.close(fd)
-
-    # Download the file
-    print(f"Downloading {url}")
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-
-    with open(local_path, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
-
-    return local_path
+    try:
+        #print(f"Streaming {url}")
+        response = requests.get(url)
+        response.raise_for_status()
+        return BytesIO(response.content)
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading {url}: {e}")
+        return None
 
 def get_monthly_files_for_date(parameters, satellite, channel, date_str, base_url):
     """
-    Get monthly files that contain data for the specified date
+    Get monthly files that contain data for the specified date using streaming
 
     Args:
         parameters: List of parameters to get (e.g. ['SOL', 'SDL'])
         satellite: Satellite name (e.g. 'msg', 'mfg')
         channel: Channel name (e.g. 'ch02', 'ch05h')
-        date_str: Date string in format YYYYMMDD for the day we want data for
+        date_str: Date string in format YYYY-MM-DD for the day we want data for
         base_url: Base URL for the data
 
     Returns:
-        Dictionary of temporary files with parameter as key
+        Dictionary of BytesIO objects with parameter as key
     """
     # Parse the date
-    date_obj = datetime.strptime(date_str, '%Y%m%d')
+    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
     year = date_obj.year
 
     # Get the first day of the month
     first_day = date_obj.replace(day=1)
-    first_day_str = first_day.strftime('%Y%m%d')
+    first_day_str = first_day.strftime('%Y%m%d')  # Convert to YYYYMMDD for file naming
 
     # Construct the correct URL format
     # For MSG: MSG2004-2023
@@ -66,23 +61,86 @@ def get_monthly_files_for_date(parameters, satellite, channel, date_str, base_ur
     else:
         raise ValueError(f"Unknown satellite: {satellite}")
 
-    file_dict = {}
-    temp_files = []
+    data_dict = {}
 
     for param in parameters:
         # Create URL for the monthly file
         # Correct filename format: msg.SOL.H_ch02.lonlat_20040101000000.nc
         url = f"{base_url}/{dir_name}/{satellite.lower()}.{param}.H_{channel}.lonlat_{first_day_str}000000.nc"
 
-        try:
-            local_file = download_netcdf(url)
-            file_dict[param] = [local_file]
-            temp_files.append(local_file)
-        except requests.exceptions.HTTPError as e:
-            print(f"Error downloading {url}: {e}")
-            file_dict[param] = []
+        # Download file into memory
+        data = download_netcdf_to_memory(url)
+        if data is not None:
+            data_dict[param] = data
+        else:
+            data_dict[param] = None
 
-    return file_dict, temp_files
+    return data_dict
+
+def export_geotiff(netcdf_path):
+    """
+    ExportLSTMAX from a NetCDF file to a GeoTIFF
+    using subprocess calls to GDAL utilities. Multiplies values by 100 and converts to UInt16.
+
+    Parameters:
+    -----------
+    netcdf_path : str
+        Path to the NetCDF file
+    output_path : str
+        Path where the output GeoTIFF will be saved
+
+    """
+    # Open the NetCDF file to get information
+    dataset = netCDF4.Dataset(netcdf_path, 'r')
+    output_path = netcdf_path.replace(".nc", ".tif")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file = os.path.join(temp_dir, "lst_max_raw.tif")
+        temp_scaled_file = os.path.join(temp_dir, "lst_max_scaled.tif")
+
+        # Extract the LST_MAX band
+        gdal_translate_cmd = [
+            'gdal_translate',
+            '-a_srs', 'EPSG:4326',  # Set spatial reference
+            '-b', '1',  # First and only band
+            '-sds',  # Select subdataset if needed
+            netcdf_path,
+            temp_file
+        ]
+
+        subprocess.run(gdal_translate_cmd, check=True, capture_output=True, text=True)
+
+        # Scale values by 100 and convert to UInt16
+        gdal_calc_cmd = [
+            'gdal_calc',
+            '-A', temp_file,
+            '--outfile=' + temp_scaled_file,
+            '--calc=numpy.uint16(A*100)',
+            '--NoDataValue=0',
+            '--type=UInt16'
+        ]
+
+        subprocess.run(gdal_calc_cmd, check=True, capture_output=True, text=True)
+
+        # Reproject to EPSG:2056 and save as Cloud-Optimized GeoTIFF (COG)
+        gdalwarp_cmd = [
+            'gdalwarp',
+            '-s_srs', 'EPSG:4326',
+            '-t_srs', 'EPSG:2056',
+            '-of', 'COG',
+            '-srcnodata', '0',
+            '-co', 'COMPRESS=DEFLATE',
+            '-co', 'PREDICTOR=2',
+            '-ot', 'UInt16',
+            '-r', 'bilinear',
+            temp_scaled_file,
+            output_path
+        ]
+
+        subprocess.run(gdalwarp_cmd, check=True, capture_output=True, text=True)
+
+    dataset.close()
+    print(f"COG Geotiff created at: {output_path}")
 
 def export_netcdf(ds, satellite, parameter, channel, date_str, output_path):
     """
@@ -93,7 +151,7 @@ def export_netcdf(ds, satellite, parameter, channel, date_str, output_path):
         satellite: Satellite name
         parameter: Parameter name
         channel: Channel name
-        date_str: Date string
+        date_str: Date string in YYYY-MM-DD format
         output_path: Output path
 
     Returns:
@@ -103,8 +161,12 @@ def export_netcdf(ds, satellite, parameter, channel, date_str, output_path):
     output_dir = Path(output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Convert date format for filename (YYYY-MM-DD to YYYYMMDD)
+    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+    filename_date = date_obj.strftime('%Y%m%d')
+
     # Create output filename
-    output_file = output_dir / f"{satellite.lower()}.{parameter}.H_{channel}.lonlat_{date_str}000000.nc"
+    output_file = output_dir / f"{satellite.lower()}.{parameter}.H_{channel}.lonlat_{filename_date}000000.nc"
 
     # Add metadata
     ds.attrs.update({
@@ -141,7 +203,7 @@ def calc_LST_for_date(date_str, satellite, channel, base_url, output_path):
     Calculate MAX LST for a specific date
 
     Args:
-        date_str: Date string in format YYYYMMDD
+        date_str: Date string in format YYYY-MM-DD
         satellite: Satellite name (e.g. 'msg', 'mfg')
         channel: Channel name (e.g. 'ch02', 'ch05h')
         base_url: Base URL for the data
@@ -150,18 +212,18 @@ def calc_LST_for_date(date_str, satellite, channel, base_url, output_path):
     Returns:
         Path to output file
     """
-    # Get monthly files for the date
-    file_dict, temp_files = get_monthly_files_for_date(['SOL', 'SDL'], satellite, channel, date_str, base_url)
+    # Get data for the monthly files
+    data_dict = get_monthly_files_for_date(['SOL', 'SDL'], satellite, channel, date_str, base_url)
 
     try:
-        # Check if we have files for both parameters
-        if not file_dict['SOL'] or not file_dict['SDL']:
+        # Check if we have data for both parameters
+        if data_dict['SOL'] is None or data_dict['SDL'] is None:
             print(f"No data found for {date_str}, {satellite}, {channel}")
             return None
 
-        # Create datasets for each parameter
-        sol_ds = xr.open_mfdataset(file_dict['SOL'], combine='by_coords')
-        sdl_ds = xr.open_mfdataset(file_dict['SDL'], combine='by_coords')
+        # Open datasets from BytesIO objects
+        sol_ds = xr.open_dataset(data_dict['SOL'], engine='h5netcdf')
+        sdl_ds = xr.open_dataset(data_dict['SDL'], engine='h5netcdf')
 
         # Parse target date
         target_date = pd.to_datetime(date_str)
@@ -207,45 +269,44 @@ def calc_LST_for_date(date_str, satellite, channel, base_url, output_path):
 
         return output_file
 
-    finally:
-        # Clean up temporary files
-        for temp_file in temp_files:
-            try:
-                os.remove(temp_file)
-            except Exception as e:
-                print(f"Error removing temp file {temp_file}: {e}")
+    except Exception as e:
+        print(f"Error processing data for {date_str}, {satellite}, {channel}: {e}")
+        return None
 
 def main():
     # Define paths
     BASE_URL = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur"
     OUTPUT_PATH = r"C:\temp\temp"
 
-    # Define parameters
-    date_str = "20180615"  # Example: January 2, 2004
+    # Define parameters with new YYYY-MM-DD format
+    date_str = "2018-06-15"  # Changed from "20180615" to "2018-06-15"
+
+    # Convert dates for comparison
+    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
 
     # Calculate MAX LST for different satellite/channel combinations
     results = []
 
     # MSG CH02
-    if datetime.strptime(date_str, '%Y%m%d') >= datetime(2004, 1, 1) and datetime.strptime(date_str, '%Y%m%d') <= datetime(2023, 12, 31):
+    if date_obj >= datetime(2004, 1, 1) and date_obj <= datetime(2023, 12, 31):
         result = calc_LST_for_date(date_str, 'msg', 'ch02', BASE_URL, OUTPUT_PATH)
         if result:
             results.append(result)
 
     # MSG CH05H
-    if datetime.strptime(date_str, '%Y%m%d') >= datetime(2004, 1, 1) and datetime.strptime(date_str, '%Y%m%d') <= datetime(2023, 12, 31):
+    if date_obj >= datetime(2004, 1, 1) and date_obj <= datetime(2023, 12, 31):
         result = calc_LST_for_date(date_str, 'msg', 'ch05h', BASE_URL, OUTPUT_PATH)
         if result:
             results.append(result)
 
     # MFG CH02
-    if datetime.strptime(date_str, '%Y%m%d') >= datetime(1991, 1, 1) and datetime.strptime(date_str, '%Y%m%d') <= datetime(2005, 12, 31):
+    if date_obj >= datetime(1991, 1, 1) and date_obj <= datetime(2005, 12, 31):
         result = calc_LST_for_date(date_str, 'mfg', 'ch02', BASE_URL, OUTPUT_PATH)
         if result:
             results.append(result)
 
     # MFG CH05H
-    if datetime.strptime(date_str, '%Y%m%d') >= datetime(1991, 1, 1) and datetime.strptime(date_str, '%Y%m%d') <= datetime(2005, 12, 31):
+    if date_obj >= datetime(1991, 1, 1) and date_obj <= datetime(2005, 12, 31):
         result = calc_LST_for_date(date_str, 'mfg', 'ch05h', BASE_URL, OUTPUT_PATH)
         if result:
             results.append(result)

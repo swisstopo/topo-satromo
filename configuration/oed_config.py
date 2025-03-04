@@ -85,7 +85,7 @@ PRODUCT_S2_LEVEL_2A = {
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    "step0_collection": "projects/geetest-386915/assets/col_s2_sr"
+    #"step0_collection": "projects/geetest-386915/assets/col_s2_sr"
 }
 
 # VHI – Trockenstress
@@ -121,10 +121,10 @@ PRODUCT_MSG_CLIMA = {
     #
     # this is  placeholder, needed for the step0 function,
     "image_collection": "METEOSCHWEIZ/MSG",
-    "temporal_coverage": 365,  # Days
+    "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
+    'step0_collection': 'projects/satromo-int/assets/LST_MAX_AS_SWISS'
 }
 
 # TEST datasets
@@ -276,14 +276,15 @@ step0 = {
         'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
-    'projects/satromo-int/assets/LST_SWISS': {
+    'projects/satromo-int/assets/LST_MAX_AS_SWISS': {
         'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
-    'projects/satromo-int/assets/LST_CLIMA_SWISS': {
+    'projects/satromo-int/assets/LST_MAX_AS_SWISS': {
         'step0_function': 'step0_processor_msg_lst_clima.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
+
 }
 
 
