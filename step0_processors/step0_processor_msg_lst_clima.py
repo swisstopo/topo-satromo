@@ -328,6 +328,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # Replace the day part (DD) with "01"
     raw_filename = modified_date_str[:6] + "01"+"000000.nc"
 
+    # Band name
+    band_name = "LST_PMW"
+
     if not LST_MAX_AS:
         # MFG
         data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
@@ -338,8 +341,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         # UTC Hour of LST
         LST_hour = 11
 
-        # Band name
-        band_name = "LST_PMW"
+
 
     else:
         # MFG
@@ -350,9 +352,6 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
         # UTC Hour of LST
         LST_hour = 00
-
-        # Band name
-        band_name = "LST_MAX_AS"
 
         #sensor
         plattform="msg"
