@@ -44,7 +44,7 @@ Example:
 # Constants remain the same
 THRESHOLD_AVAILABILITY = 20
 STAC_PATH = "https://sys-data.int.bgdi.ch/"
-SURFACE_TYPE = "vegetation"
+SURFACE_TYPE = "forest"
 
 # Color mappings remain the same
 VHI_COLOR_MAPPING = [

@@ -7,7 +7,7 @@ import os
 def get_vhi_for_date(date):
     """Lädt die VHI-Daten für ein bestimmtes Datum aus dem Geoparquet."""
     STAC_PATH = "https://sys-data.int.bgdi.ch/"
-    SURFACE_TYPE = "forest"
+    SURFACE_TYPE = "vegetation"
     date_str = date.strftime('%Y-%m-%d')
     url = f"{STAC_PATH}ch.swisstopo.swisseo_vhi_v100/{date_str}t235959/ch.swisstopo.swisseo_vhi_v100_{date_str}t235959_{SURFACE_TYPE}-warnregions.parquet"
 
@@ -20,11 +20,14 @@ def get_vhi_for_date(date):
         print(f"Keine VHI-Daten für {date_str}: {e}")
         return None
 
-def merge_cdi_vhi(cdi_csv_path, output_csv_path):
+def merge_cdi_vhi(cdi_csv_path, shift_region,output_csv_path):
     """Erstellt eine neue Datei mit CDI- und VHI-Daten."""
     # Lade CDI-Daten
     cdi_data = pd.read_csv(cdi_csv_path, sep=';', encoding="latin1")
     cdi_data['Datum'] = pd.to_datetime(cdi_data['Datum'])
+
+    # Füge shift_region zum Region_ID hinzu
+    cdi_data['Region_ID'] = cdi_data['Region_ID'] + shift_region
 
     # Liste zur Speicherung der Ergebnisse
     merged_rows = []
@@ -47,4 +50,8 @@ def merge_cdi_vhi(cdi_csv_path, output_csv_path):
 # Beispielaufruf
 cdi_csv_path = r"C:\temp\temp\CDI_1991-01-01_2022-12-31_RegionaleHochwasserregionen.csv"
 output_csv_path = r"C:\temp\temp\CDI_VHI_Merged.csv"
-merge_cdi_vhi(cdi_csv_path, output_csv_path)
+shift_region=30
+print("****************")
+print("adding to region: "+str(shift_region))
+print("****************")
+merge_cdi_vhi(cdi_csv_path, shift_region, output_csv_path)
