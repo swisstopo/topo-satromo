@@ -319,9 +319,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # CONFIGURATION START
     # --------------------
 
+
+    # If collection 'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS', is set we use  the LST AllSky MAX LST. Which is not yet used or ready by MCH, only for testing puposes
     LST_MAX_AS = "LST_MAX_AS" in collection
-
-
 
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
     modified_date_str = day_to_process.replace("-", "")

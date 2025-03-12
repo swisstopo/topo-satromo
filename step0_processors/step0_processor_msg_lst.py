@@ -1,5 +1,6 @@
 import ee
 from main_functions import main_utils
+from main_functions import util_create_LSTMAX
 from .step0_utils import write_asset_as_empty
 import netCDF4
 import subprocess
@@ -322,7 +323,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # CONFIGURATION START
     # --------------------
 
-    # WORKING WITH 1 FILE PER DAY (operational delivery)
+
+     # WORKING WITH 1 FILE PER DAY (operational delivery)
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
     raw_filename = day_to_process.replace("-", "")+"000000.nc"
 
@@ -334,8 +336,8 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.globalstrahlung-monatlich/landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
     # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
-    # UTC Hour of LST
-    LST_hour = 11
+    # Set LST_HOUR based on the condition
+    LST_hour =  11
 
     # Band name
     band_name = "LST_PMW"
