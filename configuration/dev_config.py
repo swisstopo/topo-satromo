@@ -111,10 +111,10 @@ PRODUCT_VHI = {
     "missing_data": 110,
     "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
-    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
+    'LST_reference_data': 'projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS',
+    'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    # "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
+    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # VHI Historic – Trockenstress
@@ -132,7 +132,7 @@ PRODUCT_VHI_HIST = {
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-prod/assets/col/VHI_HIST_SWISS',
-    "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
+    # "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
 # # MSG – MeteoSchweiz
@@ -151,10 +151,10 @@ PRODUCT_MSG_CLIMA = {
     #
     # this is  placeholder, needed for the step0 function,
     "image_collection": "METEOSCHWEIZ/MSG",
-    "temporal_coverage": 1,  # Days
+    "temporal_coverage": 7,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_MAX_AS_SWISS'
 }
 
 # TEST datasets
@@ -282,7 +282,7 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+    'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
@@ -306,11 +306,11 @@ step0 = {
         'step0_function': 'step0_processor_s3_toa.generate_s3_toa_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
-    'projects/satromo-prod/assets/col/LST_SWISS': {
+    'projects/satromo-int/assets/LST_MAX_AS_SWISS': {
         'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
-    'projects/satromo-int/assets/LST_CLIMA_SWISS': {
+    'projects/satromo-int/assets/LST_MAX_AS_SWISS': {
         'step0_function': 'step0_processor_msg_lst_clima.generate_msg_lst_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
