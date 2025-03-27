@@ -786,7 +786,7 @@ if __name__ == "__main__":
         filename = filename.split('quadrant')[0]
         unique_filenames.add(filename.strip())
 
-    unique_filenames = list(unique_filenames)
+    unique_filenames = sorted(list(unique_filenames))
 
     # Step 1: Group by date
     grouped_files = defaultdict(list)
