@@ -6,7 +6,10 @@ import os
 # Assuming configuration.py is in ../configuration directory
 
 
-config = r'C:\temp\topo-satromo\secrets\xxx.secret'
+config = r'C:\temp\topo-satromo\secrets\geetest-credentials-dave.secret'
+
+#generate asset list with https://code.earthengine.google.com/381a6b488c98ef33548143530b24e140 and remove then the colelction path
+
 asset_list = r'C:\temp\topo-satromo\main_functions\asset_list.txt'
 
 def initialize_gee_and_drive():
@@ -70,11 +73,12 @@ asset_names = [name.strip() for name in asset_names]
 for asset_name in asset_names:
     # Construct the source and destination asset paths
     # source_asset = 'users/{}/SATROMO/{}'.format(source_username, asset_name)
-    source_asset = 'projects/gee-joan/assets/SATROMO/1991-2020_NDVI_SWISS_M/{}'.format(
+
+    source_asset = 'projects/satromo-432405/assets/COL_S2_SR_DXDY/{}'.format(
         asset_name)
     # destination_asset = 'projects/{}/assets/res/{}'.format(
     #     destination_username, asset_name)
-    destination_asset = 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M/{}'.format(
+    destination_asset = 'projects/geetest-386915/assets/COL_S2_SR_DXDY/{}'.format(
         asset_name)
 
     # Copy the asset from the source to the destination

@@ -9,9 +9,10 @@ GITHUB_OWNER = "swisstopo"
 GITHUB_REPO = "topo-satromo"
 
 # Secrets
-GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials-int.secret")
+GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 FSDI_SECRETS = os.path.join("secrets", "stac_fsdi-prod.json")
+CMS_SECRETS = os.path.join("secrets", "PROD_CMS.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -27,15 +28,20 @@ GCLOUD_BUCKET = "satromo_export"
 GDRIVE_SOURCE_DEV = "geedriveINT:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
 # GDRIVE_MOUNT_DEV = r'G:\\'
-GDRIVE_MOUNT_DEV = r'M:\\satromo_export'  # for GCS
+GDRIVE_MOUNT_DEV = r'M:\\satromo_export' # for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 
 #  GITHUB
-GDRIVE_SOURCE_INT = "geedrivePROD:"
+# if using GDRIVE
+#GDRIVE_SOURCE_INT = "geedrivePROD:"
+# if using GCS
+GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
+# CMS to store tools files
+CMS_BUCKET = "cms.geo.admin.ch"
 
 # General GEE parameters
 
@@ -77,22 +83,7 @@ NODATA = 9999
 # A) PRODUCTS, INDICES
 # ********************
 
-#  ch.swisstopo.swisseo_s2-sr
-PRODUCT_S2_LEVEL_2A = {
-    # "prefix": "S2_L2A_SR",
-    # TODO: check if needed in context with step0
-    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
-    "geocat_id": "7ae5cd5b-e872-4719-92c0-dc2f86c4d471",
-    "temporal_coverage": 1,  # Days
-    "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
-    "asset_size": 5,
-    "spatial_scale_export_mask": 10,
-    "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
-    "no_data": 9999,
-    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
-}
-
-# VHI – Trockenstress ch.swisstopo.swisseo_vhi_v100
+# VHI – Trockenstress
 PRODUCT_VHI = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
@@ -106,8 +97,27 @@ PRODUCT_VHI = {
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
-    "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
-    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    # "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
+}
+
+#  ch.swisstopo.swisseo_s2-sr
+# VHI Historic – Trockenstress
+PRODUCT_VHI_HIST = {
+    # TODO: check if needed in context with step0
+    "image_collection": [{"LANDSAT/LT05/C02/T1_L2", "LANDSAT/LE07/C02/T1_L2", "LANDSAT/LC08/C02/T1_L2"}],
+    "geocat_id": "bc4d0e6b-e92e-4f28-a7d2-f41bf61e98bc",
+    "temporal_coverage": 1,  # Months
+    "spatial_scale_export": 30,  # Meters
+    "product_name": "ch.swisstopo.swisseo_vhi_v100",
+    "no_data": 255,
+    "missing_data": 110,
+    "asset_size": 2,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
+    "step1_collection": 'projects/satromo-prod/assets/col/VHI_HIST_SWISS',
+    "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
@@ -118,9 +128,8 @@ PRODUCT_MSG_CLIMA = {
     "temporal_coverage": 1,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    #'step0_collection': 'projects/satromo-prod/assets/col/LST_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
-
 
 # B custom COLLECTION
 # ********************
@@ -160,9 +169,6 @@ STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
 
-GDRIVE_SOURCE_INT = "geedrivePROD:"
-GDRIVE_MOUNT_INT = "localgdrive"
-STAC_DESTINATION_INT = "s3INT:satromoint"
 
 # STAC FSDI Production
 # ---------------

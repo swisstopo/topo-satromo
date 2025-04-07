@@ -249,6 +249,10 @@ def main():
         logger.info(f"Total number of items to process: {len(all_assets)}")
 
         # Delete assets and items
+        while input('Type "I agree" to continue: ') != "I agree":
+            print("You must type 'I agree' exactly to proceed.")
+
+        print("Continuing... with deleting")
         results = delete_items_and_assets(base_url, all_assets, auth)
 
         # Log summary

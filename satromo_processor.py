@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # For debugging
     # --------------
-    # current_date_str = "2015-08-05"
+    # current_date_str = "2025-03-31"
 
     # print("*****************************\n")
     # print("using a manual set Date: " + current_date_str)

@@ -1,7 +1,9 @@
 import ee
 from main_functions import main_utils
+from main_functions import util_create_LSTMAX
 from .step0_utils import write_asset_as_empty
 import netCDF4
+import xarray as xr
 import subprocess
 import rasterio
 import os
@@ -100,80 +102,68 @@ def determine_run_type():
     storage_client = storage.Client.from_service_account_json(
         gauth.service_account_file)
 
-
-def get_netcdf_info(file_path, epoch_time=None):
+def get_netcdf_info_streaming(file_url, epoch_time=None):
     """
-    Extracts information from a NetCDF file.
+    Extracts information from a NetCDF file streamed from a URL using xarray.
 
     Args:
-        file_path (str): Path to the NetCDF file.
+        file_url (str): URL of the NetCDF file.
         epoch_time (int, optional): Specific epoch time to extract data for. Defaults to None.
 
     Returns:
         dict: A dictionary containing global attributes, dimensions, and variables of the NetCDF file.
     """
+    # Download the NetCDF file into memory
+    netcdf_data = util_create_LSTMAX.download_netcdf_to_memory(file_url)
+    if netcdf_data is None:
+        return {"error": "Failed to download the NetCDF file"}
 
-    # Open the NetCDF file
-    dataset = netCDF4.Dataset(file_path, 'r')
+    # Open the NetCDF data with xarray from the in-memory BytesIO object using the 'scipy' engine
+    try:
+        dataset = xr.open_dataset(netcdf_data, engine="h5netcdf")
+    except ValueError as e:
+        return {"error": f"Error opening dataset: {e}"}
 
     # Extract global attributes
-    global_attributes = {attr: dataset.getncattr(
-        attr) for attr in dataset.ncattrs()}
+    global_attributes = {attr: dataset.attrs.get(attr) for attr in dataset.attrs}
 
     # Extract dimensions
-    dimensions = {dim: len(dataset.dimensions[dim])
-                  for dim in dataset.dimensions}
+    dimensions = {dim: len(dataset[dim]) for dim in dataset.dims}
 
     # Extract variables and their attributes
     variables = {}
     for var_name in dataset.variables:
-        var = dataset.variables[var_name]
+        var = dataset[var_name]
         variables[var_name] = {
-            'dimensions': var.dimensions,
+            'dimensions': var.dims,
             'shape': var.shape,
-            'attributes': {attr: var.getncattr(attr) for attr in var.ncattrs()},
-            'data': var[:].tolist()
+            'attributes': {attr: var.attrs.get(attr) for attr in var.attrs},
         }
 
     # If epoch_time is provided, find the index corresponding to that time
-    time_var = dataset.variables['time']
     time_index = None
     if epoch_time is not None:
-        for i, t in enumerate(time_var[:]):
-            if t == epoch_time:
-                time_index = i
-                break
+        if 'time' in dataset.dims:
+            time_var = dataset['time']
+            time_index = (time_var == epoch_time).argmax().item() if epoch_time in time_var.values else None
 
-    # Close the dataset if no epoch_time is provided
-    if epoch_time is None:
-        dataset.close()
-        return {
-            'global_attributes': global_attributes,
-            'dimensions': dimensions,
-            'variables': variables
-        }
-
-    # If epoch_time is provided and found in the file, get the variables for that time
-
-    if time_index is not None:
+    # If epoch_time is provided and found, get the data for that specific time
+    if epoch_time is not None and time_index is not None:
         time_variables = {}
         for var_name in dataset.variables:
-            var = dataset.variables[var_name]
-            if 'time' in var.dimensions:
-                # Find the correct index in all dimensions
-                index = tuple(time_index if dim == 'time' else slice(None)
-                              for dim in var.dimensions)
-                var_data = var[index].tolist()
+            var = dataset[var_name]
+            if 'time' in var.dims:
+                # Select data corresponding to the specific time index
+                var_data = var.isel(time=time_index).compute()
             else:
-                var_data = var[:].tolist()  # Non-time variables
+                var_data = var.compute()  # Non-time variables
             time_variables[var_name] = {
-                'dimensions': var.dimensions,
+                'dimensions': var.dims,
                 'shape': var.shape,
-                'attributes': {attr: var.getncattr(attr) for attr in var.ncattrs()},
-                'data': var_data
+                'attributes': {attr: var.attrs.get(attr) for attr in var.attrs},
+                'data': var_data.tolist()
             }
 
-        # Close the dataset
         dataset.close()
         return {
             'global_attributes': global_attributes,
@@ -181,15 +171,15 @@ def get_netcdf_info(file_path, epoch_time=None):
             'time': epoch_time,
             'variables': time_variables
         }
-    else:
-        # Close the dataset
-        dataset.close()
-        return {
-            'global_attributes': global_attributes,
-            'dimensions': dimensions,
-            'time': epoch_time,
-            'variables': None
-        }
+
+    # If no epoch_time is provided, return all variables
+    dataset.close()
+    return {
+        'global_attributes': global_attributes,
+        'dimensions': dimensions,
+        'variables': variables
+    }
+
 
 
 def export_netcdf_band_to_geotiff(file_path, time_value, output_tiff):
@@ -329,22 +319,44 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # CONFIGURATION START
     # --------------------
 
+
+    # If collection 'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS', is set we use  the LST AllSky MAX LST. Which is not yet used or ready by MCH, only for testing puposes
+    LST_MAX_AS = "LST_MAX_AS" in collection
+
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
     modified_date_str = day_to_process.replace("-", "")
     # Replace the day part (DD) with "01"
     raw_filename = modified_date_str[:6] + "01"+"000000.nc"
 
-    # MFG
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
-
-    # MSG
-    # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
-
-    # UTC Hour of LST
-    LST_hour = 11
-
     # Band name
     band_name = "LST_PMW"
+
+    if not LST_MAX_AS:
+        # MFG
+        data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.LST_PMW.H_ch02.lonlat_"+raw_filename
+
+        # MSG
+        # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+
+        # UTC Hour of LST
+        LST_hour = 11
+
+
+
+    else:
+        # MFG
+        #data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MFG1991-2005/mfg.SDL.H_ch05.lonlat_"+raw_filename
+
+        # MSG
+        data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.SDL.H_ch02.lonlat_"+raw_filename
+
+        # UTC Hour of LST
+        LST_hour = 00
+
+        #sensor
+        plattform="msg"
+        resolution="ch02"
+
 
     # GCS Google cloud storage bucket
     bucket_name = "viirs_lst_meteoswiss"
@@ -354,7 +366,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
 
     # Switch to Wait till upload is complete
     # if set to false, The deletion of the file on GCS (delete blob) has to be implemented yet
-    wait_for_upload = True
+    wait_for_upload = False
 
     # CONFIGURATION END
     # --------------------
@@ -368,7 +380,12 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         if response.status_code == 200:
 
             #  download the file
-            urllib.request.urlretrieve(data_import_url, raw_filename)
+            if not LST_MAX_AS:
+                urllib.request.urlretrieve(data_import_url, raw_filename)
+            else:
+                print("no download necessary using streaming via xr.open_dataset ")
+                util_create_LSTMAX.calc_LST_for_date(day_to_process, plattform, resolution, "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur", os.getcwd())
+
 
         else:
             write_asset_as_empty(
@@ -388,11 +405,25 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
                     int(day), LST_hour, 00, 00).timestamp())
 
     # Create the TIFF dataset
-    export_netcdf_band_to_geotiff(
-        raw_filename, epochtime, "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+    # hourly data
 
-    # Get the metdata for the epoch
-    info_raw_file = get_netcdf_info(raw_filename, epoch_time=epochtime)
+    if not LST_MAX_AS:
+        export_netcdf_band_to_geotiff(
+            raw_filename, epochtime, "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+        # Get the metdata for the epoch
+
+    # LST MAX ALL SKY
+    else:
+        util_create_LSTMAX.export_geotiff(plattform+".LST1max.H_"+resolution+'.lonlat_'+day_to_process.replace("-", "")+"000000.nc")
+
+
+
+        # Rename the output file from LST1max to the desired LST filename
+        os.rename(plattform+".LST1max.H_"+resolution+'.lonlat_'+day_to_process.replace("-", "")+"000000.tif", "M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
+
+    # Get the metadata for the epoch
+
+    info_raw_file = get_netcdf_info_streaming(data_import_url, epoch_time=epochtime)
 
     # check if we are on a local machine or on github
     determine_run_type()
@@ -430,6 +461,18 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         day_to_process + "T" + str(LST_hour).zfill(2) + "0000Z", '%Y-%m-%dT%H%M%SZ')
     date_time = date_time.replace(tzinfo=timezone.utc)
 
+    if not LST_MAX_AS:
+        sys_name=asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-02d'
+        long_name= info_raw_file['variables']['LST_PMW']['attributes']['long_name']
+        product_version=info_raw_file['variables']['LST_PMW']['attributes']['version']
+        zeit=str(info_raw_file['time'])
+
+    else:
+        sys_name=asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-'+resolution[-2]+'d'
+        long_name= "SDL SOL"
+        product_version=info_raw_file['variables']['SDL']['attributes']['version']
+        zeit="n.a."
+
     # Set metadata properties
 
     image = image.set({
@@ -438,21 +481,21 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         # Assuming single timestamp Convert to milliseconds End timestamp
         'system:time_end': int(date_time.timestamp()) * 1000,
         # Set the name of the image
-        'system:name': asset_prefix+day_to_process+"T"+str(LST_hour)+"0000"+'_bands-02d',
+        'system:name': sys_name,
         # Set the date
         'date': day_to_process,
         # HourMin Sec
         'hour': str(LST_hour),
         # Orig filename
         'orig_filename': os.path.basename(data_import_url),
-        # Set the date
+        # Set the spacecraft name
         'spacecraft_name': info_raw_file['global_attributes']['platform'],
         # Set the date
-        'long_name': info_raw_file['variables']['LST_PMW']['attributes']['long_name'],
+        'long_name': long_name,
         # Version
-        'product_version': info_raw_file['variables']['LST_PMW']['attributes']['version'],
+        'product_version': product_version,
         # record Status
-        'netcdf_dim_time': str(info_raw_file['time']),
+        'netcdf_dim_time': zeit,
         # date created
         'date_created': info_raw_file['global_attributes']['date_created'],
         # Set the no data value, you can add more properties like baselines  etc
@@ -500,5 +543,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
             print("Export task failed with error message:", error_message)
 
     # remove the local file
+
     os.remove("M_LST_"+day_to_process+"T"+str(LST_hour)+"0000.tif")
-    os.remove(raw_filename)
+    if not LST_MAX_AS:
+        os.remove(raw_filename)
+    else:
+        os.remove(plattform+".LST1max.H_"+resolution+'.lonlat_'+day_to_process.replace("-", "")+"000000.nc")
