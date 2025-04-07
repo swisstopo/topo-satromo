@@ -744,18 +744,18 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
             return registered
 
-        def S2regprecalcFunc(image, day, collection):
-
-            # Load the collction
+        def S2regprecalcFunc(image, day, collection, orbit):
+            # Load the collection
             dxdy_coll = ee.ImageCollection(collection)
 
             # Define the precise start and end timestamps for '2023-10-01'
             start_datetime = day+'T00:00:00'
             end_datetime = day+'T23:59:59'
 
-            # Filter the collection by the precise date and time range
+
+            # Filter the collection by the precise date and time range and SENSING_ORBIT_NUMBER
             filtered_collection = dxdy_coll.filterDate(
-                start_datetime, end_datetime)
+                start_datetime, end_datetime).filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', orbit))
 
             # Is a dx dy available for this date -> Yes: continue / No: abort ('No dx dy available')
             image_list_size = filtered_collection.size().getInfo()
@@ -833,7 +833,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             print('--- Image swath co-registration from precalculated dx dy is applied ---')
             # apply the registration function
 
-            S2_sr = S2regprecalcFunc(S2_sr, day_to_process, dxdy_collection)
+            S2_sr = S2regprecalcFunc(S2_sr, day_to_process, dxdy_collection,orbit)
 
         ##############################
         # EXPORT
@@ -885,7 +885,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
                 image=S2_sr.select(band_list_10m).clip(
                     aoi_exp).set('pixel_size_meter', 10),
                 scale=10,
-                description=task_description + '_10m',
+                description=task_description + '_10m'+ 'Orbit: '+str(orbit),
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
@@ -905,7 +905,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
                 image=S2_sr.select(band_list_20m).clip(
                     aoi_exp).set('pixel_size_meter', 20),
                 scale=20,
-                description=task_description + '_20m',
+                description=task_description + '_20m'+ 'Orbit: '+str(orbit),
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
