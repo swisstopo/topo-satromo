@@ -123,6 +123,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
         .distinct() \
         .getInfo()
 
+    # check if we have no orbits / s2_sr data for that specific day
+    if not unique_orbits:
+        write_asset_as_empty(collection, day_to_process, 'No candidate scene')
+        return
+
     # For multiple orbits set a cloudy scene counter to zero
     cloudy_scene_counter = 0
 
@@ -885,7 +890,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
                 image=S2_sr.select(band_list_10m).clip(
                     aoi_exp).set('pixel_size_meter', 10),
                 scale=10,
-                description=task_description + '_10m'+ 'Orbit: '+str(orbit),
+                description=task_description + '_10m'+ ' Orbit: '+str(orbit),
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
@@ -905,7 +910,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
                 image=S2_sr.select(band_list_20m).clip(
                     aoi_exp).set('pixel_size_meter', 20),
                 scale=20,
-                description=task_description + '_20m'+ 'Orbit: '+str(orbit),
+                description=task_description + '_20m'+ ' Orbit: '+str(orbit),
                 crs='EPSG:2056',
                 region=aoi_exp,
                 maxPixels=1e10,
