@@ -71,6 +71,15 @@ jobs:
         FSDI_STAC_USER: ${{ secrets.FSDI_STAC_USER}}
         FSDI_STAC_PASSWORD: ${{ secrets.FSDI_STAC_PASSWORD}}
 
+    - name: Run Python script acquisition, extract vhi items and upload to s3
+      run: |
+        python main_functions/util_get_acquisition_plans.py
+        python main_functions/util_extract_items.py
+        python main_functions/util_upload_s3.py
+      env: # Set the secrets as env var
+        CMS_KEY: ${{ secrets.CMS_KEY }}
+        CMS_SECRET: ${{ secrets.CMS_SECRET }}
+
     #- name: Run Python script PUBLISH STAC
     #  run: |
     #    python satromo_publish_stac.py
