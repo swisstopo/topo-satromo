@@ -1,6 +1,42 @@
+"""
+util_upload_s3.py
+
+This script provides utility functions for interacting with Amazon S3, including
+uploading files and managing authentication. It supports both local (development)
+and GitHub Action (production) environments by dynamically determining the run type
+and configuring S3 credentials accordingly.
+
+Key Features:
+    - Determines the run type (local or GitHub) based on the presence of a secrets file.
+    - Initializes an S3 client using appropriate credentials for the environment.
+    - Uploads individual files or all CSV files from a specified directory to an S3 bucket.
+
+Functions:
+    - determine_run_type(): Identifies whether the script is running locally or on GitHub.
+    - initialize_s3(): Authenticates and initializes the S3 client based on the run type.
+    - upload_file_to_s3(local_file_path, bucket_name, s3_folder=''): Uploads a single file to S3.
+    - upload_all_csv_from_tools(): Uploads all CSV files from the 'tools' directory to S3.
+
+Usage:
+    - Run the script directly to upload all CSV files from the 'tools' directory to the configured S3 bucket.
+    - Modify the script to upload specific files or directories as needed.
+
+Environment:
+    - Development: Uses a local secrets file for authentication.
+    - Production: Uses environment variables for authentication (e.g., in GitHub Actions).
+
+Dependencies:
+    - boto3: AWS SDK for Python.
+    - configuration: Custom configuration module for accessing secrets and bucket information.
+
+Example:
+    $ python util_upload_s3.py
+"""
+
 import os
 import json
 import sys
+import glob
 import boto3
 # Add parent directory to sys.path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -56,15 +92,18 @@ def initialize_s3():
     s3 = boto3.client('s3',
         aws_access_key_id=bucket_key,
         aws_secret_access_key=bucket_secret,
-        #region_name='eu-central-1' #BIT sandbox
+        #region_name='eu-central-2' #BIT sandbox
         region_name='eu-west-1' #PROD cms.geo.admin.ch
     )
+
     # # List all buckets
     # response = s3.list_buckets()
 
     # # Print the bucket names
     # for bucket in response['Buckets']:
     #     print(bucket['Name'])
+
+    # breakpoint()
 
 def upload_file_to_s3(local_file_path, bucket_name, s3_folder=''):
 
@@ -81,6 +120,34 @@ def upload_file_to_s3(local_file_path, bucket_name, s3_folder=''):
         print(f"An error occurred: {e}")
         return False
 
+def upload_all_csv_from_tools():
+    tools_dir = 'tools'
+    target_s3_path = "Topo/umweltbeobachtung/tools/"
+    failed_uploads = []
+
+    csv_files = glob.glob(os.path.join(tools_dir, '*.csv'))
+
+    if not csv_files:
+        print("No CSV files found in tools/ directory.")
+        return False
+
+    for file_path in csv_files:
+        filename = os.path.basename(file_path)
+        print(f"Uploading {filename} ...")
+        upload_ok = upload_file_to_s3(file_path, config.CMS_BUCKET, target_s3_path)
+        if not upload_ok:
+            print(f"Failed to upload {filename}.")
+            failed_uploads.append(filename)
+
+    if not failed_uploads:
+        print("\nAll CSV files from tools/ uploaded successfully.")
+        return True
+    else:
+        print("\nSome CSV files failed to upload:")
+        for fname in failed_uploads:
+            print(f" - {fname}")
+        return False
+
 if __name__ == "__main__":
 
     # Test if we are on a local machine or if we are on Github
@@ -89,15 +156,5 @@ if __name__ == "__main__":
     # Authenticate with S3
     initialize_s3()
 
-
-    # upload acquisitionplan.csv
-    ACQUI_OK=upload_file_to_s3(os.path.join('tools','acquisitionplan.csv'), config.CMS_BUCKET, "Topo/umweltbeobachtung/tools/")
-
-    # upload step0_empty_assets.csv
-    EMPTY_OK=upload_file_to_s3(os.path.join('tools','step0_empty_assets.csv'), config.CMS_BUCKET, "Topo/umweltbeobachtung/tools/")
-
-    # Report success or failure
-    if not (ACQUI_OK and EMPTY_OK ):
-        print("\nFailed to upload tools/ data to CMS .")
-    else:
-        print("\nAll necessary tools/ data  uploaded successfully.")
+    # Upload all from tools
+    upload_all_csv_from_tools()
