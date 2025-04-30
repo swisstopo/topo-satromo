@@ -136,6 +136,7 @@ def parse_kml_elements(li_elements, url_kml_prefix):
                         for i in range(len(href.split('/'))):
                             if href.split('/')[-i].endswith('kml'):
                                 kml_dict[href.split('/')[-i]] = str(url_kml_prefix + href)
+
     return kml_dict
 
 def get_latest_kml(kml_dict):
@@ -160,13 +161,13 @@ def get_latest_kml(kml_dict):
         if start_date < today < end_date:
             if latest_key is None or end_date > datetime.datetime.strptime(latest_key.split('_')[-1].split('.')[0], date_format):
                 latest_key = key
+
     return latest_key
 
 # URLs and paths
 S2_URL = 'https://sentinel.esa.int/web/sentinel/missions/sentinel-2/acquisition-plans'
 URL_KML_PREFIX = 'https://sentinel.esa.int'
 STORAGE_PATH = os.getcwd() + '/'
-
 
 # Polygon defining the Area of Interest (AOI)
 POLYGON_WKT = "POLYGON((5.96 46.13,6.03 46.66,6.91 47.52,8.56 47.90,9.78 47.65,9.91 47.17,10.70 46.96,10.60 46.47,10.08 46.11,9.06 45.74,7.13 45.77,5.96 46.13))"# This is Switzerland
@@ -208,7 +209,7 @@ S2A_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2a[s2a_key], 'S2A_acqu
 S2B_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2b[s2b_key], 'S2B_acquisition_plan', STORAGE_PATH, extract_area=True) if s2b_key else False
 S2C_OK = download_and_extract_kml('Sentinel-2', kml_dict_s2c[s2c_key], 'S2C_acquisition_plan', STORAGE_PATH, extract_area=True) if s2c_key else False
 
-# Merge the two files, add publish date and remove dates older than today
+# Merge the three files, add publish date and remove dates older than today
 MERGE_OK = merge_aoi_files(STORAGE_PATH,os.path.join(STORAGE_PATH,'tools','acquisitionplan.csv'))
 
 # Report success or failure
@@ -221,7 +222,6 @@ if not (S2A_OK and S2B_OK and S2C_OK and MERGE_OK):
     print(f"Merge: {'Success' if MERGE_OK else 'Failed'}")
 else:
     print("\nAll Sentinel-2 downloads and operations completed successfully.")
-
 # Clean pattern
 # Pattern for files to delete
 patterns = ["S2A_acquisition_plan*", "S2B_acquisition_plan*", "S2C_acquisition_plan*"]
@@ -238,4 +238,3 @@ for pattern in patterns:
             #print(f"Deleted: {file}")
         except OSError as e:
             print(f"Error deleting {file}: {e}")
-
