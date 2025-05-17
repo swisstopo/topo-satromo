@@ -165,8 +165,8 @@ def get_latest_kml(kml_dict):
     return latest_key
 
 # URLs and paths
-S2_URL = 'https://sentinel.esa.int/web/sentinel/missions/sentinel-2/acquisition-plans'
-URL_KML_PREFIX = 'https://sentinel.esa.int'
+S2_URL = 'https://sentinels.copernicus.eu/web/sentinel/copernicus/sentinel-2/acquisition-plans'
+URL_KML_PREFIX = 'https://sentinels.copernicus.eu'
 STORAGE_PATH = os.getcwd() + '/'
 
 # Polygon defining the Area of Interest (AOI)
