@@ -135,6 +135,22 @@ PRODUCT_VHI_HIST = {
     # "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
+# NDVI z-score (vitality anomaly)
+PRODUCT_NDVIz = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "07f332fb-f728-4120-b6f1-488631555296",
+    "temporal_coverage": 2,  # Months
+    "spatial_scale_export": 10,  # Meters
+    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
+    "no_data": 32767,
+    "missing_data": 32767,
+    "asset_size": 1,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/COL_S2_SR_HARMONIZED_SWISS'
+}
+
 # # MSG – MeteoSchweiz
 # PRODUCT_MSG = {
 #     #
