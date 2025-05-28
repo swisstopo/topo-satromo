@@ -1,9 +1,9 @@
 import ee
-import datetime
 import configuration as config
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from main_functions import main_utils
 from step0_processors.step0_utils import write_asset_as_empty
-from step0_processors.step0_processor_msg_lst import generate_msg_lst_mosaic_for_single_date
 
 # Processing pipeline for forest vitality anomalies (NDVI z-score) over Switzerland
 
@@ -77,6 +77,10 @@ def loadNdviCurrentData(image):
         return ndvi
     
     ndvi_col = S2_col_masked.map(calculate_ndvi)
+
+    # Create list with indices of all used data
+    NDVI_index_list = ndvi_col.aggregate_array('system:index')
+    NDVI_index_list = NDVI_index_list.join(',')
     
     # Calculate data availability with explicit projection
     data_availability = (ndvi_col.reduce(ee.Reducer.count())
@@ -85,9 +89,10 @@ def loadNdviCurrentData(image):
     
     # Calculate median NDVI
     ndvi_median = ndvi_col.median().rename('median')
-    
     # Combine median NDVI with pixel count
-    return ee.Image.cat(ndvi_median, data_availability)
+    ndvi_median.addBands(data_availability)
+    
+    return ndvi_median, NDVI_index_list
 
 # This function calculates a normal z-score
 def calculate_z_score(current_vi, ref_vi):
@@ -145,33 +150,37 @@ def calculate_mod_z_score(current_vi, ref_vi):
     
     return zscore
 
-# This function creates a two-month period datetime object
-def create_two_month_period_datetime(date_string):
+# This function creates a XX-month period datetime object
+def create_time_period_datetime(date_string, temporal_coverage_months):
     """
-    Creates a two-month time period using datetime objects for robust date handling.
+    Creates a XX-month time period using datetime objects for robust date handling.
+    No matter the date's day, it will always create a time window for the previous
+    full XX months (e.g. if the date is 2024-08-15 and the temporal coverage 2, it 
+    will create a time window from June 1st to August 1st).
     
     Args:
-        date_string (str): Date in 'YYYY-MM' format (e.g., '2023-08')
+        date_string (str): Date in 'YYYY-MM-DD' format
+        temporal_coverage_months (int): Number of months for the time window
     
     Returns:
-        tuple: (start_date, end_date) as strings in 'YYYY-MM-DD' format
+        tuple: (start_date, end_date_excl, end_date_incl) as strings in 'YYYY-MM-DD' format
     """
     # Parse the input date
-    year, month = map(int, date_string.split('-'))
+    year, month, day = map(int, date_string.split('-'))
     
-    # Calculate start date (previous month, 1st day)
-    if month == 1:
-        start_date = datetime(year - 1, 12, 1)
-    else:
-        start_date = datetime(year, month - 1, 1)
+    # Create a datetime object for the input date (using 1st day of the month)
+    input_date = datetime(year, month, 1)
     
-    # Calculate end date (next month, 1st day)
-    if month == 12:
-        end_date = datetime(year + 1, 1, 1)
-    else:
-        end_date = datetime(year, month + 1, 1)
+    # Calculate start date (go back by temporal_coverage_months)
+    start_date = input_date - relativedelta(months=+temporal_coverage_months)
     
-    return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
+    # End date: 1st of input month - for filtering the first day outside the period is needed
+    end_date_excl = input_date
+
+    # End date: last of time period - for naming the product
+    end_date_incl = input_date - relativedelta(days=+1)
+    
+    return start_date.strftime('%Y-%m-%d'), end_date_excl.strftime('%Y-%m-%d'), end_date_incl.strftime('%Y-%m-%d')
 
 # Function to calculate NDSI
 def add_ndsi(image_10m, image_20m):
@@ -227,19 +236,27 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
 
     ##############################
     # TIME
-    start_date, end_date = create_two_month_period_datetime(date_str)
+    start_date, end_date_filter, end_date_name = create_time_period_datetime(date_str, config.PRODUCT_NDVIz['temporal_coverage'])
+    print(f"Processing period: {start_date} to {end_date_name} (inclusive)")  
+    print(f"Filtering data until: {end_date_filter} (exclusive)")
 
     ##############################
     # Sentinel S2 SR Data
     S2_col = ee.ImageCollection(collection_ready) \
-        .filterDate(start_date, end_date) \
+        .filterDate(start_date, end_date_filter) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '10m'))
 
     S2_col_20m = ee.ImageCollection(collection_ready) \
-        .filterDate(start_date, end_date) \
+        .filterDate(start_date, end_date_filter) \
         .filterBounds(aoi) \
         .filter(ee.Filter.stringEndsWith('system:index', '20m'))
+
+    ##############################
+    # TESTS
+
+    # Get Sensor info -> which S2 is available
+    sensor_stats = main_utils.get_collection_info(S2_col)
 
     # Get information about the available sensor data for the range
     # Get the number of images in the filtered collection
@@ -250,37 +267,121 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
             config.PRODUCT_NDVIz['step1_collection'], date_str, 'No S2 SR data available')
         return
 
-    # Test if NDVIz GEE Asset already exists? If not, it will be created.
-    NDVIz_col = ee.ImageCollection(config.PRODUCT_NDVIz['step1_collection']) \
-        .filterMetadata('system:index', 'contains', date_str) \
-        .filterBounds(aoi)
-    NDVIz_count = NDVIz_col.size().getInfo()
-    if NDVIz_count == 0:
+    # Check if all required data is available (processed or within empty asset list)
+    all_available, missing_dates = main_utils.check_collection_data_availability(
+    'S2_SR_HARMONIZED_SWISS', '2024-05-01', '2024-05-31', ['bands-10m', 'bands-20m'])
 
-            # TEST VHI empty asset? VHI in empty_asset list? then skip
-            if main_utils.is_date_in_empty_asset_list(config.PRODUCT_VHI['step1_collection'], current_date_str):
-                return
+    if all_available:
+        print(f"✅ All required data is available. Processing can proceed...")
 
-            # Get information about the available sensor data for the range
-            # Get the number of images in the filtered collection
-            image_count = S2_col.size().getInfo()
+        # # Test if NDVIz GEE Asset already exists? If not, it will be created.
+        # NDVIz_col = ee.ImageCollection(config.PRODUCT_NDVIz['step1_collection']) \
+        #     .filterMetadata('system:index', 'contains', date_str) \
+        #     .filterBounds(aoi)
+        # NDVIz_count = NDVIz_col.size().getInfo()
+        # if NDVIz_count == 0:
 
-            if image_count == 0:
-                write_asset_as_empty(
-                    config.PRODUCT_VHI['step1_collection'], current_date_str, 'No S2 SR data available')
-                return
+        # Test if NDVIz is in empty asset list? If yes, then skip.
+        if main_utils.is_date_in_empty_asset_list(config.PRODUCT_NDVIz['step1_collection'], date_str):
+            return
+
+            ###########################################
+            # PROCESSING
+            # Map the function over the S2_col collection
+            S2_col = add_ndsi(S2_col, S2_col_20m)
+
+            # Load/Calculate NDVI data
+            month = int(date_str.split('-')[1])
+            NDVIref = loadNdviRefData(month)
+            NDVIj, NDVI_index_list = loadNdviCurrentData(S2_col) # bands: median, pixel_count
+
+            # Calculate VCI
+            if modZScore is True:
+                zscore = calculate_mod_z_score(NDVIj, NDVIref)
+                print('--- Modified z-score calculated ---')
+            else:
+                zscore = calculate_z_score(NDVIj, NDVIref)
+                print('--- Z-score calculated ---')
+
+            # converting the data type
+            zscore = zscore.int16()
+            data_availability = NDVIj.select('pixel_count').int8()
+
+            # add no data value for when one of the datasets is unavailable
+            zscore = zscore.unmask(config.PRODUCT_NDVIz['missing_data'])
+
+            # Mask for forest
+            zscore = zscore.updateMask(forest_mask.eq(1))
+            data_availability = data_availability.updateMask(forest_mask.eq(1))
+
+            # combine both outputs in one ee.Image
+            NDVIz = zscore.addBands(data_availability)
+
+            # Set data properties
+            # Getting swisstopo Processor Version
+            processor_version = main_utils.get_github_info()
+            # Earth Engine version
+            ee_version = ee.__version__
+
+            # set properties to the product to be exported
+            NDVIz = NDVIz.set({
+                'scale': 100,
+                'system:time_start': start_date.millis(),
+                'system:time_end': end_date.millis(),
+                'temporal_coverage': config.PRODUCT_NDVIz['temporal_coverage'],
+                'missing_data': config.PRODUCT_NDVIz['missing_data'],
+                'no_data': config.PRODUCT_NDVIz['no_data'],
+                'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
+                'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
+                'collection': collection_ready,
+                'S2-SR_index_list': NDVI_index_list,
+                'NDVI_reference_data': config.PRODUCT_NDVIz['NDVI_reference_data'],
+                'GEE_api_version': ee_version,
+                'pixel_size_meter': 10,
+            })
+
+            ##############################
+            # EXPORT
+
+            # define the export aoi
+            aoi_exp = aoi
+
+            # SWITCH export - forest (Asset)
+            if exportForestAsset is True:
+                task_description = 'NDVIz_SWISS_' + date_str
+                print('Launching NDVIz export for forests')
+                # Export asset
+                task = ee.batch.Export.image.toAsset(
+                    image = NDVIz.clip(aoi_exp),
+                    scale = 10,
+                    description = task_description + '_FOREST_10m',
+                    crs = 'EPSG:2056',
+                    region = aoi_exp,
+                    maxPixels = 1e10,
+                    assetId = config.PRODUCT_NDVIz['step1_collection'] +
+                        '/' + task_description + '_FOREST_10m',
+                )
+                task.start()
+        
+        else:
+            print(date_str +' is already in ' +
+                config.PRODUCT_NDVIz['step1_collection'])
+
+            # Load from GEE Asset
+            NDVIz = ee.Image(NDVIz_col.filter(ee.Filter.stringContains('system:index', date_str)).first())
+
+        if exportForestDrive is True:
+            # Generate the filename
+            filename = config.PRODUCT_NDVIz['product_name'] + \
+                '_mosaic_' + date_str + '_forest-10m'
+            main_utils.prepare_export(roi, date_str, filename, config.PRODUCT_NDVIz['product_name'],
+                                    config.PRODUCT_VHI['spatial_scale_export'], NDVIz,
+                                    sensor_stats, date_str)
     
-    else:
-        print(date_str +' is already in ' +
-            config.PRODUCT_NDVIz['step1_collection'])
+        else:
+            print(f"❌ PROCESSING ABORTED: Missing data for the following dates:")
+        for date in missing_dates:
+            print(f"   - {date}")
+        print(f"\nTotal missing dates: {len(missing_dates)}")
+        print(f"Please ensure all required assets are available before running the processing.")
 
-        # Load from GEE Asset
-        NDVIz = ee.Image(NDVIz_col.filter(ee.Filter.stringContains('system:index', date_str)).first())
-
-    if exportForestDrive is True:
-        # Generate the filename
-        filename = config.PRODUCT_NDVIz['product_name'] + \
-            '_mosaic_' + date_str + '_forest-10m'
-        main_utils.prepare_export(roi, date_str, filename, config.PRODUCT_NDVIz['product_name'],
-                                config.PRODUCT_VHI['spatial_scale_export'], NDVIz,
-                                sensor_stats, date_str)
