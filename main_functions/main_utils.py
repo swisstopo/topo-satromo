@@ -1,7 +1,6 @@
 import configuration as config
 import requests
 import ee
-import datetime
 from datetime import datetime, timedelta
 import csv
 import os
@@ -454,13 +453,13 @@ def check_product_update(product_name, date_string):
     bool: True if date_String has a newer Date than "LastSceneDate" stored in the product,
     True if the product is not found, False otherwise.
     """
-    target_date = datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
+    target_date = datetime.strptime(date_string, "%Y-%m-%d").date()
 
     with open(config.LAST_PRODUCT_UPDATES, "r", newline="", encoding="utf-8") as f:
         dict_reader = csv.DictReader(f, delimiter=",")
         for row in dict_reader:
             if row["Product"] == product_name:
-                last_scene_date = datetime.datetime.strptime(
+                last_scene_date = datetime.strptime(
                     row["LastSceneDate"], "%Y-%m-%d").date()
                 return last_scene_date < target_date
     return True
