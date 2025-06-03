@@ -114,7 +114,7 @@ PRODUCT_VHI = {
     'LST_reference_data': 'projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS',
     'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    "step0_collection": 'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS'
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # VHI Historic – Trockenstress
@@ -148,7 +148,7 @@ PRODUCT_NDVIz = {
     "asset_size": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
-    # "step0_collection": 'projects/satromo-prod/assets/COL_S2_SR_HARMONIZED_SWISS'
+    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz
@@ -299,6 +299,10 @@ step0 = {
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
     'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
+        'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
+        # cleaning_older_than: 2 # entry used to clean assets
+    },
+    'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     },
