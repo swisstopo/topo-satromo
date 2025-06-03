@@ -299,16 +299,20 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
                         zscore = calculate_z_score(NDVIj, NDVIref)
                         print('NDVI normal z-score calculated')
 
-                    # converting the data type
+                    # Converting the data type
                     zscore = zscore.int16()
                     data_availability = NDVIj.select('pixel_count').int8()
 
-                    # add no data value for when one of the datasets is unavailable
+                    # Add missing data value for when there's no NDVIz
+                    # (due to clouds and cloud shadows, terrain shadows, snow, etc.)
                     zscore = zscore.unmask(config.PRODUCT_NDVIz['missing_data'])
 
                     # Mask for forest
                     zscore = zscore.updateMask(forest_mask.eq(1))
                     data_availability = data_availability.updateMask(forest_mask.eq(1))
+
+                    # Assign no data value to non-forested areas
+                    NDVIz = NDVIz.unmask(config.PRODUCT_NDVIz['no_data'])
 
                     # combine both outputs in one ee.Image
                     NDVIz = zscore.addBands(data_availability)

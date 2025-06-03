@@ -143,8 +143,8 @@ PRODUCT_NDVIz = {
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
     "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
-    "no_data": 32767,
-    "missing_data": 32767,
+    "no_data": 32701,
+    "missing_data": 32700,
     "asset_size": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
