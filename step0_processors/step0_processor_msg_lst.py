@@ -333,7 +333,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # Replace the day part (DD) with "01"
     # raw_filename = modified_date_str[:6] + "01"+"000000.nc"
 
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.globalstrahlung-monatlich/landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
     # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # Set LST_HOUR based on the condition
