@@ -1,19 +1,3 @@
-import pystac_client
-import rasterio
-import geopandas as gpd
-from pyproj import CRS, Transformer
-from datetime import datetime
-import pandas as pd
-import matplotlib.pyplot as plt
-from shapely.geometry import Point
-import os
-from datetime import datetime
-from tqdm import tqdm
-import time
-import logging
-from functools import wraps
-import requests
-from collections import defaultdict
 """
 util_treenet_extract.py
 
@@ -297,7 +281,7 @@ if __name__ == "__main__":
     # Create extractor instance
     extractor = VHIExtractor(catalog)
     # Process years 2017-2024
-    for year in range(2018, 2024):
+    for year in range(2017, 2024):
         input_file = fr'C:\temp\BAFU_TreeNet_Signals_2017_2024\TN_{year}.csv'
         output_file = fr'C:\temp\satromo-dev\output\TN_{year}_swisseo.csv'
         try:
