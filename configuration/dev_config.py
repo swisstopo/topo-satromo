@@ -148,7 +148,7 @@ PRODUCT_NDVIz = {
     "asset_size": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
-    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz
