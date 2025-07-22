@@ -142,7 +142,7 @@ PRODUCT_NDVIz = {
     "geocat_id": "07f332fb-f728-4120-b6f1-488631555296",
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
-    "product_name": "ch.swisstopo.swisseo_ndviz_v100",
+    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
     "no_data": 32701,
     "missing_data": 32700,
     "asset_size": 1,
