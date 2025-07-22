@@ -245,6 +245,10 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
     print(f"Processing period: {start_date} to {end_date} (inclusive)")  
     # print(f"Filtering data until: {end_date_filter} (exclusive)")
 
+    # Define item Name
+    timestamp = datetime.strptime(end_date, '%Y-%m-%d')
+    timestamp = timestamp.strftime('%Y-%m-%dT235959')
+
     ##############################
     # Sentinel S2 SR Data
     S2_col = ee.ImageCollection(collection_ready) \
@@ -349,7 +353,7 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
 
                     # SWITCH: export to GEE asset
                     if exportAsset is True:
-                        task_description = 'NDVIz_SWISS_' + start_date + '_' + end_date
+                        task_description = 'NDVIz_SWISS_' + timestamp
                         band_list = ['zscore', 'pixel_count']
                         print('Launching NDVIz export to asset')
                         # Export asset
@@ -371,15 +375,15 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
                         # Export z-score data
                         export_item = NDVIz.select('zscore')
                         filename = config.PRODUCT_NDVIz['product_name'] + \
-                            '_mosaic_' + start_date + '_' + end_date + '_forest-10m'
-                        main_utils.prepare_export(roi, end_date, filename, config.PRODUCT_NDVIz['product_name'],
+                            '_mosaic_' + timestamp + '_forest-10m'
+                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIz['product_name'],
                                                 config.PRODUCT_NDVIz['spatial_scale_export'], export_item,
                                                 sensor_stats, end_date)
                         # Export data availability
                         export_item = NDVIz.select('pixel_count')
                         filename = config.PRODUCT_NDVIz['product_name'] + \
-                            '_mosaic_' + start_date + '_' + end_date + '_pixelcount-10m'
-                        main_utils.prepare_export(roi, end_date, filename, config.PRODUCT_NDVIz['product_name'],
+                            '_mosaic_' + timestamp + '_pixelcount-10m'
+                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIz['product_name'],
                                                 config.PRODUCT_NDVIz['spatial_scale_export'], export_item,
                                                 sensor_stats, end_date)
 
