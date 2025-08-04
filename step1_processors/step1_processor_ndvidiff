@@ -82,13 +82,24 @@ def calculate_ndvi_difference(current_ndvi, past_ndvi):
     """
     ndvi_diff = current_ndvi.select('median').subtract(past_ndvi.select('median')).rename('ndvi_diff')
 
+    # Extract index lists from both images
+    current_index_list = current_ndvi.get('S2_SR_index_list')
+    past_index_list = past_ndvi.get('S2_SR_index_list')
+    
+    # Combine the index lists
+    combined_index_list = current_index_list.cat(',').cat(past_index_list)
+
     # Flags for data availability?
     # ---------------------------------------------------------------------------------------------------
 
     # Scaling
-    ndvi_diff = ndvi_diff.multiply(1000)  # scaling factor
+    scaling_factor = 1000
+    ndvi_diff = ndvi_diff.multiply(scaling_factor)  # scaling factor
 
-    return ndvi_diff.addBands(current_ndvi.select('pixel_count'))   
+    # Add index list
+    ndvi_diff = ndvi_diff.set('S2_SR_index_list', combined_index_list)
+
+    return ndvi_diff.addBands(current_ndvi.select('pixel_count')), scaling_factor
 
 # Function to calculate NDSI
 def create_ndsi_mapper(image_20m_collection):
@@ -272,7 +283,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                     NDVI_past = calculate_ndvi(S2_col_past)
 
                     # Calculate NDVI difference
-                    NDVI_diff = calculate_ndvi_difference(NDVI_current, NDVI_past)
+                    NDVI_diff, scaling_factor = calculate_ndvi_difference(NDVI_current, NDVI_past)
 
                     # Converting the data type
                     NDVI_diff = NDVI_diff.int16()
@@ -295,7 +306,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
 
                     # set properties to the product to be exported
                     NDVIdiff = NDVIdiff.set({
-                        'scale': 1000,
+                        'scale': scaling_factor,
                         'system:time_start': ee.Date(start_date_current).millis(),
                         'system:time_end': ee.Date(end_date_current).millis(),
                         'temporal_coverage': config.PRODUCT_NDVIdiff['temporal_coverage'],
@@ -304,7 +315,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                         'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
                         'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
                         'collection': collection_ready,
-                        # 'S2_SR_index_list': NDVIj.get('S2_SR_index_list'),
+                        'S2_SR_index_list': NDVI_diff.get('S2_SR_index_list'),
                         'NDVI_reference_data': config.PRODUCT_NDVIdiff['NDVI_reference_data'],
                         'GEE_api_version': ee_version,
                         'pixel_size_meter': 10,
