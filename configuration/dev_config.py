@@ -151,6 +151,21 @@ PRODUCT_NDVIz = {
     "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
+# NDVI difference (vitality anomaly)
+PRODUCT_NDVIdiff = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "b144c4ba-971b-4e17-b809-47ee38ecfa26",
+    "temporal_coverage": 2,  # Months
+    "spatial_scale_export": 10,  # Meters
+    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
+    "no_data": 32701,
+    "missing_data": 32700,
+    "asset_size": 1,
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
+    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+}
+
 # # MSG – MeteoSchweiz
 # PRODUCT_MSG = {
 #     #
