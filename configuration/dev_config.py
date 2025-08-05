@@ -111,10 +111,10 @@ PRODUCT_VHI = {
     "missing_data": 110,
     "asset_size": 2,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    'LST_reference_data': 'projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS',
-    'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # VHI Historic – Trockenstress
@@ -147,7 +147,7 @@ PRODUCT_NDVIz = {
     "missing_data": 32700,
     "asset_size": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
-    "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
+    "step1_collection": 'projects/satromo-int/assets/COL_NDVIz_SWISS',
     "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
@@ -158,12 +158,12 @@ PRODUCT_NDVIdiff = {
     "geocat_id": "b144c4ba-971b-4e17-b809-47ee38ecfa26",
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
-    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
+    "product_name": "ch.swisstopo.swisseo_ndvi_diff_v100",
     "no_data": 32701,
     "missing_data": 32700,
     "asset_size": 1,
-    "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
-    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    "step1_collection": 'projects/satromo-int/assets/COL_NDVIdiff_SWISS',
+    #"step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz
