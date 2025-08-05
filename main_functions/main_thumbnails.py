@@ -308,8 +308,108 @@ def create_thumbnail(inputfile_name, product):
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             return False
+
+
+    # NDVIz Use case
+    elif product.startswith("ch.swisstopo.swisseo_ndvi_z") and (inputfile_name.endswith("forest-10m.tif")):
+        # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
+        # It should be called just   "thumbnail.jpg"
+        # thumbnail_name = inputfile_name.replace(
+        #     "bands-10m.tif", "thumbnail.jpeg")
+        thumbnail_name = "thumbnail.jpg"
+
+        try:
+            # Pre-process to combine no-data values
+            with rasterio.open(inputfile_name) as src:
+                data = src.read(1)
+                profile = src.profile.copy()
+                
+                # Convert both 32700 and 32701 to 32701
+                data[(data == 32700) | (data == 32701)] = 32701
+                
+                # Update profile to set no-data value
+                profile.update(nodata=32701)
+                
+                # Write preprocessed file
+                with rasterio.open('preprocessed.tif', 'w', **profile) as dst:
+                    dst.write(data, 1)
+
+            # Export thumbnail
+            command = [
+                "gdal_translate",
+                "-b", "1",
+                "-of", "GTiff",
+                "-outsize", "256", "256",
+                "-a_nodata", "32701",
+                "preprocessed.tif",
+                "output_thumbnail.tif"
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+
+            # Define color map
+            color_map = { #scaling factor 100
+                (-550, -450): (125, 102, 8),    #dark brown
+                (-449, -350): (169, 137, 11),   # 
+                (-349, -250): (212, 172, 13),  # 
+                (-249, -150): (230, 196, 62),  # 
+                (-149, -50): (247, 220, 111),  # light yellow
+                (-49, 0.5): (245, 245, 245),   # light grey
+                (49, 150): (125, 206, 160),   # light green
+                (149, 250): (80, 180, 122),  # 
+                (249, 350): (34, 153, 84),  # 
+                (349, 450): (27, 122, 67),  #
+                (449, 550): (20, 90, 50),  # dark green
+                (32700, 32700): (128, 128, 128),  # missing data values- gray
+                (32701, 32701): (255, 255, 255)  # no data values- white
+            }
+
+            # Load TIFF file
+            with rasterio.open('output_thumbnail.tif') as src:
+                data = src.read(1)  # Assuming single band
+                profile = src.profile
+                # Update profile for 3 bands and int16 dtype
+                profile.update(count=3, dtype=rasterio.int16)
+
+            # Apply color mapping
+            data_rgb = np.zeros(
+                (3, data.shape[0], data.shape[1]), dtype=np.int16)
+            for value_range, color in color_map.items():
+                mask = np.logical_and(
+                    data >= value_range[0], data <= value_range[1])
+                for i in range(3):
+                    data_rgb[i][mask] = color[i]
+
+            # Write RGB image
+            with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
+                dst.write(data_rgb)
+
+            # Fill Buffer Switzerland
+            fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
+
+            # overlay on Switzerland
+            command = [
+                "gdalwarp",
+                "-overwrite",
+                "-dstnodata", "255,255,255",
+                "output_thumbnailswissfill.tif",
+                "output_thumbnailRGB.tif",
+                "output_thumbnailRGB_merged.tif",
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        
+            breakpoint()
+            # Apply overlay and create JPG
+            thumbnail_name = apply_overlay(
+                "output_thumbnailRGB_merged.tif", thumbnail_name)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
+            return False
     else:
         return False
+
+
+
 
     # return the thumbnail
     return thumbnail_name
