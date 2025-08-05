@@ -397,7 +397,6 @@ def create_thumbnail(inputfile_name, product):
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
         
-            breakpoint()
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
                 "output_thumbnailRGB_merged.tif", thumbnail_name)
