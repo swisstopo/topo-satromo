@@ -731,16 +731,16 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
         return False
 
 
-def check_asset_size(filename):
+def get_product_info(filename):
     """
-    Checks the asset size of the product defined in the configuration
+    Checks the asset size and missing_data value of the product defined in the configuration.
 
     Args:
     - filename (str): The filename containing the product name to match.
 
     Returns:
-    - asset_size (int or None): The needed asset size if a matching product is found,
-                                otherwise None.
+    - tuple: (asset_size, missing_data) if a matching product is found,
+             otherwise None.
     """
     # Iterate through all items in the config file
     for product_name in dir(config):
@@ -750,11 +750,26 @@ def check_asset_size(filename):
         # Check if it's a dictionary and has the 'product_name' key
         if isinstance(product_info, dict) and 'product_name' in product_info:
             if product_info['product_name'] in filename:
-                # Return the expected asset size
-                return product_info['asset_size']
+                # Return the expected asset size and missing_data value
+                return (product_info.get('asset_size'), product_info.get('missing_data'),product_info.get('no_data'))
 
     print("No matching product found in the configuration.")
     return None  # Return None if no matching product is found
+
+def extract_descriptor_mean(input_string):
+    """
+    Extracts the descriptor substring from an input string formatted with 'swisseo_' and '_v' markers.
+
+    Args:
+        input_string (str): The input string containing the descriptor.
+
+    Returns:
+        str: The extracted descriptor between 'swisseo_' and '_v'. Returns "no-name" if the pattern is not found.
+    """
+    match = re.search(r'swisseo_(.*?)_v\d{3}', input_string)
+    if match:
+        return match.group(1)
+    return "no-name"
 
 
 if __name__ == "__main__":
@@ -841,8 +856,8 @@ if __name__ == "__main__":
             if all_completed:
                 all_assets = all_assets + 1
 
-                # Check overall completion status of all assets for date.
-                asset_size = check_asset_size(filename)
+                # Check overall completion status of all assets for date and get Product No_Data
+                asset_size, product_missing_data, product_no_data = get_product_info(filename)
                 if all_assets == asset_size:
                     print(" ... checking status of asset: "+filename)
                     print(" --> ",
@@ -878,6 +893,9 @@ if __name__ == "__main__":
                         main_publish_stac_fsdi.publish_to_stac(
                             file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
+                        # Define  mean type
+                        mean_type = extract_descriptor_mean(filename)
+
                         # Warnregions:
                         # swisseo-vhi warnregions: create
 
@@ -890,8 +908,9 @@ if __name__ == "__main__":
                                     "_") + 1:file_merged.rfind("-")]+"-warnregions"
 
                             # Extracting warnregions
+
                             main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
-                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", config.PRODUCT_VHI['missing_data'])
+                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", product_missing_data, product_no_data, mean_type)
 
                             # Pushing  CSV , GEOJSON and PARQUET
                             warnformats = [".csv", ".geojson", ".parquet"]  #
@@ -908,7 +927,7 @@ if __name__ == "__main__":
                                     "SOURCE": file_merged,
                                     "format": format,
                                     "regionId": "RegionID",
-                                    "vhiMean": "VHI Mean Region",
+                                    mean_type+"Mean": mean_type.upper()+" Mean Region",
                                     "availabilityPercentage": "percentage of available pixels with information within region"
                                 }
 

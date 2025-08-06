@@ -39,13 +39,13 @@ Run the script.
 
 
 # ----------------------------------------
-def export(raster_url, shape_file, filename, dateISO8601, missing_values):
+def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_data_values, mean_type):
 
     # Parameters :
     regionnr = "REGION_NR"  # depend on the  SHP file delivered by FOEN
     regionname = "Name"  # depend on the  SHP file delivered by FOEN
 
-    vhimean = "vhi_mean"
+    mean_descriptor = mean_type + "_mean"
     availpercen = "availability_percentage"
     date_column = "date"
 
@@ -72,9 +72,10 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                 missing_values_count = np.count_nonzero(
                     values == missing_values)
 
-                # Remove NoData values (255) and missing data values (110)
+                # Remove NoData values and missing data values according to the configuration and the raster
                 valid_values = values[(values != src.nodata)
-                                      & (values != missing_values)]
+                                      & (values != missing_values)& (values != no_data_values)]
+
                 # Count the number of cells with the valid values
                 # valid_values_count = np.count_nonzero(valid_values)
                 valid_values_count = valid_values.size
@@ -113,11 +114,11 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                 availability_percentages.append(missing_values)
 
     # Add raster values and availability percentages to the GeoDataFrame
-    gdf[vhimean] = raster_values
+    gdf[mean_descriptor] = raster_values
     gdf[availpercen] = availability_percentages
 
     # Save selected columns of the GeoDataFrame to a CSV file
-    gdf[[regionnr, vhimean, availpercen]].to_csv(
+    gdf[[regionnr, mean_descriptor, availpercen]].to_csv(
         filename + '.csv', index=False)
 
     # Remove the "Name" column from the GeoDataFrame
@@ -125,7 +126,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
 
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
-    gdf[vhimean] = gdf[vhimean].astype(int)
+    gdf[mean_descriptor] = gdf[mean_descriptor].astype(int)
     # print(gdf.dtypes)
 
     # Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
