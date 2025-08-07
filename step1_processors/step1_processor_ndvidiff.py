@@ -34,7 +34,7 @@ def calculate_ndvi(image):
         image (ee.ImageCollection): Sentinel-2 image collection.
 
     Returns:
-        ee.Image: Combined image with median NDVI and pixel count bands
+        ee.Image: Combined image with median NDVI and index list.
     """
     # Apply the cloud and terrain shadow mask within the S2 image collection
     def applyMasks(image):
@@ -55,18 +55,13 @@ def calculate_ndvi(image):
     S2_SR_index_list = ndvi_col.aggregate_array('system:index')
     S2_SR_index_list = S2_SR_index_list.join(',')
     
-    # Calculate data availability with explicit projection
-    data_availability = (ndvi_col.reduce(ee.Reducer.count())
-                        .rename('pixel_count')
-                        .reproject(crs='EPSG:2056', scale=10))
-    
     # Calculate median NDVI
     ndvi_median = ndvi_col.median().rename('median')
-    # Combine median NDVI with pixel count
-    ndvi_combined = (ndvi_median.addBands(data_availability)
-                        .set('S2_SR_index_list', S2_SR_index_list))
+
+    # Set index list as property
+    result = ndvi_median.set('S2_SR_index_list', S2_SR_index_list)
     
-    return ndvi_combined
+    return result
 
 # Function to calculate the NDVI difference
 def calculate_ndvi_difference(current_ndvi, past_ndvi):   
@@ -87,19 +82,15 @@ def calculate_ndvi_difference(current_ndvi, past_ndvi):
     past_index_list = past_ndvi.get('S2_SR_index_list')
     
     # Combine the index lists
-    combined_index_list = current_index_list.cat(',').cat(past_index_list)
-
-    # Flags for data availability?
-    # ---------------------------------------------------------------------------------------------------
-
+    combined_index_list = ee.String(current_index_list).cat(',').cat(ee.String(past_index_list))
+    
     # Scaling
-    scaling_factor = 1000
-    ndvi_diff = ndvi_diff.multiply(scaling_factor)  # scaling factor
+    ndvi_diff = ndvi_diff.multiply(config.PRODUCT_NDVIdiff['scaling_factor'])
 
     # Add index list
     ndvi_diff = ndvi_diff.set('S2_SR_index_list', combined_index_list)
 
-    return ndvi_diff.addBands(current_ndvi.select('pixel_count')), scaling_factor
+    return ndvi_diff
 
 # Function to calculate NDSI
 def create_ndsi_mapper(image_20m_collection):
@@ -177,7 +168,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
     exportAsset = True          # options: True, False
-    exportDrive = True          # options: True, False
+    exportDrive = False          # options: True, False
     
     ##############################
     # SPACE
@@ -196,9 +187,12 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
     # print(f"Filtering data until: {end_date_filter} (exclusive)")
 
     # previous time period
-    start_date_past = start_date_current -relativedelta(years=-1)
-    end_date_past_filter = end_date_current_filter - relativedelta(years=-1)
-    end_date_past = end_date_current - relativedelta(years=-1)
+    start_date_past_dt = datetime.strptime(start_date_current, '%Y-%m-%d') - relativedelta(years=-1)
+    start_date_past = start_date_past_dt.strftime('%Y-%m-%d')
+    end_date_past_filter_dt = datetime.strptime(end_date_current_filter, '%Y-%m-%d') - relativedelta(years=-1)
+    end_date_past_filter = end_date_past_filter_dt.strftime('%Y-%m-%d')
+    end_date_past_dt = datetime.strptime(end_date_current, '%Y-%m-%d') - relativedelta(years=-1)
+    end_date_past = end_date_past_dt.strftime('%Y-%m-%d')
     print(f"Comparing it against the period: {start_date_past} to {end_date_past} (inclusive)") 
 
     # Define item Name
@@ -279,11 +273,11 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                     S2_col_past = S2_col_past.map(ndsi_mapper_past)
                     
                     # Calculate NDVI data
-                    NDVI_current = calculate_ndvi(S2_col_current) # bands: median, pixel_count
+                    NDVI_current = calculate_ndvi(S2_col_current)
                     NDVI_past = calculate_ndvi(S2_col_past)
 
                     # Calculate NDVI difference
-                    NDVI_diff, scaling_factor = calculate_ndvi_difference(NDVI_current, NDVI_past)
+                    NDVI_diff = calculate_ndvi_difference(NDVI_current, NDVI_past)
 
                     # Converting the data type
                     NDVI_diff = NDVI_diff.int16()
@@ -296,7 +290,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                     NDVI_diff = NDVI_diff.updateMask(forest_mask.eq(1))
 
                     # Assign no data value to non-forested areas
-                    NDVI_diff = NDVI_diff.unmask(config.PRODUCT_NDVIdiff['no_data'])
+                    NDVIdiff = NDVI_diff.unmask(config.PRODUCT_NDVIdiff['no_data'])
 
                     # Set data properties
                     # Getting swisstopo Processor Version
@@ -306,7 +300,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
 
                     # set properties to the product to be exported
                     NDVIdiff = NDVIdiff.set({
-                        'scale': scaling_factor,
+                        'scale': config.PRODUCT_NDVIdiff['scaling_factor'],
                         'system:time_start': ee.Date(start_date_current).millis(),
                         'system:time_end': ee.Date(end_date_current).millis(),
                         'temporal_coverage': config.PRODUCT_NDVIdiff['temporal_coverage'],
@@ -315,8 +309,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                         'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
                         'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
                         'collection': collection_ready,
-                        'S2_SR_index_list': NDVI_diff.get('S2_SR_index_list'),
-                        'NDVI_reference_data': config.PRODUCT_NDVIdiff['NDVI_reference_data'],
+                        'S2_SR_index_list': NDVIdiff.get('S2_SR_index_list'),
                         'GEE_api_version': ee_version,
                         'pixel_size_meter': 10,
                     })
@@ -330,11 +323,10 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                     # SWITCH: export to GEE asset
                     if exportAsset is True:
                         task_description = 'NDVIdiff_SWISS_' + timestamp
-                        band_list = ['ndvi_diff', 'pixel_count']
                         print('Launching NDVIdiff export to asset')
                         # Export asset
                         task = ee.batch.Export.image.toAsset(
-                            image = NDVIdiff.select(band_list).clip(aoi_exp),
+                            image = NDVIdiff.select('ndvi_diff').clip(aoi_exp),
                             scale = 10,
                             description = task_description + '_10m',
                             crs = 'EPSG:2056',
@@ -352,13 +344,6 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                         export_item = NDVIdiff.select('ndvi_diff')
                         filename = config.PRODUCT_NDVIdiff['product_name'] + \
                             '_mosaic_' + timestamp + '_forest-10m'
-                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
-                                                config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
-                                                sensor_stats_current, end_date_current)
-                        # Export data availability
-                        export_item = NDVIdiff.select('pixel_count')
-                        filename = config.PRODUCT_NDVIdiff['product_name'] + \
-                            '_mosaic_' + timestamp + '_pixelcount-10m'
                         main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
                                                 config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
                                                 sensor_stats_current, end_date_current)
