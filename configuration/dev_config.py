@@ -155,7 +155,7 @@ PRODUCT_NDVIz = {
     "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
-# NDVI difference (vitality anomaly)
+# NDVI difference (yearly change)
 PRODUCT_NDVIdiff = {
     # TODO: check if needed in context with step0
     "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
