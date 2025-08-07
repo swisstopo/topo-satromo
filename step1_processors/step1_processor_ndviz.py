@@ -115,7 +115,7 @@ def calculate_z_score(current_vi, ref_vi):
               .divide(ref_vi.select('std'))
               .rename('zscore'))
     
-    zscore = zscore.multiply(100)
+    zscore = zscore.multiply(config.PRODUCT_NDVIz['scaling_factor'])
     zscore = zscore.set('zscore_method', z_method)
     
     return zscore
@@ -143,7 +143,7 @@ def calculate_mod_z_score(current_vi, ref_vi):
               .divide(ref_vi.select('medianAD'))
               .rename('zscore'))
     
-    zscore = zscore.multiply(100)  # scaling factor
+    zscore = zscore.multiply(config.PRODUCT_NDVIz['scaling_factor'])  # scaling factor
     zscore = zscore.set({
         'zscore_method': z_method,
         'constant': constant
@@ -330,7 +330,7 @@ def process_PRODUCT_NDVIz(roi, collection_ready, date_str):
 
                     # set properties to the product to be exported
                     NDVIz = NDVIz.set({
-                        'scale': 100,
+                        'scale': config.PRODUCT_NDVIz['scaling_factor'],
                         'system:time_start': ee.Date(start_date).millis(),
                         'system:time_end': ee.Date(end_date).millis(),
                         'temporal_coverage': config.PRODUCT_NDVIz['temporal_coverage'],
