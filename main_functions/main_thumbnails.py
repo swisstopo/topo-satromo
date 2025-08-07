@@ -290,9 +290,11 @@ def create_thumbnail(inputfile_name, product):
             # Fill Buffer Switzerland
             fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
 
+            
             # overlay on Switzerland
             command = [
                 "gdalwarp",
+                "-s_srs", "EPSG:2056",
                 "-overwrite",
                 "-dstnodata", "255,255,255",
                 "output_thumbnailswissfill.tif",
@@ -323,13 +325,13 @@ def create_thumbnail(inputfile_name, product):
             with rasterio.open(inputfile_name) as src:
                 data = src.read(1)
                 profile = src.profile.copy()
-                
+
                 # Convert both 32700 and 32701 to 32701
                 data[(data == 32700) | (data == 32701)] = 32701
-                
+
                 # Update profile to set no-data value
                 profile.update(nodata=32701)
-                
+
                 # Write preprocessed file
                 with rasterio.open('preprocessed.tif', 'w', **profile) as dst:
                     dst.write(data, 1)
@@ -349,14 +351,14 @@ def create_thumbnail(inputfile_name, product):
             # Define color map
             color_map = { #scaling factor 100
                 (-550, -450): (125, 102, 8),    #dark brown
-                (-449, -350): (169, 137, 11),   # 
-                (-349, -250): (212, 172, 13),  # 
-                (-249, -150): (230, 196, 62),  # 
+                (-449, -350): (169, 137, 11),   #
+                (-349, -250): (212, 172, 13),  #
+                (-249, -150): (230, 196, 62),  #
                 (-149, -50): (247, 220, 111),  # light yellow
                 (-49, 0.5): (245, 245, 245),   # light grey
                 (49, 150): (125, 206, 160),   # light green
-                (149, 250): (80, 180, 122),  # 
-                (249, 350): (34, 153, 84),  # 
+                (149, 250): (80, 180, 122),  #
+                (249, 350): (34, 153, 84),  #
                 (349, 450): (27, 122, 67),  #
                 (449, 550): (20, 90, 50),  # dark green
                 (32700, 32700): (128, 128, 128),  # missing data values- gray
@@ -389,6 +391,7 @@ def create_thumbnail(inputfile_name, product):
             # overlay on Switzerland
             command = [
                 "gdalwarp",
+                "-s_srs", "EPSG:2056",
                 "-overwrite",
                 "-dstnodata", "255,255,255",
                 "output_thumbnailswissfill.tif",
@@ -396,7 +399,7 @@ def create_thumbnail(inputfile_name, product):
                 "output_thumbnailRGB_merged.tif",
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
-        
+
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
                 "output_thumbnailRGB_merged.tif", thumbnail_name)
@@ -404,7 +407,7 @@ def create_thumbnail(inputfile_name, product):
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             return False
-        
+
         # NDMIz Use case
     elif product.startswith("ch.swisstopo.swisseo_ndmi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
@@ -418,13 +421,13 @@ def create_thumbnail(inputfile_name, product):
             with rasterio.open(inputfile_name) as src:
                 data = src.read(1)
                 profile = src.profile.copy()
-                
+
                 # Convert both 32700 and 32701 to 32701
                 data[(data == 32700) | (data == 32701)] = 32701
-                
+
                 # Update profile to set no-data value
                 profile.update(nodata=32701)
-                
+
                 # Write preprocessed file
                 with rasterio.open('preprocessed.tif', 'w', **profile) as dst:
                     dst.write(data, 1)
@@ -444,14 +447,14 @@ def create_thumbnail(inputfile_name, product):
             # Define color map
             color_map = { #scaling factor 100
                 (-550, -450): (120, 66, 18),    #dark brown
-                (-449, -350): (161, 88, 24),   # 
-                (-349, -250): (202, 111, 30),  # 
-                (-249, -150): (2221, 144, 76),  # 
+                (-449, -350): (161, 88, 24),   #
+                (-349, -250): (202, 111, 30),  #
+                (-249, -150): (2221, 144, 76),  #
                 (-149, -50): (240, 178, 122),  # light brown
                 (-49, 0.5): (245, 245, 245),   # light grey
                 (49, 150): (133, 193, 233),   # light blue
-                (149, 250): (89, 163, 213),  # 
-                (249, 350): (46, 134, 193),  # 
+                (149, 250): (89, 163, 213),  #
+                (249, 350): (46, 134, 193),  #
                 (349, 450): (36, 106, 153),  #
                 (449, 550): (27, 79, 114),  # dark blue
                 (32700, 32700): (128, 128, 128),  # missing data values- gray
@@ -484,6 +487,7 @@ def create_thumbnail(inputfile_name, product):
             # overlay on Switzerland
             command = [
                 "gdalwarp",
+                "-s_srs", "EPSG:2056",
                 "-overwrite",
                 "-dstnodata", "255,255,255",
                 "output_thumbnailswissfill.tif",
@@ -491,7 +495,7 @@ def create_thumbnail(inputfile_name, product):
                 "output_thumbnailRGB_merged.tif",
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
-        
+
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
                 "output_thumbnailRGB_merged.tif", thumbnail_name)
@@ -499,10 +503,9 @@ def create_thumbnail(inputfile_name, product):
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             return False
-        
+
     else:
         return False
-
 
 
 

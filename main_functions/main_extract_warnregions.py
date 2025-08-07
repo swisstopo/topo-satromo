@@ -135,7 +135,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_dat
 
     # Add the date to each region in UTC
     # gdf[date_column] = datetime.strptime(dateISO8601, "%Y-%m-%dT%H:%M:%SZ")
-    gdf[date_column]= pd.to_datetime(dateISO8601).tz_convert('UTC').floor('S')
+    gdf[date_column]= pd.to_datetime(dateISO8601).tz_convert('UTC').floor('s')
     # gdf[date_column] = gdf[date_column].astype()
 
     # Export the converted GeoDataFrame to a geoparquet file
