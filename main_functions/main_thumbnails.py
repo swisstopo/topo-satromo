@@ -290,7 +290,7 @@ def create_thumbnail(inputfile_name, product):
             # Fill Buffer Switzerland
             fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
 
-            
+
             # overlay on Switzerland
             command = [
                 "gdalwarp",
@@ -333,7 +333,7 @@ def create_thumbnail(inputfile_name, product):
                 profile.update(nodata=32701)
 
                 # Write preprocessed file
-                with rasterio.open('preprocessed.tif', 'w', **profile) as dst:
+                with rasterio.open('output_thumbnail_preprocessed.tif', 'w', **profile) as dst:
                     dst.write(data, 1)
 
             # Export thumbnail
@@ -343,43 +343,52 @@ def create_thumbnail(inputfile_name, product):
                 "-of", "GTiff",
                 "-outsize", "256", "256",
                 "-a_nodata", "32701",
-                "preprocessed.tif",
+                "output_thumbnail_preprocessed.tif",
                 "output_thumbnail.tif"
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
 
             # Define color map
-            color_map = { #scaling factor 100
-                (-550, -450): (125, 102, 8),    #dark brown
-                (-449, -350): (169, 137, 11),   #
-                (-349, -250): (212, 172, 13),  #
-                (-249, -150): (230, 196, 62),  #
-                (-149, -50): (247, 220, 111),  # light yellow
-                (-49, 0.5): (245, 245, 245),   # light grey
-                (49, 150): (125, 206, 160),   # light green
-                (149, 250): (80, 180, 122),  #
-                (249, 350): (34, 153, 84),  #
-                (349, 450): (27, 122, 67),  #
-                (449, 550): (20, 90, 50),  # dark green
-                (32700, 32700): (128, 128, 128),  # missing data values- gray
-                (32701, 32701): (255, 255, 255)  # no data values- white
+            color_map = {  # scaling factor 100
+                (-550, -450): (125, 102, 8),    # dark brown
+                (-449, -350): (169, 137, 11),
+                (-349, -250): (212, 172, 13),
+                (-249, -150): (230, 196, 62),
+                (-149, -50): (247, 220, 111),   # light yellow
+                (-49, 0.5): (245, 245, 245),    # light grey
+                (49, 150): (125, 206, 160),     # light green
+                (149, 250): (80, 180, 122),
+                (249, 350): (34, 153, 84),
+                (349, 450): (27, 122, 67),
+                (449, 550): (20, 90, 50),       # dark green
             }
 
             # Load TIFF file
             with rasterio.open('output_thumbnail.tif') as src:
-                data = src.read(1)  # Assuming single band
+                data = src.read(1)
                 profile = src.profile
-                # Update profile for 3 bands and int16 dtype
-                profile.update(count=3, dtype=rasterio.int16)
+                profile.update(count=3, dtype=rasterio.uint8)
+                if 'nodata' in profile:
+                    del profile['nodata']
 
-            # Apply color mapping
-            data_rgb = np.zeros(
-                (3, data.shape[0], data.shape[1]), dtype=np.int16)
+            # Initialize RGB array with white
+            data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
+
+            # Handle special values only if they exist
+            for special_value, color in [(32700, (255, 255, 255)), (32701, (128, 128, 128))]:
+                mask = (data == special_value)
+                if np.any(mask):
+                    data_rgb[:, mask] = np.array(color)[:, np.newaxis]
+
+            # Apply color mapping for elevation data
+            valid_data_mask = ~np.isin(data, [32700, 32701])
             for value_range, color in color_map.items():
-                mask = np.logical_and(
-                    data >= value_range[0], data <= value_range[1])
-                for i in range(3):
-                    data_rgb[i][mask] = color[i]
+                range_mask = np.logical_and(
+                    np.logical_and(data >= value_range[0], data <= value_range[1]),
+                    valid_data_mask
+                )
+                if np.any(range_mask):
+                    data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
 
             # Write RGB image
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
@@ -429,7 +438,7 @@ def create_thumbnail(inputfile_name, product):
                 profile.update(nodata=32701)
 
                 # Write preprocessed file
-                with rasterio.open('preprocessed.tif', 'w', **profile) as dst:
+                with rasterio.open('output_thumbnail_preprocessed.tif', 'w', **profile) as dst:
                     dst.write(data, 1)
 
             # Export thumbnail
@@ -439,7 +448,7 @@ def create_thumbnail(inputfile_name, product):
                 "-of", "GTiff",
                 "-outsize", "256", "256",
                 "-a_nodata", "32701",
-                "preprocessed.tif",
+                "output_thumbnail_preprocessed.tif",
                 "output_thumbnail.tif"
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
@@ -457,25 +466,34 @@ def create_thumbnail(inputfile_name, product):
                 (249, 350): (46, 134, 193),  #
                 (349, 450): (36, 106, 153),  #
                 (449, 550): (27, 79, 114),  # dark blue
-                (32700, 32700): (128, 128, 128),  # missing data values- gray
-                (32701, 32701): (255, 255, 255)  # no data values- white
             }
 
             # Load TIFF file
             with rasterio.open('output_thumbnail.tif') as src:
-                data = src.read(1)  # Assuming single band
+                data = src.read(1)
                 profile = src.profile
-                # Update profile for 3 bands and int16 dtype
-                profile.update(count=3, dtype=rasterio.int16)
+                profile.update(count=3, dtype=rasterio.uint8)
+                if 'nodata' in profile:
+                    del profile['nodata']
 
-            # Apply color mapping
-            data_rgb = np.zeros(
-                (3, data.shape[0], data.shape[1]), dtype=np.int16)
+            # Initialize RGB array with white
+            data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
+
+            # Handle special values only if they exist
+            for special_value, color in [(32700, (255, 255, 255)), (32701, (128, 128, 128))]:
+                mask = (data == special_value)
+                if np.any(mask):
+                    data_rgb[:, mask] = np.array(color)[:, np.newaxis]
+
+            # Apply color mapping for elevation data
+            valid_data_mask = ~np.isin(data, [32700, 32701])
             for value_range, color in color_map.items():
-                mask = np.logical_and(
-                    data >= value_range[0], data <= value_range[1])
-                for i in range(3):
-                    data_rgb[i][mask] = color[i]
+                range_mask = np.logical_and(
+                    np.logical_and(data >= value_range[0], data <= value_range[1]),
+                    valid_data_mask
+                )
+                if np.any(range_mask):
+                    data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
 
             # Write RGB image
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
