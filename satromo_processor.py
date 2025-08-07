@@ -569,7 +569,7 @@ if __name__ == "__main__":
                 # roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
                 # roi = ee.Geometry.Rectangle(
                 #     [6.40, 46.47, 6.81, 46.61])  # Lausanne VD
-                result = step1_processor_ndviz.process_PRODUCT_NDVIdiff(
+                result = step1_processor_ndvidiff.process_PRODUCT_NDVIdiff(
                     roi, collection_ready, current_date_str)
 
             elif product_to_be_processed == 'PRODUCT_NDVI_MAX_TOA':
