@@ -375,7 +375,7 @@ def create_thumbnail(inputfile_name, product):
             data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
 
             # Handle special values only if they exist
-            for special_value, color in [(32700, (255, 255, 255)), (32701, (128, 128, 128))]:
+            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
                 mask = (data == special_value)
                 if np.any(mask):
                     data_rgb[:, mask] = np.array(color)[:, np.newaxis]
@@ -408,7 +408,6 @@ def create_thumbnail(inputfile_name, product):
                 "output_thumbnailRGB_merged.tif",
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
-
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
                 "output_thumbnailRGB_merged.tif", thumbnail_name)
@@ -480,7 +479,7 @@ def create_thumbnail(inputfile_name, product):
             data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
 
             # Handle special values only if they exist
-            for special_value, color in [(32700, (255, 255, 255)), (32701, (128, 128, 128))]:
+            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
                 mask = (data == special_value)
                 if np.any(mask):
                     data_rgb[:, mask] = np.array(color)[:, np.newaxis]

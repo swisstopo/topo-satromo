@@ -11,10 +11,10 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 **Note: This project is currently in the commissioning phase and is limited for operational use.**
 
 
-|      | swissEO S2-SR | swissEO VHI |
-|------------------|---------------|--------------|
-| Data description  | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi) |
-| Access to data    | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_vhi_v100) |
+|                  | swissEO S2-SR | swissEO VHI | swissEO NDMI | swissEO NDVI Z |
+|------------------|---------------|-------------|--------------|---------------|
+| Data description | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndmi) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndvi-z) |
+| Access to data   | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_vhi_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndmi_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndvi_z_v100) |
 
 
 ## Introduction and Project Description
@@ -156,6 +156,11 @@ my_new_product = {
 }
 
 ```
+### Configuration products: adapt in .py  files
+
+Although we have tried to configure as much as possible in the `*_config.py` file, some additional configuration is required in the selected Python files. 
+- `main_functions/main_thumbnails.py`: you need to define your own RGB values for the color table. This step is necessary because certain settings, such as custom color definitions, are specific to each module and cannot be fully generalized in the main configuration file.
+
 ### Configuration post processing for each sensor step0_processor_<>.py
 A new function specifically designed for each personal collections is stored in the [step0_processors](step0_processors) folder.
 (If you don't need a new step0 processor function, you certainly don't need a new collection...)
@@ -241,8 +246,8 @@ Update the step0_empty_assets.csv directly on GitHub PROD: https://github.com/sw
 - [X] Implement Topografic shadow information
 - [ ] Products
     - [X] R1 Rohdaten Level-2A 
-    - [ ] N1 Vitalität – NDVI Anomalien
-    - [ ] M1 Vitalität – NDMI Anomalien
+    - [X] N1 Vitalität – NDVI Anomalien
+    - [X] M1 Vitalität – NDMI Anomalien
     - [ ] N2 Veränderung – NDVI Anomalien
     - [ ] B2 Natürliche Störungen – NBR
     - [X] V1 Vegetation Health Index

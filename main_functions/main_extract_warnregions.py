@@ -37,9 +37,31 @@ Update the file paths and parameters as needed.
 Run the script.
 """
 
+def scale_raster_values(raster_values, scaling_factor):
+    """
+    Scale raster values by a factor with appropriate precision.
+
+    Args:
+        raster_values: List of integer values
+        scaling_factor: Factor to divide by
+
+    Returns:
+        List of scaled values (int if factor=1, float with precision otherwise)
+    """
+    if scaling_factor == 1:
+        return raster_values  # Return original integers
+
+    # Calculate decimal places based on scaling factor
+    decimal_places = len(str(scaling_factor)) - 1
+
+    # Scale and round values
+    scaled_values = [round(value / scaling_factor, decimal_places)
+                    for value in raster_values]
+
+    return scaled_values
 
 # ----------------------------------------
-def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_data_values, mean_type):
+def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_data_values, scaling_factor, mean_type):
 
     # Parameters :
     regionnr = "REGION_NR"  # depend on the  SHP file delivered by FOEN
@@ -114,7 +136,8 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_dat
                 availability_percentages.append(missing_values)
 
     # Add raster values and availability percentages to the GeoDataFrame
-    gdf[mean_descriptor] = raster_values
+    
+    gdf[mean_descriptor] = scale_raster_values(raster_values,scaling_factor)
     gdf[availpercen] = availability_percentages
 
     # Save selected columns of the GeoDataFrame to a CSV file
@@ -126,7 +149,10 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_dat
 
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
-    gdf[mean_descriptor] = gdf[mean_descriptor].astype(int)
+    if scaling_factor == 1:
+        gdf[mean_descriptor] = gdf[mean_descriptor].astype(int)
+    else:
+        gdf[mean_descriptor] = gdf[mean_descriptor].astype(float)
     # print(gdf.dtypes)
 
     # Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
