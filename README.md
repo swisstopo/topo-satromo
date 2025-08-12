@@ -97,14 +97,14 @@ See [VHI flowchart](VHI_flowchart.md)
 
 ## Functionality in detail
 
-For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions).The "processor" run is using by default the [dev_config.py](configuration/dev_config.py]). A specific configuration can be started with `python satromo_processor.py my_config.py`.  During a "processor" run, the code:
-1. Check the existence and completeness of personal collections in `step0`: post-processed Google Earth Engine (GEE) sensor collection with selected co-registered bands, topographic correction (TOA products), cloud & terrain shadow masks
+For starters, we build a GithubAction & GEE python based ARD and Indices extractor for Switzerland. The SATROMO operational module is started on a pre-defined schedule using [GitHub Actions](https://github.com/features/actions).The "processor" run is using by default the [dev_config.py](configuration/dev_config.py]). A specific configuration can be started with `python satromo_processor.py my_config.py`. During a "processor" run, the code:
+1. Checks the existence and completeness of personal collections in `step0`: post-processed Google Earth Engine (GEE) sensor collection with selected co-registered bands, topographic correction (TOA products), cloud & terrain shadow masks
 2. triggers GEE extraction of products for the region of Switzerland using the personal collection using the configuration and last update information in `tools/last_updates.csv`
 3. stores running tasks in `processing/running_tasks.csv` and an appropriate accompanying text file for each product which is split in quadrants to enable GEE exports
 4. persists information about status of running GEE processes IDs of the extracted data. These pieces of information are stored directly in the repository at hand.  
 
 A pre-defined time after the "processor" run, a "publisher" run starts, assuming all exports are done. In it, the publisher process:
-1. reads the persisted information as to the most recently bprocessed  products based on IDs in `processing/running_tasks.csv`
+1. reads the persisted information as to the most recently processed products based on IDs in `processing/running_tasks.csv`
 2. merges and clips the products, e.g. ARD, indices etc. locally in GitHubAction runner. Be aware that the current limit is the disk space available on github (approximately 7 GB)
 3. moves the product and its persisted information with rclone to S3
 4. creates a static STAC Catalog
@@ -112,59 +112,93 @@ A pre-defined time after the "processor" run, a "publisher" run starts, assuming
 6. invalidates the STAC Catalog on Coudfront: [STAC BROWSER](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100?.language=en) fetches latest version of the STAC catalog
 
 ## Configuration of products
-
-### Configuration in <>_config.py  
+ 
 Edit [configuration/dev_config.py](configuration/dev_config.py) rename it to your needs. 
 
-#### Additional personal collections
-A personal collection contains a GEE collection `my_new_collection` which contains postprocessed sensor data. The postprocessing is done according to the ` <new_file>.<new_function_name>` . E.g. The product `ch.swisstopo-swisseo_vhi_v100` is based on the `COPERNICUS/S2_SR_HARMONIZED` collection which has been postprocessed with `step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date` and stored in the personal collection 'projects/username/assets/COL_S2_SR_HARMONIZED_SWISS'
+### Additional personal base collection
+- A personal base collection is a **GEE collection** `my_new_base_collection` which contains postprocessed sensor data. The postprocessing is done according to the `<step0_processor_new_file>.<step0_processor_new_function_name>`. E.g. the product `ch.swisstopo-swisseo_vhi_v100` is based on the `COPERNICUS/S2_SR_HARMONIZED` collection which has been postprocessed with `step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date` and stored in the personal collection 'projects/username/assets/COL_S2_SR_HARMONIZED_SWISS'
 
-The personal collection needs to be created in advance in the GEE GUI via Assets -> new ->  Image collection
+The base collection needs to be created in advance in the GEE GUI via Assets -> new -> Image collection
 
-**Note:if you want to ensure that other accounts can update/read the asset ( like satromo-int) you need to give them access via right click on asset which will then open https://console.cloud.google.com/iam-admin/iam?project=your-project and as well share "image collection" (like COL_S2_SR_HARMONIZED_SWISS).**
+**Note: if you want to ensure that other accounts can update/read the asset (like satromo-int) you need to give them access via right click on asset which will then open https://console.cloud.google.com/iam-admin/iam?project=your-project and as well share "image collection" (like COL_S2_SR_HARMONIZED_SWISS).**
 
-Adding a new collection in the tool require to adapt the configuration file. 
+- A **new python file** specifically designed for this new base collection should also be added in the **step0_processors folder**. If you don't need a new step0_processor function, you certainly don't need a new collection...
 
-A new function specifically designed for this new collections should also be added in the step0_processors folder.
-(If you don't need a new step0 processor function, you certainly don't need a new collection...)
-Create the new function in a new file located in step0_processors folder.
-In the configuration file, add the function to the configuration entry of your new collection:
-The `cleaning_older_than` removes asset older teh defiend days to save GEE storage. 
+- In the **configuration file**, add the base collection under `# A) PRODUCTS, INDICES`:
+
+```
+BASE_COLLECTION = {
+    "temporal_coverage": <number of days to take into account for product generation>,  
+    "spatial_scale_export": <spatial resolution in m>,
+    "product_name": <my_product_name>,
+    "step0_collection": <my_new_base_collection>
+    ...
+}
+
+```
+
+The `cleaning_older_than` under `# B) custom COLLECTION` removes asset older the defiend days to save GEE storage. 
 
 ```
 step0: {
     ...
-    my_new_collection: {
-        step0_function: <new_file>.<new_function_name>,
+    my_new_base_collection: {
+        step0_function: <step0_processor_new_file>.<step0_processor_new_function_name>,
         cleaning_older_than: <days> 
     }
 }
 ```
 
 
-#### Product definition based on personal collection
-Products are defined  with the following mandatory parameters. more can be added, based on needs for the product generation.Do mind that for all products based on the same sensor the same personal collection should be used
+### Additional product (based on personal base collection)
+- Each product needs a **GEE collection** `my_new_product_collection` for the derived product, e.g. the collection 'projects/satromo-int/assets/VHI_SWISS'. The processing is done according to the `<step1_processor_new_file>.<step1_processor_new_function_name>`.
+
+The product collection needs to be created in advance in the GEE GUI via Assets -> new -> Image collection
+
+**Note: if you want to ensure that other accounts can update/read the asset (like satromo-int) you need to give them access via right click on asset which will then open https://console.cloud.google.com/iam-admin/iam?project=your-project and as well share "image collection".**
+
+- A **new python file** specifically designed for this new product collection should also be added in the **step1_processors folder**.
+
+- In the **configuration file**, add the product collection under `# A) PRODUCTS, INDICES`: 
+Products are defined with the following mandatory parameters. More can be added, based on needs for the product generation. Do mind that for all products based on the same sensor the same base collection should be used.
 
 ```
-my_new_product = {
-    "prefix": <my_prefix>,
+PRODUCT_COLLECTION = {
     "temporal_coverage": <number of days to take into account for product generation>,  
     "spatial_scale_export": <spatial resolution in m>,
     "product_name": <my_product_name>,
-    "step0_collection": <my_new_collection to be used>
+    "no_data": no_data_value,
+    "missing_data": missing_data_value,
+    "scaling_factor": scaling_factor_value,
+    "step1_collection": <my_base_collection>,
+    "step0_collection": <my_new_product_collection>
     ...
 }
 
 ```
-### Configuration products: adapt in .py  files
+
+#### Adaptations outside of the config file
 
 Although we have tried to configure as much as possible in the `*_config.py` file, some additional configuration is required in the selected Python files. 
-- `main_functions/main_thumbnails.py`: you need to define your own RGB values for the color table. This step is necessary because certain settings, such as custom color definitions, are specific to each module and cannot be fully generalized in the main configuration file.
 
-### Configuration post processing for each sensor step0_processor_<>.py
-A new function specifically designed for each personal collections is stored in the [step0_processors](step0_processors) folder.
-(If you don't need a new step0 processor function, you certainly don't need a new collection...)
-Create the new function in a new file located in step0_processors folder.
+- In the **processor.py** file the new function file needs to be imported:
+```
+from step1_processors import step1_processor_new_file
+```
+
+And in the main part, the `products_to_be_processed` part needs an additional check for the new product:
+```
+            elif product_to_be_processed == 'PRODUCT_COLLECTION':
+                roi = ee.Geometry.Rectangle(config.ROI_RECTANGLE)
+                result = step1_processor_new_file.step1_processor_new_function_name(
+                    roi, collection_ready, current_date_str)
+```
+
+- `main_functions/main_thumbnails.py/create_thumbnail`: you need to define a new use case with your own RGB values for the color table. This step is necessary because certain settings, such as custom color definitions, are specific to each module and cannot be fully generalized in the main configuration file.
+Furthermore, you might need to adjust the handling of the values for no data and missing values.
+
+- Note to keep in mind: the **publish.py** file is looking for a timestamp in the name of each asset in the form of `\d{4}-\d{2}-\d{2}T\d{6}` (i.e. 'YYYY-MM-DDTHHMMSS') and will not run without this information
+
 
 ## Single Scene Processing via Command Line
 
