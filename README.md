@@ -134,7 +134,6 @@ BASE_COLLECTION = {
     "step0_collection": <my_new_base_collection>
     ...
 }
-
 ```
 
 The `cleaning_older_than` under `# B) custom COLLECTION` removes asset older the defiend days to save GEE storage. 
@@ -174,7 +173,6 @@ PRODUCT_COLLECTION = {
     "step0_collection": <my_new_product_collection>
     ...
 }
-
 ```
 
 #### Adaptations outside of the config file
