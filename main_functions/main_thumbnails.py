@@ -416,7 +416,7 @@ def create_thumbnail(inputfile_name, product):
             print(f"Error: {e}")
             return False
 
-        # NDMIz Use case
+    # NDMIz Use case
     elif product.startswith("ch.swisstopo.swisseo_ndmi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
