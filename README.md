@@ -175,11 +175,11 @@ PRODUCT_COLLECTION = {
 }
 ```
 
-#### Adaptations outside of the config file
+#### Adaptations outside of the _config.py file
 
 Although we have tried to configure as much as possible in the `*_config.py` file, some additional configuration is required in the selected Python files. 
 
-- In the **processor.py** file the new function file needs to be imported:
+- In the **satromo_processor.py** file the new function file needs to be imported:
 ```
 from step1_processors import step1_processor_new_file
 ```
@@ -195,7 +195,7 @@ And in the main part, the `products_to_be_processed` part needs an additional ch
 - `main_functions/main_thumbnails.py/create_thumbnail`: you need to define a new use case with your own RGB values for the color table. This step is necessary because certain settings, such as custom color definitions, are specific to each module and cannot be fully generalized in the main configuration file.
 Furthermore, you might need to adjust the handling of the values for no data and missing values.
 
-- Note to keep in mind: the **publish.py** file is looking for a timestamp in the name of each asset in the form of `\d{4}-\d{2}-\d{2}T\d{6}` (i.e. 'YYYY-MM-DDTHHMMSS') and will not run without this information
+- Note to keep in mind: the **satromo_publish.py** file is looking for a timestamp in the name of each asset in the form of `\d{4}-\d{2}-\d{2}T\d{6}` (i.e. 'YYYY-MM-DDTHHMMSS') and will not run without this information
 
 
 ## Single Scene Processing via Command Line
