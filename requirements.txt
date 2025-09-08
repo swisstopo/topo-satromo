@@ -12,7 +12,7 @@ click-plugins==1.1.1
 cligj==0.7.2
 colorama==0.4.6
 dask==2024.8.0
-earthengine-api==0.1.395
+earthengine-api
 fiona>=1.10b2
 geopandas==0.14.4
 google-api-core==2.11.0
