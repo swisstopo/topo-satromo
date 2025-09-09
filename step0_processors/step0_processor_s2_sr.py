@@ -156,14 +156,17 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             .filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', orbit)) \
             .linkCollection(S2_csp, ['cs', 'cs_cdf']) \
             .linkCollection(S2_clouds, ['probability'])
+        
+        # Are all relevant scenes available for this date and orbit?
+        unique_tiles = S2_sr.distinct('MGRS_TILE')
+        image_list_size = unique_tiles.size().getInfo()
 
-        # Is a scene available for this date -> Yes: continue / No: abort ('No candidate scene')
-        image_list_size = S2_sr.size().getInfo()
+        # Is a scene available for this date at all -> Yes: continue / No: abort ('No candidate scene')
         if image_list_size == 0:
             write_asset_as_empty(collection, day_to_process, 'No candidate scene')
             return
 
-        # Are all tiles for the overpass available -> Yes: continue / No: abort ('Tile upload incomplete')
+        # Are all tiles (by distinct tile id) for the overpass available -> Yes: continue / No: abort ('Tile upload incomplete')
         SENSING_ORBIT_NUMBER = S2_sr.first().get('SENSING_ORBIT_NUMBER').getInfo()
         if image_list_size < 4 and SENSING_ORBIT_NUMBER == 8:
             write_asset_as_empty(collection, day_to_process,
@@ -515,7 +518,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
         def addMaskedPixelCount(image):
-            # counter the umber of pixel that are masked by cloud or shadows
+            # count the number of pixels that are masked by cloud or shadows
             image_mask = image.select('cloudAndCloudShadowMask').gt(
                 0).Or(image.select('terrainShadowMask').gt(99))
             statsMasked = image_mask.reduceRegion(
@@ -547,7 +550,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
             return image.set({
                 'percent_data': percData,  # percentage of unmasked pixel
-                # masked pixels include clouds, cloud shadows and QA pixels
+                # masked pixels include clouds, cloud shadows and non-illuminated pixels (terrain shadows)
                 'percent_masked': percMasked
             })
 
