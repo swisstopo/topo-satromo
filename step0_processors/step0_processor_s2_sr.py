@@ -349,6 +349,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
             #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
 
+            # filtering out the old cloud probability band to avoid conflicts
+            all_bands = image.bandNames()
+            bands_to_keep = all_bands.filter(ee.Filter.neq('item', 'probability'))
+            image = image.select(bands_to_keep)
+            
             # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
             image = image.addBands(clouds.rename(['cloudProbability'])) \
                 .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
