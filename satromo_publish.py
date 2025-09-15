@@ -432,7 +432,8 @@ def write_update_metadata(filename, filemeta):
             file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
 
         # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
-        collection = metadata[band_name]['PROPERTIES']['PRODUCT']
+        product_name = metadata[band_name]['PROPERTIES']['PRODUCT']
+        collection = get_collection_name(product_name)
         result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                        "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata[band_name]['PROPERTIES']['ITEM'])
         if result == True:
@@ -751,7 +752,7 @@ def get_product_info(filename):
         if isinstance(product_info, dict) and 'product_name' in product_info:
             if product_info['product_name'] in filename:
                 # Return the expected asset size and missing_data value
-                return (product_info.get('asset_size'), product_info.get('missing_data'),product_info.get('no_data'))
+                return (product_info.get('asset_size'), product_info.get('missing_data'),product_info.get('no_data'), product_info.get('scaling_factor'))
 
     print("No matching product found in the configuration.")
     return None  # Return None if no matching product is found
@@ -770,6 +771,20 @@ def extract_descriptor_mean(input_string):
     if match:
         return match.group(1)
     return "no-name"
+
+def get_collection_name(product_name):
+    """
+    Get the collection name, ensuring it has the ch.swisstopo prefix.
+    
+    Args:
+        product_name (str): The product name
+        
+    Returns:
+        str: The collection name with proper prefix
+    """
+    if not product_name.startswith("ch.swisstopo."):
+        return "ch.swisstopo." + product_name
+    return product_name
 
 
 if __name__ == "__main__":
@@ -857,7 +872,7 @@ if __name__ == "__main__":
                 all_assets = all_assets + 1
 
                 # Check overall completion status of all assets for date and get Product No_Data
-                asset_size, product_missing_data, product_no_data = get_product_info(filename)
+                asset_size, product_missing_data, product_no_data, scaling_factor = get_product_info(filename)
                 if all_assets == asset_size:
                     print(" ... checking status of asset: "+filename)
                     print(" --> ",
@@ -910,7 +925,7 @@ if __name__ == "__main__":
                             # Extracting warnregions
 
                             main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
-                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", product_missing_data, product_no_data, mean_type)
+                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", product_missing_data, product_no_data, scaling_factor, mean_type)
 
                             # Pushing  CSV , GEOJSON and PARQUET
                             warnformats = [".csv", ".geojson", ".parquet"]  #
@@ -940,7 +955,8 @@ if __name__ == "__main__":
                                     json.dump(metadata, f)
 
                         # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
-                        collection = metadata['SWISSTOPO']['PRODUCT']
+                        product_name = metadata['SWISSTOPO']['PRODUCT']
+                        collection = get_collection_name(product_name)
                         result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                                        "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
                         if result == True:
