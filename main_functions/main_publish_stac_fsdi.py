@@ -302,7 +302,8 @@ def asset_create_json_payload(id, asset_type, current):
     """
     Creates a JSON payload for a STAC asset.
 
-    This function creates a dictionary with the provided arguments and additional static data. The dictionary can be used as a JSON payload in a request to create a STAC asset.
+    This function creates a dictionary with the provided arguments and additional static data.
+    The dictionary can be used as a JSON payload in a request to create a STAC asset.
     JSON TIF and CSV type supported
 
     Args:
@@ -447,6 +448,9 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     asset = raw_asset.lower()
     os.rename(raw_asset, asset)
 
+    if not collection.startswith('ch.swisstopo.'):
+        collection = 'ch.swisstopo.' + collection
+        
     if current is not None:
         item_title = collection.replace('ch.swisstopo.', '')
         item = item_title
