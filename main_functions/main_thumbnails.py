@@ -313,7 +313,7 @@ def create_thumbnail(inputfile_name, product):
 
 
     # NDVIz Use case
-    elif product.startswith("ch.swisstopo.swisseo_ndvi_z") and (inputfile_name.endswith("forest-10m.tif")):
+    elif product.startswith("swisseo_ndvi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
@@ -417,7 +417,7 @@ def create_thumbnail(inputfile_name, product):
             return False
 
     # NDMIz Use case
-    elif product.startswith("ch.swisstopo.swisseo_ndmi_z") and (inputfile_name.endswith("forest-10m.tif")):
+    elif product.startswith("swisseo_ndmi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
         # It should be called just   "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
