@@ -429,7 +429,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
 
     Args:
         raw_asset (str): The filename of the raw asset to publish.
-        raw_item (str): The raw item associated with the asset.
+        raw_item (str): The raw item (name) associated with the asset.
         collection (str): The collection to which the asset belongs.
         geocat_id (str): The Geocat ID of the asset.
         current (str): If not None, indicates the 'current' substring should be used to determine the title.
