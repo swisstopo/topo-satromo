@@ -145,14 +145,14 @@ PRODUCT_NDVIz = {
     "geocat_id": "07f332fb-f728-4120-b6f1-488631555296",
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
-    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
+    "product_name": "swisseo_ndvi_z_v100",
     "no_data": 32701,
     "missing_data": 32700,
     "asset_size": 1,
     "scaling_factor": 100,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
-    "step1_collection": 'projects/satromo-int/assets/COL_NDVIz_SWISS',
-    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # NDVI difference (yearly change)
@@ -162,13 +162,13 @@ PRODUCT_NDVIdiff = {
     "geocat_id": "b144c4ba-971b-4e17-b809-47ee38ecfa26",
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
-    "product_name": "ch.swisstopo.swisseo_ndvi_diff_v100",
+    "product_name": "swisseo_ndvi_diff_v100",
     "no_data": 32701,
     "missing_data": 32700,
     "asset_size": 1,
     "scaling_factor": 1000,
-    "step1_collection": 'projects/satromo-int/assets/COL_NDVIdiff_SWISS',
-    #"step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz
