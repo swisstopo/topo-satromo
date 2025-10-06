@@ -44,10 +44,10 @@ Date: 25.09.2025
 # Defining variables that will change according to the product to be moved
 collection_name = 'ch.swisstopo.swisseo_ndvi_z_v100'
 geocat_id = '07f332fb-f728-4120-b6f1-488631555296'
-start_date = '2017-07-01'
-end_date = '2017-08-15'
+start_date = '2025-08-01'
+end_date = '2025-09-15'
 aoi = [5.5, 45.5, 11, 48]  # Bounding box for Switzerland
-current = None  # None or 'current'
+current = 'current'  # None or 'current'
 
 
 # Configuration
@@ -266,7 +266,27 @@ def asset_create_title(asset, current):
         filename_uppercase = filename_without_extension.upper()
 
         return filename_uppercase
+
+def rename_asset_for_current(asset_name, current):
+    """
+    Renames an asset file to replace the date string with 'current'.
     
+    Args:
+        asset_name (str): The original asset filename
+        current (str): If not None, indicates this is a 'current' asset
+    
+    Returns:
+        str: The renamed asset filename with 'current' replacing the date
+    """
+    if current is None:
+        return asset_name
+    
+    # Replace the ISO date pattern (YYYY-MM-DDtHHMMSS) with 'current'
+    iso_pattern = r'\d{4}-\d{2}-\d{2}t\d{6}'
+    renamed_asset = re.sub(iso_pattern, 'current', asset_name)
+    
+    return renamed_asset
+
 def asset_create_json_payload(id, asset_type, current):
     """
     Creates a JSON payload for a STAC asset.
@@ -399,15 +419,17 @@ for item in items:
     # Defining item name
     if current is not None:
         item_name = collection_name.replace('ch.swisstopo.', '')
+        prod_item_id = item_name  # Use the same name for the item ID in production
     else:
         item_name = collection_name.replace('ch.swisstopo.', '') + "_" + item.id
+        prod_item_id = item.id  # Use the original item.id
 
     # Get item path
-    item_path = f'collections/{collection_name}/items/{item.id}'
+    item_path = f'collections/{collection_name}/items/{prod_item_id}'
 
     # Check if item exists in the production STAC, if not, create it
     if not is_existing(f"{stac_prod}/{item_path}"):
-        print(f"ITEM object {item}: does not yet exist ... creating")
+        print(f"ITEM object {prod_item_id}: does not yet exist ... creating")
 
         # Get a TIF asse to get bounds from
         tif_asset = None
@@ -419,7 +441,7 @@ for item in items:
                 break
         
         if tif_asset is None:
-            print(f"No TIF asset found for item {item.id}. Skipping item creation.")
+            print(f"No TIF asset found for item {prod_item_id}. Skipping item creation.")
             continue
 
         try:
@@ -446,27 +468,30 @@ for item in items:
             dt_iso8601 = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             payload = item_create_json_payload(
-                item.id, coordinates_wgs84, dt_iso8601, item_name, geocat_id, current)
+                prod_item_id, coordinates_wgs84, dt_iso8601, item_name, geocat_id, current)
 
             if upload_item((stac_prod + '/' + item_path), payload):
-                print(f"ITEM object {item}: created successfully")
+                print(f"ITEM object {prod_item_id}: created successfully")
             else:
-                print(f"ITEM object {item}: creation FAILED")
+                print(f"ITEM object {prod_item_id}: creation FAILED")
                 continue  # Skip processing assets if item creation failed
         
         except Exception as e:
             print(f"An error occurred creating object {item}: {e}")
             continue  # Skip to next item
     else:
-        print(f"ITEM object {item}: exists ... skipping creation")
+        print(f"ITEM object {prod_item_id}: exists ... skipping creation")
 
     # Processing assets for the item
     for asset in assets.values():
         download(asset, 'temp')
-        asset_name = asset.href.split('/')[-1]          
+        asset_name = asset.href.split('/')[-1] 
+
+        # Rename asset for 'current' use case
+        prod_asset_name = rename_asset_for_current(asset_name, current)        
         
         # Get asset paths
-        asset_path = f'collections/{collection_name}/items/{item.id}/assets/{asset_name}'
+        asset_path = f'collections/{collection_name}/items/{prod_item_id}/assets/{prod_asset_name}'
         local_asset_path = os.path.join('temp', asset_name)
 
         # Get the file extension and determine asset type
@@ -486,25 +511,25 @@ for item in items:
     
         # Uploading the asset to the production STAC
         # Check if the asset already exists in the production STAC
-        if is_existing(f"{stac_prod}/{collection_name}/{item_name}/{asset_name}"):
-            print(f"ASSET object {asset_name}: exists ... overwriting")
+        if is_existing(f"{stac_prod}/{collection_name}/{item_name}/{prod_asset_name}"):
+            print(f"ASSET object {prod_asset_name}: exists ... overwriting")
         else:
-            print(f"ASSET object {asset_name}: does not yet exist ... preparing")
+            print(f"ASSET object {prod_asset_name}: does not yet exist ... preparing")
         
         # create asset payload
-        payload = asset_create_json_payload(asset_name, asset_type, current)
+        payload = asset_create_json_payload(prod_asset_name, asset_type, current)
 
         # Create Asset
         if not create_asset((stac_prod + '/' + asset_path), payload):
-             print(f"ASSET object {asset_name}: creation FAILED")
+             print(f"ASSET object {prod_asset_name}: creation FAILED")
         
         # Define environment
         env = 'prod'
 
         # Upload Asset
-        if not main_multipart_upload_via_api.multipart_upload(env, collection_name, item.id, asset_name, local_asset_path, user, password, force=True, verbose=False):
-            print(f"ASSET object {asset_name}: upload FAILED")
+        if not main_multipart_upload_via_api.multipart_upload(env, collection_name, prod_item_id, prod_asset_name, local_asset_path, user, password, force=True, verbose=False):
+            print(f"ASSET object {prod_asset_name}: upload FAILED")
 
         print("FSDI update done: " +
-            f"{stac_prod}/{collection_name}/{item.id}/{asset_name}")
+            f"{stac_prod}/{collection_name}/{prod_item_id}/{prod_asset_name}")
         
