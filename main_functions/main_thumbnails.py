@@ -237,7 +237,7 @@ def create_thumbnail(inputfile_name, product):
     # VHI Use case
     elif product.startswith("ch.swisstopo.swisseo_vhi") and (inputfile_name.endswith("forest-10m.tif") or inputfile_name.endswith("forest-30m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
-        # It should be called just   "thumbnail.jpg"
+        # It should be called just "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
         #     "bands-10m.tif", "thumbnail.jpeg")
         thumbnail_name = "thumbnail.jpg"
@@ -315,7 +315,7 @@ def create_thumbnail(inputfile_name, product):
     # NDVIz Use case
     elif product.startswith("swisseo_ndvi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
-        # It should be called just   "thumbnail.jpg"
+        # It should be called just "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
         #     "bands-10m.tif", "thumbnail.jpeg")
         thumbnail_name = "thumbnail.jpg"
@@ -416,10 +416,112 @@ def create_thumbnail(inputfile_name, product):
             print(f"Error: {e}")
             return False
 
+    # NDVIdiff Use case
+    elif product.startswith("swisseo_ndvi_diff") and (inputfile_name.endswith("forest-10m.tif")):
+        # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
+        # It should be called just "thumbnail.jpg"
+        # thumbnail_name = inputfile_name.replace(
+        #     "bands-10m.tif", "thumbnail.jpeg")
+        thumbnail_name = "thumbnail.jpg"
+
+        try:
+            # Pre-process to combine no-data values
+            with rasterio.open(inputfile_name) as src:
+                data = src.read(1)
+                profile = src.profile.copy()
+
+                # Convert both 32700 and 32701 to 32701
+                data[(data == 32700) | (data == 32701)] = 32701
+
+                # Update profile to set no-data value
+                profile.update(nodata=32701)
+
+                # Write preprocessed file
+                with rasterio.open('output_thumbnail_preprocessed.tif', 'w', **profile) as dst:
+                    dst.write(data, 1)
+
+            # Export thumbnail
+            command = [
+                "gdal_translate",
+                "-b", "1",
+                "-of", "GTiff",
+                "-outsize", "256", "256",
+                "-a_nodata", "32701",
+                "output_thumbnail_preprocessed.tif",
+                "output_thumbnail.tif"
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+
+            # Define color map
+            color_map = {  # scaling factor 1000
+                (-3000, -1000): (183, 28, 28),    # dark red
+                (-999, -750): (205, 90, 72),
+                (-749, -500): (228, 153, 116),
+                (-499, -250): (250, 215, 160),   # light orange
+                (-249, 249): (245, 245, 245),    # light grey
+                (250, 499): (128, 203, 196),     # light turquoise
+                (500, 749): (85, 161, 152),
+                (750, 999): (43, 119, 108),
+                (1000, 3000): (0, 77, 64),       # dark turquoise
+            }
+
+            # Load TIFF file
+            with rasterio.open('output_thumbnail.tif') as src:
+                data = src.read(1)
+                profile = src.profile
+                profile.update(count=3, dtype=rasterio.uint8)
+                if 'nodata' in profile:
+                    del profile['nodata']
+
+            # Initialize RGB array with white
+            data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
+
+            # Handle special values only if they exist
+            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
+                mask = (data == special_value)
+                if np.any(mask):
+                    data_rgb[:, mask] = np.array(color)[:, np.newaxis]
+
+            # Apply color mapping for elevation data
+            valid_data_mask = ~np.isin(data, [32700, 32701])
+            for value_range, color in color_map.items():
+                range_mask = np.logical_and(
+                    np.logical_and(data >= value_range[0], data <= value_range[1]),
+                    valid_data_mask
+                )
+                if np.any(range_mask):
+                    data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
+
+            # Write RGB image
+            with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
+                dst.write(data_rgb)
+
+            # Fill Buffer Switzerland
+            fill_buffer_switzerland("assets", "ch_buffer_5000m.shp", 1024)
+
+            # overlay on Switzerland
+            command = [
+                "gdalwarp",
+                "-s_srs", "EPSG:2056",
+                "-overwrite",
+                "-dstnodata", "255,255,255",
+                "output_thumbnailswissfill.tif",
+                "output_thumbnailRGB.tif",
+                "output_thumbnailRGB_merged.tif",
+            ]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            # Apply overlay and create JPG
+            thumbnail_name = apply_overlay(
+                "output_thumbnailRGB_merged.tif", thumbnail_name)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
+            return False
+
     # NDMIz Use case
     elif product.startswith("swisseo_ndmi_z") and (inputfile_name.endswith("forest-10m.tif")):
         # https://github.com/radiantearth/stac-spec/blob/master/best-practices.md#visual
-        # It should be called just   "thumbnail.jpg"
+        # It should be called just "thumbnail.jpg"
         # thumbnail_name = inputfile_name.replace(
         #     "bands-10m.tif", "thumbnail.jpeg")
         thumbnail_name = "thumbnail.jpg"
