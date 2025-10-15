@@ -327,7 +327,7 @@ def create_thumbnail(inputfile_name, product):
                 profile = src.profile.copy()
 
                 # Convert both 32700 and 32701 to 32701
-                data[(data == 32700) | (data == 32701)] = 32701
+                # data[(data == 32700) | (data == 32701)] = 32701
 
                 # Update profile to set no-data value
                 profile.update(nodata=32701)
@@ -375,7 +375,7 @@ def create_thumbnail(inputfile_name, product):
             data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
 
             # Handle special values only if they exist
-            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
+            for special_value, color in [(32700, (220, 220, 220))]: #, (32701, (255, 255, 255))
                 mask = (data == special_value)
                 if np.any(mask):
                     data_rgb[:, mask] = np.array(color)[:, np.newaxis]
@@ -391,6 +391,7 @@ def create_thumbnail(inputfile_name, product):
                     data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
 
             # Write RGB image
+            profile.update(nodata=255)  # Set white as nodata
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
                 dst.write(data_rgb)
 
@@ -431,7 +432,7 @@ def create_thumbnail(inputfile_name, product):
                 profile = src.profile.copy()
 
                 # Convert both 32700 and 32701 to 32701
-                data[(data == 32700) | (data == 32701)] = 32701
+                # data[(data == 32700) | (data == 32701)] = 32701
 
                 # Update profile to set no-data value
                 profile.update(nodata=32701)
@@ -477,7 +478,7 @@ def create_thumbnail(inputfile_name, product):
             data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
 
             # Handle special values only if they exist
-            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
+            for special_value, color in [(32700, (220, 220, 220))]: #, (32701, (255, 255, 255))
                 mask = (data == special_value)
                 if np.any(mask):
                     data_rgb[:, mask] = np.array(color)[:, np.newaxis]
@@ -493,6 +494,7 @@ def create_thumbnail(inputfile_name, product):
                     data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
 
             # Write RGB image
+            profile.update(nodata=255)  # Set white as nodata
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
                 dst.write(data_rgb)
 
@@ -533,7 +535,7 @@ def create_thumbnail(inputfile_name, product):
                 profile = src.profile.copy()
 
                 # Convert both 32700 and 32701 to 32701
-                data[(data == 32700) | (data == 32701)] = 32701
+                # data[(data == 32700) | (data == 32701)] = 32701
 
                 # Update profile to set no-data value
                 profile.update(nodata=32701)
@@ -581,7 +583,7 @@ def create_thumbnail(inputfile_name, product):
             data_rgb = np.full((3, data.shape[0], data.shape[1]), 255, dtype=np.uint8)
 
             # Handle special values only if they exist
-            for special_value, color in [(32700, (255, 255, 255)), (32701, (220, 220, 220))]:
+            for special_value, color in [(32700, (220, 220, 220))]: #, (32701, (255, 255, 255))
                 mask = (data == special_value)
                 if np.any(mask):
                     data_rgb[:, mask] = np.array(color)[:, np.newaxis]
@@ -597,6 +599,7 @@ def create_thumbnail(inputfile_name, product):
                     data_rgb[:, range_mask] = np.array(color)[:, np.newaxis]
 
             # Write RGB image
+            profile.update(nodata=255)  # Set white as nodata
             with rasterio.open('output_thumbnailRGB.tif', 'w', **profile) as dst:
                 dst.write(data_rgb)
 
@@ -614,7 +617,6 @@ def create_thumbnail(inputfile_name, product):
                 "output_thumbnailRGB_merged.tif",
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
-
             # Apply overlay and create JPG
             thumbnail_name = apply_overlay(
                 "output_thumbnailRGB_merged.tif", thumbnail_name)
