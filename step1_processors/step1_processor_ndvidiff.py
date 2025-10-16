@@ -54,12 +54,18 @@ def calculate_ndvi(image):
     # Create list with indices of all used data
     S2_SR_index_list = ndvi_col.aggregate_array('system:index')
     S2_SR_index_list = S2_SR_index_list.join(',')
+
+    # Calculate data availability with explicit projection
+    data_availability = (ndvi_col.reduce(ee.Reducer.count())
+                        .rename('pixel_count')
+                        .reproject(crs='EPSG:2056', scale=10))
     
     # Calculate median NDVI
     ndvi_median = ndvi_col.median().rename('median')
 
-    # Set index list as property
-    result = ndvi_median.set('S2_SR_index_list', S2_SR_index_list)
+    # Set index list as property and combine with data availability
+    result = (ndvi_median.addBands(data_availability)
+              .set('S2_SR_index_list', S2_SR_index_list))
     
     return result
 
@@ -168,7 +174,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
     # SWITCHES
     # The switches enable / disable the execution of individual steps in this script
     exportAsset = True          # options: True, False
-    exportDrive = False          # options: True, False
+    exportDrive = True          # options: True, False
     
     ##############################
     # SPACE
@@ -187,11 +193,11 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
     # print(f"Filtering data until: {end_date_filter} (exclusive)")
 
     # previous time period
-    start_date_past_dt = datetime.strptime(start_date_current, '%Y-%m-%d') - relativedelta(years=-1)
+    start_date_past_dt = datetime.strptime(start_date_current, '%Y-%m-%d') - relativedelta(years=1)
     start_date_past = start_date_past_dt.strftime('%Y-%m-%d')
-    end_date_past_filter_dt = datetime.strptime(end_date_current_filter, '%Y-%m-%d') - relativedelta(years=-1)
+    end_date_past_filter_dt = datetime.strptime(end_date_current_filter, '%Y-%m-%d') - relativedelta(years=1)
     end_date_past_filter = end_date_past_filter_dt.strftime('%Y-%m-%d')
-    end_date_past_dt = datetime.strptime(end_date_current, '%Y-%m-%d') - relativedelta(years=-1)
+    end_date_past_dt = datetime.strptime(end_date_current, '%Y-%m-%d') - relativedelta(years=1)
     end_date_past = end_date_past_dt.strftime('%Y-%m-%d')
     print(f"Comparing it against the period: {start_date_past} to {end_date_past} (inclusive)") 
 
@@ -263,7 +269,7 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
 
                     ##############################
                     # PROCESSING
-                    print(f"✅ Starting difference calculation between {end_date_past} and {end_date_current}")
+                    print(f"Starting difference calculation between {end_date_past} and {end_date_current}")
 
                     # Map the function over the S2_col collection
                     ndsi_mapper_current = create_ndsi_mapper(S2_col_20m_current)
@@ -281,6 +287,9 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
 
                     # Converting the data type
                     NDVI_diff = NDVI_diff.int16()
+                    data_availability_current = NDVI_current.select('pixel_count').int8().rename('pixel_count_current')
+                    data_availability_past = NDVI_past.select('pixel_count').int8().rename('pixel_count_past')
+                    data_availability = data_availability_current.addBands(data_availability_past)
 
                     # Add missing data value for when there's no NDVIdiff
                     # (due to clouds and cloud shadows, terrain shadows, snow, etc.)
@@ -314,6 +323,9 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                         'pixel_size_meter': 10,
                     })
 
+                    # Add data availability as bands
+                    NDVIdiff = NDVIdiff.addBands(data_availability)
+
                     ##############################
                     # EXPORT
 
@@ -323,10 +335,11 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                     # SWITCH: export to GEE asset
                     if exportAsset is True:
                         task_description = 'NDVIdiff_SWISS_' + timestamp
+                        band_list = ['ndvi_diff', 'pixel_count_current', 'pixel_count_past']
                         print('Launching NDVIdiff export to asset')
                         # Export asset
                         task = ee.batch.Export.image.toAsset(
-                            image = NDVIdiff.select('ndvi_diff').clip(aoi_exp),
+                            image = NDVIdiff.select(band_list).clip(aoi_exp),
                             scale = 10,
                             description = task_description + '_10m',
                             crs = 'EPSG:2056',
@@ -347,6 +360,15 @@ def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
                         main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
                                                 config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
                                                 sensor_stats_current, end_date_current)
+                        # Export data availability
+                        export_item = NDVIdiff.select(['pixel_count_current', 'pixel_count_past'])
+                        filename = config.PRODUCT_NDVIdiff['product_name'] + \
+                            '_mosaic_' + timestamp + '_pixelcount-10m'
+                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
+                                                config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
+                                                sensor_stats_current, end_date_current)
+                    
+                    print(f"✅ PROCESSING COMPLETED: {product_name} for the period from {start_date_current} to {end_date_current} has been processed successfully.")
 
                 else:
                     print(f"❌ PROCESSING ABORTED: The last update of {product_name} already covers the processing period.")
