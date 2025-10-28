@@ -44,8 +44,8 @@ Date: 25.09.2025
 # Defining variables that will change according to the product to be moved
 collection_name = 'ch.swisstopo.swisseo_ndvi_z_v100'
 geocat_id = '07f332fb-f728-4120-b6f1-488631555296'
-start_date = '2025-08-01'
-end_date = '2025-09-15'
+start_date = '2025-09-01'
+end_date = '2025-10-15'
 aoi = [5.5, 45.5, 11, 48]  # Bounding box for Switzerland
 current = 'current'  # None or 'current'
 
@@ -61,6 +61,7 @@ password = os.environ.get(
 # Creating the STAC client for the internal BGDI STAC
 stac_int = pystac_client.Client.open('https://sys-data.int.bgdi.ch/api/stac/v0.9/')
 stac_prod = 'https://data.geo.admin.ch/api/stac/v0.9'
+stac_prod_main = 'https://data.geo.admin.ch'
 
 # Due to the swisstopo STAC implementation, we need to add the conformance classes
 stac_int.add_conforms_to('COLLECTIONS')
@@ -145,7 +146,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
     Returns:
         dict: A dictionary representing the JSON payload for the STAC item.
     """
-    domain = stac_prod + "/"
+    domain = stac_prod_main + "/"
 
     # define "current" use case
     if current is not None:
@@ -157,7 +158,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
         # Try to remove ISO format first
         product = re.sub(iso_pattern, '', title)
     
-    thumbnail_url = (domain+"ch.swisstopo." + product + "/" +
+    thumbnail_url = (domain + "ch.swisstopo." + product + "/" +
                      id + "/thumbnail.jpg")
 
     payload = {
@@ -177,7 +178,9 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
             },
             {
                 "href": thumbnail_url,
-                "rel": "preview"
+                "rel": "preview",
+                "type": "image/jpeg",
+                "title": "Thumbnail"
             }
         ]
     }
