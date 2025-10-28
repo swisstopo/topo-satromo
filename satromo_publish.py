@@ -17,7 +17,7 @@ import time
 from datetime import datetime
 from collections import defaultdict
 from google.cloud import storage
-from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
+from main_functions import main_utils, main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
 
 # Set the CPL_DEBUG environment variable to enable verbose output
@@ -310,14 +310,26 @@ def merge_files_with_gdal_warp(source):
     with open(source+"_list.txt", "w") as file:
         file.writelines([f"{filename}\n" for filename in file_list])
 
+    # Extract product name from source string
+    def extract_product_name(source):
+        match = re.match(r'(.*_v\d{3})_', source)
+        return match.group(1) if match else None
+
+    # Get no_data value
+    extracted_product_name = extract_product_name(source)
+    product_dict = main_utils.get_product_from_techname(extracted_product_name)
+
+    # no_data = get_no_data_value(extracted_name, products)
+    no_data = product_dict['no_data']
+
     # run gdal vrt
     command = ["gdalbuildvrt",
                "-input_file_list", source+"_list.txt", source+".vrt",
                "--config", "GDAL_CACHEMAX", "9999",
                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               # "-vrtnodata", str(config.NODATA),
-               # "-srcnodata", str(config.NODATA),
+               # "-vrtnodata", "None", # ignore any nodata values in the source files and not propagate them to the VRT
+               # "-srcnodata", str(no_data),
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -325,24 +337,45 @@ def merge_files_with_gdal_warp(source):
     # print(result)
 
     # run gdal translate
-    command = ["gdalwarp",
-               # rename to source+"_merged.tif" when doing reprojection afterwards
-               source+".vrt", source+".tif",
-               "-of", "COG",
-               "-cutline", config.BUFFER,
-               "-dstnodata",  str(config.NODATA),
-               # "-srcnodata", str(config.NODATA),
-               # "-co", "NUM_THREADS=ALL_CPUS",
-               "-co", "BIGTIFF=YES",
-               # "--config", "GDAL_CACHEMAX", "9999",
-               # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               # otherwise use compress=LZW
-               # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
-               "-co", "COMPRESS=DEFLATE",
-               "-co", "PREDICTOR=2",
-               # "-r", "near", #enforce nearest with cutline
-               ]
+    if extracted_product_name in ('ch.swisstopo.swisseo_s2-sr_v100', 'ch.swisstopo.swisseo_vhi_v100'):
+        # don't touch running code, even if srcnodata is not set, it works as expected
+        command = ["gdalwarp",
+                # rename to source+"_merged.tif" when doing reprojection afterwards
+                source+".vrt", source+".tif",
+                "-of", "COG",
+                "-cutline", config.BUFFER,
+                "-dstnodata",  str(no_data),
+                # "-srcnodata", str(no_data),
+                # "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "BIGTIFF=YES",
+                # "--config", "GDAL_CACHEMAX", "9999",
+                # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+                # otherwise use compress=LZW
+                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2",
+                # "-r", "near", #enforce nearest with cutline
+                ]
+    else:
+        command = ["gdalwarp",
+            # rename to source+"_merged.tif" when doing reprojection afterwards
+            source+".vrt", source+".tif",
+            "-of", "COG",
+            "-cutline", config.BUFFER,
+            "-dstnodata",  str(no_data),
+            "-srcnodata", str(no_data),
+            # "-co", "NUM_THREADS=ALL_CPUS",
+            "-co", "BIGTIFF=YES",
+            # "--config", "GDAL_CACHEMAX", "9999",
+            # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+            "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+            # otherwise use compress=LZW
+            # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+            "-co", "COMPRESS=DEFLATE",
+            "-co", "PREDICTOR=2",
+            # "-r", "near", #enforce nearest with cutline
+            ]
     # print(command)
     try:
         result = subprocess.run(command, check=True,
