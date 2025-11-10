@@ -1,0 +1,390 @@
+import ee
+import configuration as config
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from main_functions import main_utils
+from step0_processors.step0_utils import write_asset_as_empty
+
+# Processing pipeline for yearly forest vitality changes (NDVI difference) over Switzerland
+
+##############################
+# INTRODUCTION
+# This script provides a tool to process NDVI difference data over Switzerland.
+# It calculates past and current NDVI data from Sentinel-2.
+
+##############################
+# CONTENT
+
+# This script includes the following steps:
+# 1. Calculating the NDVI for a two-month period for the current time frame
+# 2. Calculating the NDVI for a two-month period for the past time frame (-1 yea)
+# 3. Calculating the NDVI difference
+# 4. Mask for forests
+# 5. Exporting the resulting NDVI difference data
+
+###########################################
+# FUNCTIONS
+
+# This function loads the current NDVI data
+def calculate_ndvi(image):
+    """
+    Loads the current NDVI data from Sentinel-2 imagery.
+
+    Args:
+        image (ee.ImageCollection): Sentinel-2 image collection.
+
+    Returns:
+        ee.Image: Combined image with median NDVI and index list.
+    """
+    # Apply the cloud and terrain shadow mask within the S2 image collection
+    def applyMasks(image):
+        image = image.updateMask(image.select('terrainShadowMask').lt(65))
+        image = image.updateMask(image.select('cloudAndCloudShadowMask').eq(0))
+        image = image.updateMask(image.select('ndsi').lt(0.43))
+        return image
+    S2_col_masked = image.map(applyMasks)
+
+    # Calculate NDVI for each image
+    def calculate_ndvi(image):
+        ndvi = image.normalizedDifference(['B8', 'B4']).rename('ndvi')
+        return ndvi
+    
+    ndvi_col = S2_col_masked.map(calculate_ndvi)
+
+    # Create list with indices of all used data
+    S2_SR_index_list = ndvi_col.aggregate_array('system:index')
+    S2_SR_index_list = S2_SR_index_list.join(',')
+
+    # Calculate data availability with explicit projection
+    data_availability = (ndvi_col.reduce(ee.Reducer.count())
+                        .rename('pixel_count')
+                        .reproject(crs='EPSG:2056', scale=10))
+    
+    # Calculate median NDVI
+    ndvi_median = ndvi_col.median().rename('median')
+
+    # Set index list as property and combine with data availability
+    result = (ndvi_median.addBands(data_availability)
+              .set('S2_SR_index_list', S2_SR_index_list))
+    
+    return result
+
+# Function to calculate the NDVI difference
+def calculate_ndvi_difference(current_ndvi, past_ndvi):   
+    """
+    Calculates the NDVI difference between current and past NDVI images.
+
+    Args:
+        current_ndvi (ee.Image): Current NDVI image.
+        past_ndvi (ee.Image): Past NDVI image.
+
+    Returns:
+        ee.Image: Image containing the NDVI difference.
+    """
+    ndvi_diff = current_ndvi.select('median').subtract(past_ndvi.select('median')).rename('ndvi_diff')
+
+    # Extract index lists from both images
+    current_index_list = current_ndvi.get('S2_SR_index_list')
+    past_index_list = past_ndvi.get('S2_SR_index_list')
+    
+    # Combine the index lists
+    combined_index_list = ee.String(current_index_list).cat(',').cat(ee.String(past_index_list))
+    
+    # Scaling
+    ndvi_diff = ndvi_diff.multiply(config.PRODUCT_NDVIdiff['scaling_factor'])
+
+    # Add index list
+    ndvi_diff = ndvi_diff.set('S2_SR_index_list', combined_index_list)
+
+    return ndvi_diff
+
+# Function to calculate NDSI
+def create_ndsi_mapper(image_20m_collection):
+    def add_ndsi(image_10m):
+        # Get the acquisition date of the current image
+        acq_date = image_10m.get('system:time_start')
+        
+        # Filter the 20m collection for matching date
+        swir_image = image_20m_collection.filter(ee.Filter.eq('system:time_start', acq_date)).first()
+        
+        # Select bands
+        green = image_10m.select('B3')
+        swir = swir_image.select('B11')
+        
+        # Calculate NDSI
+        ndsi = green.subtract(swir).divide(green.add(swir)).rename('ndsi')
+        
+        return image_10m.addBands(ndsi)
+    
+    return add_ndsi
+
+# This function creates a XX-month period datetime object
+def create_time_period_datetime(date_string, temporal_coverage_months):
+    """
+    Creates a XX-month time period using datetime objects for robust date handling.
+    No matter the date's day, it will always create a time window for the previous
+    full XX months (e.g. if the date is 2024-08-15 and the temporal coverage 2, it 
+    will create a time window from June 1st to August 1st).
+    
+    Args:
+        date_string (str): Date in 'YYYY-MM-DD' format
+        temporal_coverage_months (int): Number of months for the time window
+    
+    Returns:
+        tuple: (start_date, end_date_excl, end_date_incl) as strings in 'YYYY-MM-DD' format
+    """
+    # Parse the input date
+    year, month, day = map(int, date_string.split('-'))
+    
+    # Create a datetime object for the input date (using 1st day of the month)
+    input_date = datetime(year, month, 1)
+    
+    # Calculate start date (go back by temporal_coverage_months)
+    start_date = input_date - relativedelta(months=+temporal_coverage_months)
+    
+    # End date: 1st of input month - for filtering the first day outside the period is needed
+    end_date_excl = input_date
+
+    # End date: last of time period - for naming the product
+    end_date_incl = input_date - relativedelta(days=+1)
+    
+    return start_date.strftime('%Y-%m-%d'), end_date_excl.strftime('%Y-%m-%d'), end_date_incl.strftime('%Y-%m-%d')
+
+# this function processes the NDVIdiff data
+def process_PRODUCT_NDVIdiff(roi, collection_ready, date_str):
+    """
+    Processes swissEO NDVI difference data for Switzerland.
+
+    Args:
+        roi (ee.Geometry): Region of interest.
+        collection_ready (str): Name of the image collection.
+        date_str (str): Date (of the end month) in string format 'YYYY-MM'.
+
+    Returns:
+        None
+    """
+
+    ##############################
+    # MASK
+    # Mask for the forest
+    forest_mask = ee.Image(
+        'projects/satromo-prod/assets/res/ch_bafu_lebensraumkarte_mask_forest_epsg32632')
+
+    ##############################
+    # SWITCHES
+    # The switches enable / disable the execution of individual steps in this script
+    exportAsset = True          # options: True, False
+    exportDrive = True          # options: True, False
+    
+    ##############################
+    # SPACE
+    aoi = roi
+
+    ##############################
+    # PRODUCT
+    product_name = config.PRODUCT_NDVIdiff['product_name']
+    print("********* processing {} *********".format(product_name))
+
+    ##############################
+    # TIME
+    # current time period
+    start_date_current, end_date_current_filter, end_date_current = create_time_period_datetime(date_str, config.PRODUCT_NDVIdiff['temporal_coverage'])
+    print(f"Processing period: {start_date_current} to {end_date_current} (inclusive)")  
+    # print(f"Filtering data until: {end_date_filter} (exclusive)")
+
+    # previous time period
+    start_date_past_dt = datetime.strptime(start_date_current, '%Y-%m-%d') - relativedelta(years=1)
+    start_date_past = start_date_past_dt.strftime('%Y-%m-%d')
+    end_date_past_filter_dt = datetime.strptime(end_date_current_filter, '%Y-%m-%d') - relativedelta(years=1)
+    end_date_past_filter = end_date_past_filter_dt.strftime('%Y-%m-%d')
+    end_date_past_dt = datetime.strptime(end_date_current, '%Y-%m-%d') - relativedelta(years=1)
+    end_date_past = end_date_past_dt.strftime('%Y-%m-%d')
+    print(f"Comparing it against the period: {start_date_past} to {end_date_past} (inclusive)") 
+
+    # Define item Name
+    timestamp = datetime.strptime(end_date_current, '%Y-%m-%d')
+    timestamp = timestamp.strftime('%Y-%m-%dT235959')
+
+    ##############################
+    # Sentinel S2 SR Data
+    S2_col_current = ee.ImageCollection(collection_ready) \
+        .filterDate(start_date_current, end_date_current_filter) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '10m'))
+
+    S2_col_20m_current = ee.ImageCollection(collection_ready) \
+        .filterDate(start_date_current, end_date_current_filter) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '20m'))
+
+    # Get Sensor info -> which S2 is available
+    sensor_stats_current = main_utils.get_collection_info(S2_col_current)
+
+    # Get the number of images in the filtered collection
+    image_count_current = S2_col_current.size().getInfo()
+
+    # Sentinel S2 SR Data
+    S2_col_past = ee.ImageCollection(collection_ready) \
+        .filterDate(start_date_past, end_date_past_filter) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '10m'))
+
+    S2_col_20m_past = ee.ImageCollection(collection_ready) \
+        .filterDate(start_date_past, end_date_past_filter) \
+        .filterBounds(aoi) \
+        .filter(ee.Filter.stringEndsWith('system:index', '20m'))
+
+    # Get Sensor info -> which S2 is available
+    sensor_stats_past = main_utils.get_collection_info(S2_col_past)
+
+    # Get the number of images in the filtered collection
+    image_count_past = S2_col_past.size().getInfo()
+
+    ##############################
+
+    ##############################
+    # TESTS
+    # 1. Check if there is data for each day within the processing time period
+    # (processed or within empty asset list)
+    all_available_current, missing_dates_current = main_utils.check_collection_data_availability(
+    'S2_SR_HARMONIZED_SWISS', start_date_current, end_date_current, ['bands-10m', 'bands-20m'])
+
+    all_available_past, missing_dates_past = main_utils.check_collection_data_availability(
+    'S2_SR_HARMONIZED_SWISS', start_date_past, end_date_past, ['bands-10m', 'bands-20m'])
+
+    # Check if data is available for BOTH periods
+    all_available = all_available_current and all_available_past
+    missing_dates = missing_dates_current + missing_dates_past
+
+    if all_available:
+        
+        # 2. Check if the collection is empty (only entries on the empty asset list)
+        if image_count_current > 0 and image_count_past > 0:
+        
+            # 3. Check if the product is in the empty asset list
+            if not main_utils.is_date_in_empty_asset_list(config.PRODUCT_NDVIdiff['step1_collection'], end_date_current):
+                
+                # 4. Check if last update is from the current month
+                if main_utils.check_product_update(config.PRODUCT_NDVIdiff['product_name'], end_date_current):
+
+                    ##############################
+                    # PROCESSING
+                    print(f"Starting difference calculation between {end_date_past} and {end_date_current}")
+
+                    # Map the function over the S2_col collection
+                    ndsi_mapper_current = create_ndsi_mapper(S2_col_20m_current)
+                    S2_col_current = S2_col_current.map(ndsi_mapper_current)
+
+                    ndsi_mapper_past = create_ndsi_mapper(S2_col_20m_past)
+                    S2_col_past = S2_col_past.map(ndsi_mapper_past)
+                    
+                    # Calculate NDVI data
+                    NDVI_current = calculate_ndvi(S2_col_current)
+                    NDVI_past = calculate_ndvi(S2_col_past)
+
+                    # Calculate NDVI difference
+                    NDVI_diff = calculate_ndvi_difference(NDVI_current, NDVI_past)
+
+                    # Converting the data type
+                    NDVI_diff = NDVI_diff.int16()
+                    data_availability_current = NDVI_current.select('pixel_count').int8().rename('pixel_count_current')
+                    data_availability_past = NDVI_past.select('pixel_count').int8().rename('pixel_count_past')
+                    data_availability = data_availability_current.addBands(data_availability_past)
+
+                    # Add missing data value for when there's no NDVIdiff
+                    # (due to clouds and cloud shadows, terrain shadows, snow, etc.)
+                    NDVI_diff = NDVI_diff.unmask(config.PRODUCT_NDVIdiff['missing_data'])
+
+                    # Mask for forest
+                    NDVI_diff = NDVI_diff.updateMask(forest_mask.eq(1))
+
+                    # Assign no data value to non-forested areas
+                    NDVIdiff = NDVI_diff.unmask(config.PRODUCT_NDVIdiff['no_data'])
+
+                    # Set data properties
+                    # Getting swisstopo Processor Version
+                    processor_version = main_utils.get_github_info()
+                    # Earth Engine version
+                    ee_version = ee.__version__
+
+                    # set properties to the product to be exported
+                    NDVIdiff = NDVIdiff.set({
+                        'scale': config.PRODUCT_NDVIdiff['scaling_factor'],
+                        'system:time_start': ee.Date(start_date_current).millis(),
+                        'system:time_end': ee.Date(end_date_current).millis(),
+                        'temporal_coverage': config.PRODUCT_NDVIdiff['temporal_coverage'],
+                        'missing_data': config.PRODUCT_NDVIdiff['missing_data'],
+                        'no_data': config.PRODUCT_NDVIdiff['no_data'],
+                        'SWISSTOPO_PROCESSOR': processor_version['GithubLink'],
+                        'SWISSTOPO_RELEASE_VERSION': processor_version['ReleaseVersion'],
+                        'collection': collection_ready,
+                        'S2_SR_index_list': NDVIdiff.get('S2_SR_index_list'),
+                        'GEE_api_version': ee_version,
+                        'pixel_size_meter': 10,
+                    })
+
+                    # Add data availability as bands
+                    NDVIdiff = NDVIdiff.addBands(data_availability)
+
+                    ##############################
+                    # EXPORT
+
+                    # define the export aoi
+                    aoi_exp = aoi
+
+                    # SWITCH: export to GEE asset
+                    if exportAsset is True:
+                        task_description = 'NDVIdiff_SWISS_' + timestamp
+                        band_list = ['ndvi_diff', 'pixel_count_current', 'pixel_count_past']
+                        print('Launching NDVIdiff export to asset')
+                        # Export asset
+                        task = ee.batch.Export.image.toAsset(
+                            image = NDVIdiff.select(band_list).clip(aoi_exp),
+                            scale = 10,
+                            description = task_description + '_10m',
+                            crs = 'EPSG:2056',
+                            region = aoi_exp,
+                            maxPixels = 1e10,
+                            assetId = config.PRODUCT_NDVIdiff['step1_collection'] +
+                                '/' + task_description + '_10m',
+                        )
+                        task.start()
+
+                    # SWITCH: export to Google Drive
+                    if exportDrive is True:
+                        print('Launching NDVIdiff export to Drive')
+                        # Export NDVI difference data
+                        export_item = NDVIdiff.select('ndvi_diff')
+                        filename = config.PRODUCT_NDVIdiff['product_name'] + \
+                            '_mosaic_' + timestamp + '_forest-10m'
+                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
+                                                config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
+                                                sensor_stats_current, end_date_current)
+                        # Export data availability
+                        export_item = NDVIdiff.select(['pixel_count_current', 'pixel_count_past'])
+                        filename = config.PRODUCT_NDVIdiff['product_name'] + \
+                            '_mosaic_' + timestamp + '_pixelcount-10m'
+                        main_utils.prepare_export(roi, timestamp, filename, config.PRODUCT_NDVIdiff['product_name'],
+                                                config.PRODUCT_NDVIdiff['spatial_scale_export'], export_item,
+                                                sensor_stats_current, end_date_current)
+                    
+                    print(f"✅ PROCESSING COMPLETED: {product_name} for the period from {start_date_current} to {end_date_current} has been processed successfully.")
+
+                else:
+                    print(f"❌ PROCESSING ABORTED: The last update of {product_name} already covers the processing period.")
+                    print('If a reprocessing is needed, please set back the date in the tools/last_updates.csv file.')
+
+            else:
+                print(f"❌ PROCESSING ABORTED: {product_name} for {end_date_current} is already in the empty asset list.")
+            
+        else:
+            write_asset_as_empty(
+                config.PRODUCT_NDVIdiff['step1_collection'], end_date_current, 'No S2 SR data available')
+            print(f"❌ PROCESSING ABORTED: No S2-SR data available for the processing period.") 
+    
+    else:
+        print(f"❌ PROCESSING ABORTED: Missing data - total missing dates: {len(missing_dates)}")
+        print(f"Please ensure all required assets are available before running the processing.")
+        print("Missing dates:")
+    for date in missing_dates:
+        print(f"   - {date}")

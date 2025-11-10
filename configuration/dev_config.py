@@ -93,6 +93,7 @@ PRODUCT_S2_LEVEL_2A = {
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     "asset_size": 5,
+    "scaling_factor": 1,
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
@@ -110,11 +111,12 @@ PRODUCT_VHI = {
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
+    "scaling_factor": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
-    'LST_reference_data': 'projects/satromo-int/assets/2004-2020_LST_MAX_AS_SWISS',
-    'LST_current_data': 'projects/satromo-int/assets/LST_MAX_AS_SWISS',
+    'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
+    'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
-    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    #"step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # VHI Historic – Trockenstress
@@ -128,11 +130,12 @@ PRODUCT_VHI_HIST = {
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
+    "scaling_factor": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_M',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS_M',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
     "step1_collection": 'projects/satromo-prod/assets/col/VHI_HIST_SWISS',
-    # "step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
+    #"step0_collection": 'projects/satromo-prod/assets/col/LST_SWISS'
 }
 
 # NDVI z-score (vitality anomaly)
@@ -142,13 +145,30 @@ PRODUCT_NDVIz = {
     "geocat_id": "07f332fb-f728-4120-b6f1-488631555296",
     "temporal_coverage": 2,  # Months
     "spatial_scale_export": 10,  # Meters
-    "product_name": "ch.swisstopo.swisseo_ndvi_z_v100",
+    "product_name": "swisseo_ndvi_z_v100",
     "no_data": 32701,
     "missing_data": 32700,
     "asset_size": 1,
+    "scaling_factor": 100,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
-    "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+}
+
+# NDVI difference (yearly change)
+PRODUCT_NDVIdiff = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "b144c4ba-971b-4e17-b809-47ee38ecfa26",
+    "temporal_coverage": 2,  # Months
+    "spatial_scale_export": 10,  # Meters
+    "product_name": "swisseo_ndvi_diff_v100",
+    "no_data": 32701,
+    "missing_data": 32700,
+    "asset_size": 1,
+    "scaling_factor": 1000,
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # # MSG – MeteoSchweiz

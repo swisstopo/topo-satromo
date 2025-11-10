@@ -156,11 +156,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             .filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', orbit)) \
             .linkCollection(S2_csp, ['cs', 'cs_cdf']) \
             .linkCollection(S2_clouds, ['probability'])
-
+        
         # Are all relevant scenes available for this date and orbit?
         unique_tiles = S2_sr.distinct('MGRS_TILE')
         image_list_size = unique_tiles.size().getInfo()
-        
+
         # Is a scene available for this date at all -> Yes: continue / No: abort ('No candidate scene')
         if image_list_size == 0:
             write_asset_as_empty(collection, day_to_process, 'No candidate scene')
@@ -353,7 +353,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             all_bands = image.bandNames()
             bands_to_keep = all_bands.filter(ee.Filter.neq('item', 'probability'))
             image = image.select(bands_to_keep)
-            
+
             # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
             image = image.addBands(clouds.rename(['cloudProbability'])) \
                 .addBands(cloudAndCloudShadowMask.rename(['cloudAndCloudShadowMask']))
@@ -408,6 +408,11 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
             # mask spectral bands for clouds and cloudShadows
             # image_out = image.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']) \
             #     .updateMask(cloudAndCloudShadowMask.Not())  # NOTE: disabled because we want the clouds in the asset
+
+            # filtering out the old cloud probability band to avoid conflicts
+            all_bands = image.bandNames()
+            bands_to_keep = all_bands.filter(ee.Filter.neq('item', 'probability'))
+            image = image.select(bands_to_keep)
 
             # adding the additional S2 L2A layers, S2 cloudProbability and cloudAndCloudShadowMask as additional bands
             image = image.addBands(clouds.rename(['cloudProbability'])) \
@@ -523,7 +528,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
         # This function adds the masked-pixel-percentage (clouds, cloud shadows, QA masks) as a property to each image
         def addMaskedPixelCount(image):
-            # counter the umber of pixel that are masked by cloud or shadows
+            # count the number of pixels that are masked by cloud or shadows
             image_mask = image.select('cloudAndCloudShadowMask').gt(
                 0).Or(image.select('terrainShadowMask').gt(99))
             statsMasked = image_mask.reduceRegion(
@@ -555,7 +560,7 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
 
             return image.set({
                 'percent_data': percData,  # percentage of unmasked pixel
-                # masked pixels include clouds, cloud shadows and QA pixels
+                # masked pixels include clouds, cloud shadows and non-illuminated pixels (terrain shadows)
                 'percent_masked': percMasked
             })
 

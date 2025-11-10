@@ -12,6 +12,7 @@ GITHUB_REPO = "topo-satromo"
 GDRIVE_SECRETS = os.path.join("secrets", "geetest-credentials-int.secret")
 RCLONE_SECRETS = os.path.join("secrets", "rclone.conf")
 FSDI_SECRETS = os.path.join("secrets", "stac_fsdi-prod.json")
+CMS_SECRETS = os.path.join("secrets", "PROD_CMS.json")
 
 # File and directory paths
 GEE_RUNNING_TASKS = os.path.join("processing", "running_tasks.csv")
@@ -26,16 +27,21 @@ GCLOUD_BUCKET = "satromo_export"
 # Local Machine
 GDRIVE_SOURCE_DEV = "geedriveINT:"
 # under Windows, add \\ to escape the backslash like r'Y:\\'
-# GDRIVE_MOUNT_DEV = r'G:\\'
-GDRIVE_MOUNT_DEV = r'M:\\satromo_export'  # for GCS
+GDRIVE_MOUNT_DEV = r'G:\\'
+# GDRIVE_MOUNT_DEV = r'M:\\satromo_export' # for GCS
 # under Windows, add \\ to escape the backslash like r'X:\\'
 S3_DESTINATION_DEV = r'X:\\'
 
 #  GITHUB
-GDRIVE_SOURCE_INT = "geedrivePROD:"
+# if using GDRIVE
+#GDRIVE_SOURCE_INT = "geedrivePROD:"
+# if using GCS
+GDRIVE_SOURCE_INT = "gcsPROD:"
 GDRIVE_MOUNT_INT = "localgdrive"
 S3_DESTINATION_INT = os.path.join("s3INT:satromoint", "data")
 
+# CMS to store tools files
+CMS_BUCKET = "cms.geo.admin.ch"
 
 # General GEE parameters
 
@@ -86,10 +92,11 @@ PRODUCT_S2_LEVEL_2A = {
     "temporal_coverage": 1,  # Days
     "spatial_scale_export": 10,  # Meters # TODO: check if needed in context with step0
     "asset_size": 5,
+    "scaling_factor": 1,
     "spatial_scale_export_mask": 10,
     "product_name": "ch.swisstopo.swisseo_s2-sr_v100",
     "no_data": 9999,
-    #"step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
 }
 
 # VHI – Trockenstress ch.swisstopo.swisseo_vhi_v100
@@ -103,11 +110,45 @@ PRODUCT_VHI = {
     "no_data": 255,
     "missing_data": 110,
     "asset_size": 2,
+    "scaling_factor": 1,
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS',
     'LST_reference_data': 'projects/satromo-prod/assets/col/1991-2020_LST_SWISS',
     'LST_current_data': 'projects/satromo-prod/assets/col/LST_SWISS',
-    "step1_collection": 'projects/satromo-prod/assets/col/VHI_SWISS',
-    "step0_collection": "projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS"
+    "step1_collection": 'projects/satromo-int/assets/VHI_SWISS',
+    "step0_collection": "projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS"
+}
+
+# NDVI z-score (vitality anomaly)
+PRODUCT_NDVIz = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "07f332fb-f728-4120-b6f1-488631555296",
+    "temporal_coverage": 2,  # Months
+    "spatial_scale_export": 10,  # Meters
+    "product_name": "swisseo_ndvi_z_v100",
+    "no_data": 32701,
+    "missing_data": 32700,
+    "asset_size": 1,
+    "scaling_factor": 100,
+    'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
+}
+
+# NDVI difference (yearly change)
+PRODUCT_NDVIdiff = {
+    # TODO: check if needed in context with step0
+    "image_collection": "COPERNICUS/S2_SR_HARMONIZED",
+    "geocat_id": "b144c4ba-971b-4e17-b809-47ee38ecfa26",
+    "temporal_coverage": 2,  # Months
+    "spatial_scale_export": 10,  # Meters
+    "product_name": "swisseo_ndvi_diff_v100",
+    "no_data": 32701,
+    "missing_data": 32700,
+    "asset_size": 1,
+    "scaling_factor": 1000,
+    "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
+    # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
 
 # MSG – MeteoSchweiz: only used for repreocessing
@@ -118,7 +159,7 @@ PRODUCT_MSG_CLIMA = {
     "temporal_coverage": 1,  # Days
     "product_name": "ch.meteoschweiz.landoberflaechentemperatur",
     "no_data": 0,
-    #'step0_collection': 'projects/satromo-prod/assets/col/LST_SWISS'
+    # 'step0_collection': 'projects/satromo-int/assets/LST_CLIMA_SWISS'
 }
 
 
@@ -138,11 +179,11 @@ step0 = {
     #    'step0_function': 'step0_processor_s2_toa.generate_s2_toa_mosaic_for_single_date',
     #    # cleaning_older_than: 2 # entry used to clean assets
     # },
-    'projects/satromo-prod/assets/col/LST_SWISS': {
-        'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
-        # cleaning_older_than: 2 # entry used to clean assets
-    },
-    'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS': {
+    # 'projects/satromo-int/assets/LST_SWISS': {
+    #     'step0_function': 'step0_processor_msg_lst.generate_msg_lst_mosaic_for_single_date'
+    #     # cleaning_older_than: 2 # entry used to clean assets
+    # },
+    'projects/satromo-int/assets/COL_S2_SR_HARMONIZED_SWISS': {
         'step0_function': 'step0_processor_s2_sr.generate_s2_sr_mosaic_for_single_date'
         # cleaning_older_than: 2 # entry used to clean assets
     }
@@ -160,13 +201,10 @@ STAC_PRODUCT = ["S2_LEVEL_2A", "NDVI-MAX"]
 # under Windows, add \\ to escape the backslash like r'X:\\'
 STAC_DESTINATION_DEV = r'X:\\'
 
-GDRIVE_SOURCE_INT = "geedrivePROD:"
-GDRIVE_MOUNT_INT = "localgdrive"
-STAC_DESTINATION_INT = "s3INT:satromoint"
 
-# STAC FSDI Production
+# STAC FSDI INT
 # ---------------
 
 STAC_FSDI_SCHEME = 'https'
-STAC_FSDI_HOSTNAME = 'data.geo.admin.ch'
+STAC_FSDI_HOSTNAME = 'sys-data.int.bgdi.ch'
 STAC_FSDI_API = '/api/stac/v0.9/'

@@ -17,7 +17,7 @@ import time
 from datetime import datetime
 from collections import defaultdict
 from google.cloud import storage
-from main_functions import main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
+from main_functions import main_utils, main_thumbnails, main_publish_stac_fsdi, main_extract_warnregions
 
 
 # Set the CPL_DEBUG environment variable to enable verbose output
@@ -310,14 +310,26 @@ def merge_files_with_gdal_warp(source):
     with open(source+"_list.txt", "w") as file:
         file.writelines([f"{filename}\n" for filename in file_list])
 
+    # Extract product name from source string
+    def extract_product_name(source):
+        match = re.match(r'(.*_v\d{3})_', source)
+        return match.group(1) if match else None
+
+    # Get no_data value
+    extracted_product_name = extract_product_name(source)
+    product_dict = main_utils.get_product_from_techname(extracted_product_name)
+
+    # no_data = get_no_data_value(extracted_name, products)
+    no_data = product_dict['no_data']
+
     # run gdal vrt
     command = ["gdalbuildvrt",
                "-input_file_list", source+"_list.txt", source+".vrt",
                "--config", "GDAL_CACHEMAX", "9999",
                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               # "-vrtnodata", str(config.NODATA),
-               # "-srcnodata", str(config.NODATA),
+               # "-vrtnodata", "None", # ignore any nodata values in the source files and not propagate them to the VRT
+               # "-srcnodata", str(no_data),
                ]
     # print(command)
     result = subprocess.run(command, check=True,
@@ -325,24 +337,45 @@ def merge_files_with_gdal_warp(source):
     # print(result)
 
     # run gdal translate
-    command = ["gdalwarp",
-               # rename to source+"_merged.tif" when doing reprojection afterwards
-               source+".vrt", source+".tif",
-               "-of", "COG",
-               "-cutline", config.BUFFER,
-               "-dstnodata",  str(config.NODATA),
-               # "-srcnodata", str(config.NODATA),
-               # "-co", "NUM_THREADS=ALL_CPUS",
-               "-co", "BIGTIFF=YES",
-               # "--config", "GDAL_CACHEMAX", "9999",
-               # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
-               "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
-               # otherwise use compress=LZW
-               # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
-               "-co", "COMPRESS=DEFLATE",
-               "-co", "PREDICTOR=2",
-               # "-r", "near", #enforce nearest with cutline
-               ]
+    if extracted_product_name in ('ch.swisstopo.swisseo_s2-sr_v100', 'ch.swisstopo.swisseo_vhi_v100'):
+        # don't touch running code, even if srcnodata is not set, it works as expected
+        command = ["gdalwarp",
+                # rename to source+"_merged.tif" when doing reprojection afterwards
+                source+".vrt", source+".tif",
+                "-of", "COG",
+                "-cutline", config.BUFFER,
+                "-dstnodata",  str(no_data),
+                # "-srcnodata", str(no_data),
+                # "-co", "NUM_THREADS=ALL_CPUS",
+                "-co", "BIGTIFF=YES",
+                # "--config", "GDAL_CACHEMAX", "9999",
+                # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+                # otherwise use compress=LZW
+                # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2",
+                # "-r", "near", #enforce nearest with cutline
+                ]
+    else:
+        command = ["gdalwarp",
+            # rename to source+"_merged.tif" when doing reprojection afterwards
+            source+".vrt", source+".tif",
+            "-of", "COG",
+            "-cutline", config.BUFFER,
+            "-dstnodata",  str(no_data),
+            "-srcnodata", str(no_data),
+            # "-co", "NUM_THREADS=ALL_CPUS",
+            "-co", "BIGTIFF=YES",
+            # "--config", "GDAL_CACHEMAX", "9999",
+            # "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+            "--config", "CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE", "YES",
+            # otherwise use compress=LZW
+            # https://kokoalberti.com/articles/geotiff-compression-optimization-guide/ and https://digital-geography.com/geotiff-compression-comparison/
+            "-co", "COMPRESS=DEFLATE",
+            "-co", "PREDICTOR=2",
+            # "-r", "near", #enforce nearest with cutline
+            ]
     # print(command)
     try:
         result = subprocess.run(command, check=True,
@@ -432,7 +465,8 @@ def write_update_metadata(filename, filemeta):
             file_path, metadata[band_name]['PROPERTIES']['ITEM'], metadata[band_name]['PROPERTIES']['PRODUCT'], metadata[band_name]['PROPERTIES']['GEOCATID'])
 
         # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
-        collection = metadata[band_name]['PROPERTIES']['PRODUCT']
+        product_name = metadata[band_name]['PROPERTIES']['PRODUCT']
+        collection = get_collection_name(product_name)
         result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                        "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata[band_name]['PROPERTIES']['ITEM'])
         if result == True:
@@ -731,16 +765,16 @@ def check_substrings_presence(file_merged, substring_to_check, additional_substr
         return False
 
 
-def check_asset_size(filename):
+def get_product_info(filename):
     """
-    Checks the asset size of the product defined in the configuration
+    Checks the asset size and missing_data value of the product defined in the configuration.
 
     Args:
     - filename (str): The filename containing the product name to match.
 
     Returns:
-    - asset_size (int or None): The needed asset size if a matching product is found,
-                                otherwise None.
+    - tuple: (asset_size, missing_data) if a matching product is found,
+             otherwise None.
     """
     # Iterate through all items in the config file
     for product_name in dir(config):
@@ -750,11 +784,40 @@ def check_asset_size(filename):
         # Check if it's a dictionary and has the 'product_name' key
         if isinstance(product_info, dict) and 'product_name' in product_info:
             if product_info['product_name'] in filename:
-                # Return the expected asset size
-                return product_info['asset_size']
+                # Return the expected asset size and missing_data value
+                return (product_info.get('asset_size'), product_info.get('missing_data'),product_info.get('no_data'), product_info.get('scaling_factor'))
 
     print("No matching product found in the configuration.")
     return None  # Return None if no matching product is found
+
+def extract_descriptor_mean(input_string):
+    """
+    Extracts the descriptor substring from an input string formatted with 'swisseo_' and '_v' markers.
+
+    Args:
+        input_string (str): The input string containing the descriptor.
+
+    Returns:
+        str: The extracted descriptor between 'swisseo_' and '_v'. Returns "no-name" if the pattern is not found.
+    """
+    match = re.search(r'swisseo_(.*?)_v\d{3}', input_string)
+    if match:
+        return match.group(1)
+    return "no-name"
+
+def get_collection_name(product_name):
+    """
+    Get the collection name, ensuring it has the ch.swisstopo prefix.
+    
+    Args:
+        product_name (str): The product name
+        
+    Returns:
+        str: The collection name with proper prefix
+    """
+    if not product_name.startswith("ch.swisstopo."):
+        return "ch.swisstopo." + product_name
+    return product_name
 
 
 if __name__ == "__main__":
@@ -841,8 +904,8 @@ if __name__ == "__main__":
             if all_completed:
                 all_assets = all_assets + 1
 
-                # Check overall completion status of all assets for date.
-                asset_size = check_asset_size(filename)
+                # Check overall completion status of all assets for date and get Product No_Data
+                asset_size, product_missing_data, product_no_data, scaling_factor = get_product_info(filename)
                 if all_assets == asset_size:
                     print(" ... checking status of asset: "+filename)
                     print(" --> ",
@@ -878,6 +941,9 @@ if __name__ == "__main__":
                         main_publish_stac_fsdi.publish_to_stac(
                             file_merged, metadata['SWISSTOPO']['ITEM'], metadata['SWISSTOPO']['PRODUCT'], metadata['SWISSTOPO']['GEOCATID'])
 
+                        # Define  mean type
+                        mean_type = extract_descriptor_mean(filename)
+
                         # Warnregions:
                         # swisseo-vhi warnregions: create
 
@@ -890,8 +956,9 @@ if __name__ == "__main__":
                                     "_") + 1:file_merged.rfind("-")]+"-warnregions"
 
                             # Extracting warnregions
+
                             main_extract_warnregions.export(file_merged, config.WARNREGIONS, warnregionfilename,
-                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", config.PRODUCT_VHI['missing_data'])
+                                                            metadata['SWISSTOPO']['DATEITEMGENERATION']+"T23:59:59Z", product_missing_data, product_no_data, scaling_factor, mean_type)
 
                             # Pushing  CSV , GEOJSON and PARQUET
                             warnformats = [".csv", ".geojson", ".parquet"]  #
@@ -908,7 +975,7 @@ if __name__ == "__main__":
                                     "SOURCE": file_merged,
                                     "format": format,
                                     "regionId": "RegionID",
-                                    "vhiMean": "VHI Mean Region",
+                                    mean_type+"Mean": mean_type.upper()+" Mean Region",
                                     "availabilityPercentage": "percentage of available pixels with information within region"
                                 }
 
@@ -921,7 +988,8 @@ if __name__ == "__main__":
                                     json.dump(metadata, f)
 
                         # Create a current version and upload file to FSDI STAC, only if the latest item on STAC is newer or of the same age
-                        collection = metadata['SWISSTOPO']['PRODUCT']
+                        product_name = metadata['SWISSTOPO']['PRODUCT']
+                        collection = get_collection_name(product_name)
                         result = extract_and_compare_datetime_from_url(config.STAC_FSDI_SCHEME+"://"+config.STAC_FSDI_HOSTNAME+config.STAC_FSDI_API +
                                                                        "collections/"+collection+"/items/"+collection.replace("ch.swisstopo.", ""), metadata['SWISSTOPO']['ITEM'])
                         if result == True:

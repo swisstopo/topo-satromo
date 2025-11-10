@@ -37,15 +37,37 @@ Update the file paths and parameters as needed.
 Run the script.
 """
 
+def scale_raster_values(raster_values, scaling_factor):
+    """
+    Scale raster values by a factor with appropriate precision.
+
+    Args:
+        raster_values: List of integer values
+        scaling_factor: Factor to divide by
+
+    Returns:
+        List of scaled values (int if factor=1, float with precision otherwise)
+    """
+    if scaling_factor == 1:
+        return raster_values  # Return original integers
+
+    # Calculate decimal places based on scaling factor
+    decimal_places = len(str(scaling_factor)) - 1
+
+    # Scale and round values
+    scaled_values = [round(value / scaling_factor, decimal_places)
+                    for value in raster_values]
+
+    return scaled_values
 
 # ----------------------------------------
-def export(raster_url, shape_file, filename, dateISO8601, missing_values):
+def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_data_values, scaling_factor, mean_type):
 
     # Parameters :
     regionnr = "REGION_NR"  # depend on the  SHP file delivered by FOEN
     regionname = "Name"  # depend on the  SHP file delivered by FOEN
 
-    vhimean = "vhi_mean"
+    mean_descriptor = mean_type + "_mean"
     availpercen = "availability_percentage"
     date_column = "date"
 
@@ -72,9 +94,10 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                 missing_values_count = np.count_nonzero(
                     values == missing_values)
 
-                # Remove NoData values (255) and missing data values (110)
+                # Remove NoData values and missing data values according to the configuration and the raster
                 valid_values = values[(values != src.nodata)
-                                      & (values != missing_values)]
+                                      & (values != missing_values)& (values != no_data_values)]
+
                 # Count the number of cells with the valid values
                 # valid_values_count = np.count_nonzero(valid_values)
                 valid_values_count = valid_values.size
@@ -113,11 +136,12 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
                 availability_percentages.append(missing_values)
 
     # Add raster values and availability percentages to the GeoDataFrame
-    gdf[vhimean] = raster_values
+
+    gdf[mean_descriptor] = scale_raster_values(raster_values,scaling_factor)
     gdf[availpercen] = availability_percentages
 
     # Save selected columns of the GeoDataFrame to a CSV file
-    gdf[[regionnr, vhimean, availpercen]].to_csv(
+    gdf[[regionnr, mean_descriptor, availpercen]].to_csv(
         filename + '.csv', index=False)
 
     # Remove the "Name" column from the GeoDataFrame
@@ -125,7 +149,10 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
 
     # Convert "REGION_NR" and "vhi_mean" columns to UInt8 datatype
     gdf[regionnr] = gdf[regionnr].astype(int)
-    gdf[vhimean] = gdf[vhimean].astype(int)
+    if scaling_factor == 1:
+        gdf[mean_descriptor] = gdf[mean_descriptor].astype(int)
+    else:
+        gdf[mean_descriptor] = gdf[mean_descriptor].astype(float)
     # print(gdf.dtypes)
 
     # Round the coordinates to 0 decimals resulting in approx 0.2m displacement of the vertexes
@@ -134,7 +161,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values):
 
     # Add the date to each region in UTC
     # gdf[date_column] = datetime.strptime(dateISO8601, "%Y-%m-%dT%H:%M:%SZ")
-    gdf[date_column]= pd.to_datetime(dateISO8601).tz_convert('UTC').floor('S')
+    gdf[date_column]= pd.to_datetime(dateISO8601).tz_convert('UTC').floor('s')
     # gdf[date_column] = gdf[date_column].astype()
 
     # Export the converted GeoDataFrame to a geoparquet file
