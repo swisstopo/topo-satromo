@@ -1,7 +1,7 @@
 [![Run processor](https://github.com/swisstopo/topo-satromo/actions/workflows/run-processor.yml/badge.svg)](https://github.com/swisstopo/topo-satromo/actions/workflows/run-processor.yml) [![Run publisher](https://github.com/swisstopo/topo-satromo/actions/workflows/run-publisher.yml/badge.svg)](https://github.com/swisstopo/topo-satromo/actions/workflows/run-publisher.yml)
 [![GitHub commit](https://img.shields.io/github/last-commit/swisstopo/topo-satromo)](https://github.com/swisstopo/topo-satromo/commits/main)
 
-![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue.svg)
+![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.11-blue.svg)
 # SATROMO Processing chain
 
 The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) consists of python code with ETL functionalities to operationally generate and provide AnalysisReadyData and indices from satellite sensors using GoogleEarthEngine, GithubAction and AWS S3 / Cloudfront 
