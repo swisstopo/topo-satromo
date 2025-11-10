@@ -136,7 +136,7 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_dat
                 availability_percentages.append(missing_values)
 
     # Add raster values and availability percentages to the GeoDataFrame
-    
+
     gdf[mean_descriptor] = scale_raster_values(raster_values,scaling_factor)
     gdf[availpercen] = availability_percentages
 
