@@ -11,10 +11,10 @@ The "Erdbeobachtungs-SAtellitendaten fürs TRockenheitsMOnitoring" (SATROMO) con
 **Note: This project is currently in the commissioning phase and is limited for operational use.**
 
 
-|                  | swissEO S2-SR | swissEO VHI | swissEO NDMI | swissEO NDVI Z |
+|                  | swissEO S2-SR | swissEO VHI | swissEO NDVI Diff | swissEO NDVI Z |
 |------------------|---------------|-------------|--------------|---------------|
-| Data description | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndmi) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndvi-z) |
-| Access to data   | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_vhi_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndmi_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndvi_z_v100) |
+| Data description | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndvi-diff) | [Product site](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-ndvi-z) |
+| Access to data   | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_s2-sr_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_vhi_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndvi_diff_v100) | [STAC](https://data.geo.admin.ch/browser/index.html#/collections/ch.swisstopo.swisseo_ndvi_z_v100) |
 
 
 ## Introduction and Project Description
@@ -90,10 +90,10 @@ Adapt your GoogleEarthEngine and rclone credentials
 
 ![Diagram](satromo_processor.drawio.svg)
 
-
 ### Program flows VHI (`step1_processor_vhi.py` ) 
 See [VHI flowchart](VHI_flowchart.md)
 
+Full [Architecture Document](https://deepwiki.com/swisstopo/topo-satromo) 
 
 ## Functionality in detail
 
@@ -279,8 +279,8 @@ Update the step0_empty_assets.csv directly on GitHub PROD: https://github.com/sw
 - [ ] Products
     - [X] R1 Rohdaten Level-2A 
     - [X] N1 Vitalität – NDVI Anomalien
-    - [X] M1 Vitalität – NDMI Anomalien
-    - [ ] N2 Veränderung – NDVI Anomalien
+    - [ ] M1 Vitalität – NDMI Anomalien
+    - [X] N2 Veränderung – NDVI Anomalien
     - [ ] B2 Natürliche Störungen – NBR
     - [X] V1 Vegetation Health Index
 
