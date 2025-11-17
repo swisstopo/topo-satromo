@@ -465,7 +465,7 @@ if __name__ == "__main__":
     current_date = datetime.datetime.today()
 
     # Subtract X day back from the current date to procoess not todays but the  date in the past: This is to overcome the delay
-    delay = 3  # in days
+    delay = 4  # in days
     previous_date = current_date - datetime.timedelta(days=delay)
 
     # Convert the previous date to a string in the format 'YYYY-MM-DD' and set it to current date
