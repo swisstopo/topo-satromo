@@ -156,7 +156,7 @@ description:
       consistent quality
 
 
-    documentation: https://www.swisstopo.ch/en/satellite-images-swisseo
+    documentation: 
     apiDocumentation: https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html
     features:
       - Automated Satellite Data Processing
