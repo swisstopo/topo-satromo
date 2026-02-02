@@ -1,0 +1,189 @@
+publiccodeYmlVersion: 0.5.0
+name: SATROMO Processing chain
+applicationSuite: Federal drought monitoring and warning portal
+url: https://github.com/swisstopo/topo-satromo/
+releaseDate: 2025-03-03
+platforms:
+  - linux
+  - windows
+categories:
+  - data-analytics
+  - data-collection
+  - data-visualization
+  - geographic-information-systems
+usedBy:
+  - Federal office of topography swisstopo
+developmentStatus: stable
+softwareType: standalone/backend
+organisation:
+  uri: https://ld.admin.ch/office/IV.1.5a
+  name: Federal Office of Topography
+description:
+  en:
+    localisedName: SATROMO Processing chain
+    shortDescription: "SATROMO consists of python code with ETL functionalities to
+      operationally generate and provide AnalysisReadyData and indices from
+      satellite sensors "
+    longDescription: >+
+      # **SATROMO: Satellite Data for Drought Monitoring**
+
+
+      **SATROMO** (*Satellite Data for Drought Monitoring – SAtellitendaten fürs
+      TROckenheitsMOnitoring*) is an automated geospatial data processing system
+      that generates analysis-ready satellite products specifically designed for
+      drought monitoring across Switzerland.
+
+
+      ***
+
+
+      ## **What SATROMO Does**
+
+
+      SATROMO transforms raw satellite imagery into valuable environmental
+      insights through a fully automated processing chain:
+
+
+      *   *Processes* **Sentinel-2** satellite data using **Google Earth
+      Engine's** powerful cloud computing platform
+
+      *   *Generates* multiple specialized products for **vegetation health**
+      and **drought assessment**
+
+      *   *Publishes* data daily to accessible platforms for **researchers**,
+      **policymakers**, and the **public**
+
+      *   *Maintains* a complete archive of **historical data** for trend
+      analysis
+
+
+      ***
+
+
+      ## **Key Products**
+
+
+      SATROMO produces four primary product types that help monitor
+      Switzerland's vegetation health and drought conditions:
+
+
+      *   **Surface Reflectance**  
+          *Description:* Cloud-free, terrain-corrected satellite imagery  
+          *Update Frequency:* **Daily**  
+          *Use Case:* Base data for environmental analysis
+
+      *   **Vegetation Health Index**  
+          *Description:* Comprehensive vegetation stress indicator  
+          *Update Frequency:* **Weekly**  
+          *Use Case:* Drought early warning
+
+      *   **NDVI Z-Score**  
+          *Description:* Statistical vegetation anomaly detection  
+          *Update Frequency:* **Bi-monthly**  
+          *Use Case:* Identifying unusual vegetation patterns
+
+      *   **NDVI Difference**  
+          *Description:* Vegetation change analysis  
+          *Update Frequency:* **Bi-monthly**  
+          *Use Case:* Monitoring vegetation dynamics
+
+      ***
+
+
+      ## **How It Works**
+
+
+      SATROMO operates as a **serverless**, automated system that runs without
+      manual intervention:
+
+
+      *   **Data Collection (22:00 UTC daily):** The system checks for new
+      satellite data and initiates processing
+
+      *   **Smart Processing:** Advanced algorithms remove clouds, correct for
+      terrain shadows, and create seamless mosaics
+
+      *   **Quality Control:** Automatic validation ensures only high-quality
+      data reaches users
+
+      *   **Publication (03:00 UTC daily):** Processed data is published to
+      multiple platforms simultaneously
+
+
+      The system uses a sophisticated two-stage processing approach:
+
+
+      *   *Stage 1:* Pre-processes raw satellite data with **cloud masking** and
+      **terrain correction**
+
+      *   *Stage 2:* Generates specialized **indices** and **analysis products**
+
+
+      ***
+
+
+      ## **Access the Data**
+
+
+      All SATROMO products are freely available through:
+
+
+      *   **Swiss Federal Spatial Data Infrastructure (FSDI)**
+
+      *   **AWS S3 Storage** – Direct access for bulk downloads
+
+      *   **STAC Catalog** – Standardized metadata for easy discovery and
+      integration
+
+
+      ***
+
+
+      ## **Why SATROMO Matters**
+
+
+      *   **Early Warning:** Provides timely information for drought
+      preparedness
+
+      *   **Scientific Basis:** Supports research on climate change impacts
+
+      *   **Decision Support:** Helps agricultural and environmental authorities
+      make informed decisions
+
+      *   **Open Data:** Freely accessible to everyone who needs it
+
+      *   **National Coverage:** Complete coverage of Switzerland with
+      consistent quality
+
+
+    documentation: 
+    apiDocumentation: https://data.geo.admin.ch/api/stac/static/spec/v0.9/apitransactional.html
+    features:
+      - Automated Satellite Data Processing
+      - Drought Monitoring Products
+      - Regional Statistics and Reporting
+      - Official Data Publication
+      - Automated Updates and Monitoring
+      - Data Quality Assurance
+      - Preview and Visualization
+    screenshots:
+      - https://prod-swisstopoch-hcms-sdweb.imgix.net/dam/de/sd-web/BqmBoJBhCbVo/Header-swissEO-S2SR.jpg?auto=format
+    awards:
+      - Preis für gute Verwaltung 2025
+legal:
+  license: BSD-3-Clause-Modification
+maintenance:
+  type: internal
+  contacts:
+    - name: David Oesch
+      email: david.oesch@swisstopo.ch
+      phone: +41 58 46 90 315
+      affiliation: Federal office of topography swisstopo
+    - name: Joan Sturm
+      email: joan.sturm@swisstopo.ch
+      phone: +41 58 46 27 082
+      affiliation: Federal office of topography swisstopo
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
