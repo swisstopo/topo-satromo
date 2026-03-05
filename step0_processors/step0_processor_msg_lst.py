@@ -17,6 +17,7 @@ import time
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import storage
 
+
 # Processing pipeline for DAILY NETCDF for daily LandSurfce  mosaics over Switzerland.
 
 ##############################
@@ -219,7 +220,7 @@ def export_netcdf_band_to_geotiff(file_path, time_value, output_tiff):
         raise ValueError("Time value not found in the NetCDF file.")
 
     # Extract the specific band for the given time
-    lst_var = dataset.variables['LST_PMW']
+    lst_var = dataset.variables.get('LST_PMW') or dataset.variables.get('LST-PMW')
     lst_band = lst_var[time_index, :, :]
 
     # Write the band to a temporary GeoTIFF file
@@ -324,7 +325,7 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # --------------------
 
 
-     # WORKING WITH 1 FILE PER DAY (operational delivery)
+    # WORKING WITH 1 FILE PER DAY (operational delivery)
     # netcdf files: download data from data.geo.admin.ch location , check if file exist
     raw_filename = day_to_process.replace("-", "")+"000000.nc"
 
@@ -333,7 +334,24 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
     # Replace the day part (DD) with "01"
     # raw_filename = modified_date_str[:6] + "01"+"000000.nc"
 
-    data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
+    # Find the matching key
+    url1 = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_" + raw_filename
+    url2 = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/msg.LST-PMW.H_ch02.lonlat_" + raw_filename
+    data_import_url = None
+    for url, lst_var in [(url1, "LST_PMW"), (url2, "LST-PMW")]:
+        response = requests.head(url)
+        if response.status_code == 200:
+            data_import_url = url
+            LSTPMVAR = lst_var
+            break
+
+    if data_import_url is None:
+        print("Neither URL is accessible")
+    else:
+        print(f"Using: {data_import_url}")
+        print(f"LSTPMVAR: {LSTPMVAR}")
+
+    #data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
     # data_import_url = "https://data.geo.admin.ch/ch.meteoschweiz.landoberflaechentemperatur/MSG2004-2023/msg.LST_PMW.H_ch02.lonlat_"+raw_filename
 
     # Set LST_HOUR based on the condition
@@ -447,9 +465,9 @@ def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str
         # Set the date
         'spacecraft_name': info_raw_file['global_attributes']['platform'],
         # Set the date
-        'long_name': info_raw_file['variables']['LST_PMW']['attributes']['long_name'],
+        'long_name': info_raw_file['variables'][LSTPMVAR]['attributes']['long_name'],
         # Version
-        'product_version': info_raw_file['variables']['LST_PMW']['attributes']['version'],
+        'product_version': info_raw_file['variables'][LSTPMVAR]['attributes']['version'],
         # record Status
         'netcdf_dim_time': str(info_raw_file['time']),
         # date created
