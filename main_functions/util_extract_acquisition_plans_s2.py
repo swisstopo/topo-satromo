@@ -50,9 +50,9 @@ def extract_S2_entries(platform, infile, outfile, outpath, polygon_wkt):
 
     # Iterate over all Placemark elements in the KML file
     for placemark in root.findall('.//kml:Placemark', ns):
-        # Filter based on 'Timeliness' being 'NOMINAL'
-        timeliness = placemark.find('.//kml:Data[@name="Timeliness"]/kml:value', ns)
-        if timeliness is not None and timeliness.text == 'NOMINAL':
+        # Filter based on styleUrl containing 'NOMINAL'
+        style_url = placemark.find('.//kml:styleUrl', ns)
+        if style_url is not None and 'NOMINAL' in style_url.text:
             # Extract coordinates for the Polygon within the Placemark
             coordinates_str = placemark.find('.//kml:Polygon//kml:coordinates', ns)
             if coordinates_str is not None:
