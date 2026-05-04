@@ -189,127 +189,87 @@ def get_netcdf_info(file_path, epoch_time=None):
 
 def export_netcdf_band_to_geotiff(file_path, time_value, output_tiff):
     """
-    Exports a specific band from a NetCDF file to a GeoTIFF file.
-
-    Args:
-        file_path (str): Path to the NetCDF file.
-        time_value (int): Specific time value to extract the band for.
-        output_tiff (str): Path to the output GeoTIFF file.
-
-
-    Example usage
-         file_path = 'msg.LST_PMW.H_ch02.lonlat_20240412000000.nc'
-         output_tiff = 'msg.LST_PMW.H_ch02.lonlat_20240412000000.tif'
-         time_value = 1712944800  # Example time value
+    Exports a specific band from a NetCDF file to a GeoTIFF (EPSG:2056, COG).
+    Constructs geotransform explicitly from lat/lon arrays to avoid
+    GDAL-version-dependent NetCDF georeferencing behaviour.
     """
+    import numpy as np
+    from rasterio.transform import from_origin
+    from rasterio.crs import CRS
 
-    # Open the NetCDF file
     dataset = netCDF4.Dataset(file_path, 'r')
 
-    # Extract the time variable
+    # Find time index
     time_var = dataset.variables['time']
-
-    # Find the index corresponding to the specified time value
     time_index = None
     for i, t in enumerate(time_var[:]):
         if t == time_value:
             time_index = i
             break
-
     if time_index is None:
+        dataset.close()
         raise ValueError("Time value not found in the NetCDF file.")
 
-    # Extract the specific band for the given time
+    # Read LST band and coordinate arrays
     lst_var = dataset.variables.get('LST_PMW') or dataset.variables.get('LST-PMW')
-    lst_band = lst_var[time_index, :, :]
+    lst_band   = np.array(lst_var[time_index, :, :], dtype=float)
+    fill_value = float(getattr(lst_var, '_FillValue', np.nan))
 
-    # Write the band to a temporary GeoTIFF file
-    temp_nc_file = 'temp.nc'
-    with netCDF4.Dataset(temp_nc_file, 'w') as temp_dataset:
-        # Create dimensions
-        temp_dataset.createDimension('lon', lst_band.shape[1])
-        temp_dataset.createDimension('lat', lst_band.shape[0])
+    lon_arr = np.array(dataset.variables['lon'][:])
+    lat_arr = np.array(dataset.variables['lat'][:])
+    dataset.close()
 
-        # Create variables
-        lon_var = temp_dataset.createVariable('lon', 'f4', ('lon',))
-        lon_var[:] = dataset.variables['lon'][:]
-        lat_var = temp_dataset.createVariable('lat', 'f4', ('lat',))
-        lat_var[:] = dataset.variables['lat'][:]
-        lst_temp_var = temp_dataset.createVariable(
-            'LST', 'f4', ('lat', 'lon',))
-        lst_temp_var[:] = lst_band
+    # Nord-nach-Süd-Reihenfolge sicherstellen
+    if lat_arr[0] < lat_arr[-1]:
+        lat_arr  = lat_arr[::-1]
+        lst_band = lst_band[::-1, :]
 
-        # Set variable attributes
-        lst_temp_var.units = lst_var.units
-        lst_temp_var.long_name = lst_var.long_name
+    # Durchschnittliche Auflösung über alle Pixel
+    lon_res = abs(float(lon_arr[-1] - lon_arr[0])) / (len(lon_arr) - 1)
+    lat_res = abs(float(lat_arr[0] - lat_arr[-1])) / (len(lat_arr) - 1)
 
-    # Use gdal_translate to export the temporary NetCDF file to GeoTIFF
-    temp_tiff = 'temp.tif'
-    command = [
-        'gdal_translate',
-        f'NETCDF:"{temp_nc_file}":LST',
-        temp_tiff
-    ]
-    # print(result.stdout))
+    west  = float(lon_arr[0]) - lon_res / 2.0
+    north = float(lat_arr[0]) + lat_res / 2.0
 
-    result = subprocess.run(command, check=True,
-                            capture_output=True, text=True)
-    # print(result.stdout)
-    print(result.stderr)
+    transform = from_origin(west, north, lon_res, lat_res)
 
-    # Multiply the band values by 100 and change the data type to 16-bit integer using Rasterio
-    scaled_tiff = 'scaled_temp.tif'
+    # Replace fill values with 0 (nodata), scale to int16
+    lst_band[lst_band == fill_value] = 0
+    scaled_data = np.clip(lst_band * 100, -32767, 32767).astype(np.int16)
 
-    # Open the temporary GeoTIFF file
-    with rasterio.open(temp_tiff) as src:
-        # Read the band data and the nodata value
-        data = src.read(1)
-        nodata_value = src.nodata
+    # Write georeferenced EPSG:4326 intermediate GeoTIFF
+    temp_4326 = 'temp_4326.tif'
+    with rasterio.open(
+        temp_4326, 'w',
+        driver='GTiff',
+        height=scaled_data.shape[0],
+        width=scaled_data.shape[1],
+        count=1,
+        dtype='int16',
+        crs=CRS.from_epsg(4326),
+        transform=transform,
+        compress='lzw',
+    ) as dst:
+        dst.write(scaled_data, 1)
 
-        # Set nodata values to 0
-        data[data == nodata_value] = 0
-
-        # Multiply the data by 100
-        scaled_data = np.clip(data * 100, -32767, 32767).astype(np.int16)
-
-        # Update the profile to set the data type to int16 and compress using LZW
-        profile = src.profile
-        profile.update(
-            dtype=rasterio.int16,
-            compress='lzw',
-            nodata=None  # Reset nodata value
-        )
-
-        # Write the scaled data to a new GeoTIFF file
-        with rasterio.open(scaled_tiff, 'w', **profile) as dst:
-            dst.write(scaled_data, 1)
-
-    # Reproject the GeoTIFF to EPSG:2056
+    # Reproject to EPSG:2056 as COG
     command = [
         'gdalwarp',
         '-s_srs', 'EPSG:4326',
         '-t_srs', 'EPSG:2056',
-        '-of', 'COG',
-        # '-cutline', config.BUFFER,
+        '-of',    'COG',
         '-srcnodata', '0',
         '-co', 'COMPRESS=DEFLATE',
         '-co', 'PREDICTOR=2',
-        scaled_tiff,
+        temp_4326,
         output_tiff
     ]
+    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    # Warnung ausgeben, aber nicht als Fehler behandeln
+    if result.stderr:
+        print(result.stderr)
 
-    result = subprocess.run(command, check=True,
-                            capture_output=True, text=True)
-    # print(result.stdout)
-    print(result.stderr)
-
-    # Clean up the temporary files
-    os.remove(temp_nc_file)
-    os.remove(temp_tiff)
-    os.remove(scaled_tiff)
-
-    # Close the dataset
-    dataset.close()
+    os.remove(temp_4326)
 
 
 def generate_msg_lst_mosaic_for_single_date(day_to_process: str, collection: str, task_description: str) -> None:
