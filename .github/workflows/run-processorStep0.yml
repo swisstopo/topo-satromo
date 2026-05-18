@@ -15,14 +15,14 @@ jobs:
 
     steps:
     - name: Checkout the repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     
     - name: Increase git buffer size
       run: |
         git config --global http.postBuffer 1048576000
     
     - name: Set up Python 3.11.1
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.11.1
     
@@ -44,20 +44,14 @@ jobs:
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       
     - name: Push tools files to repo
-      uses: github-actions-x/commit@v2.9
-      with:
-        push-branch: 'main'
-        commit-message: 'Tools files done'
-        force-add: 'true'
-        files: tools/
-        name: autoupdate
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add --force tools/
+        git diff --staged --quiet || git commit -m 'Tools files done' && git push origin main
 
     - name: Push processing files to repo
-      uses: github-actions-x/commit@v2.9
-      with:
-        push-branch: 'main'
-        commit-message: 'Processing files done'
-        force-add: 'true'
-        files: processing/
-        name: autoupdate
+      run: |
+        git add --force processing/
+        git diff --staged --quiet || git commit -m 'Processing files done' && git push origin main
         
