@@ -1,0 +1,7 @@
+pystac-client
+rasterio
+shapely
+matplotlib
+pyproj
+tqdm
+numpy
