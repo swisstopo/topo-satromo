@@ -136,49 +136,57 @@ def process_date(date_str, args, config, mps, extract, params):
         print(f"{date_str}: no VHI item on PROD - skipped")
         return "skipped"
 
-    try:
-        for suffix in args.suffixes:
-            tif_asset = f"{COLLECTION}_mosaic_{item_id}_{suffix}-10m.tif"
-            if tif_asset not in source_item["assets"]:
-                print(f"{date_str}: asset {suffix}-10m.tif missing - skipped")
-                continue
-            raster_url = source_item["assets"][tif_asset]["href"]
+    # transient remote-read hiccups (GDAL/vsicurl header race under threading,
+    # surfacing as NotGeoreferencedWarning which is escalated to an error in
+    # main) get one retry before the date is reported as failed
+    attempts = 2
+    for attempt in range(1, attempts + 1):
+        try:
+            for suffix in args.suffixes:
+                tif_asset = f"{COLLECTION}_mosaic_{item_id}_{suffix}-10m.tif"
+                if tif_asset not in source_item["assets"]:
+                    print(f"{date_str}: asset {suffix}-10m.tif missing - skipped")
+                    continue
+                raster_url = source_item["assets"][tif_asset]["href"]
 
-            # same naming convention as the publish pipeline (uppercase T locally,
-            # publish_to_stac lowercases the STAC item/asset names)
-            item_ts = date_str + "T235959"
-            filename = f"{COLLECTION}_{item_ts}_{suffix}-warnregions"
+                # same naming convention as the publish pipeline (uppercase T locally,
+                # publish_to_stac lowercases the STAC item/asset names)
+                item_ts = date_str + "T235959"
+                filename = f"{COLLECTION}_{item_ts}_{suffix}-warnregions"
 
-            print(f"{date_str}: extracting {suffix} ...")
-            extract.export(
-                raster_url, config.WARNREGIONS, filename,
-                date_str + "T23:59:59Z",
-                params["missing_values"], params["no_data_values"],
-                params["scaling_factor"], MEAN_TYPE)
+                print(f"{date_str}: extracting {suffix} ...")
+                extract.export(
+                    raster_url, config.WARNREGIONS, filename,
+                    date_str + "T23:59:59Z",
+                    params["missing_values"], params["no_data_values"],
+                    params["scaling_factor"], MEAN_TYPE)
 
-            if args.dry_run:
-                print(f"{date_str}: dry run - files kept: "
-                      + ", ".join(filename + ext for ext in WARNREGION_FORMATS))
-                continue
+                if args.dry_run:
+                    print(f"{date_str}: dry run - files kept: "
+                          + ", ".join(filename + ext for ext in WARNREGION_FORMATS))
+                    continue
 
-            if not ensure_target_item(config, mps, source_item, date_str,
-                                      params["geocat_id"]):
-                raise RuntimeError(f"target item {item_id} could not be created")
+                if not ensure_target_item(config, mps, source_item, date_str,
+                                          params["geocat_id"]):
+                    raise RuntimeError(f"target item {item_id} could not be created")
 
-            for ext in WARNREGION_FORMATS:
-                mps.publish_to_stac(filename + ext, item_ts, COLLECTION,
-                                    params["geocat_id"])
-
-            if not args.keep:
                 for ext in WARNREGION_FORMATS:
-                    if os.path.exists(filename + ext):
-                        os.remove(filename + ext)
+                    mps.publish_to_stac(filename + ext, item_ts, COLLECTION,
+                                        params["geocat_id"])
 
-        print(f"{date_str}: done")
-        return "processed"
-    except Exception as e:
-        print(f"{date_str}: FAILED - {e}")
-        return "failed"
+                if not args.keep:
+                    for ext in WARNREGION_FORMATS:
+                        if os.path.exists(filename + ext):
+                            os.remove(filename + ext)
+
+            print(f"{date_str}: done")
+            return "processed"
+        except Exception as e:
+            if attempt < attempts:
+                print(f"{date_str}: attempt {attempt} failed ({e}) - retrying")
+            else:
+                print(f"{date_str}: FAILED - {e}")
+    return "failed"
 
 
 def main():
@@ -196,6 +204,13 @@ def main():
     import configuration as config
     from main_functions import main_extract_warnregions
     from main_functions import main_publish_stac_fsdi as mps
+
+    # A raster that opens without georeferencing (transient GDAL/vsicurl race
+    # under threading) would make mask() silently produce garbage - escalate
+    # the warning to an error so the date fails and is retried instead
+    import warnings
+    from rasterio.errors import NotGeoreferencedWarning
+    warnings.filterwarnings("error", category=NotGeoreferencedWarning)
 
     target = (f"{config.STAC_FSDI_SCHEME}://{config.STAC_FSDI_HOSTNAME}"
               f"{config.STAC_FSDI_API}collections/{COLLECTION}")
