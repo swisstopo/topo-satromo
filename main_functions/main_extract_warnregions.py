@@ -87,53 +87,54 @@ def export(raster_url, shape_file, filename, dateISO8601, missing_values, no_dat
             try:
                 # Use rasterio to mask the raster with the polygon
                 out_image, out_transform = mask(src, [geom], crop=True)
-                # Extract the raster values
-                values = out_image[0].flatten()
-
-                # Count the number of cells with the missing values
-                missing_values_count = np.count_nonzero(
-                    values == missing_values)
-
-                # Remove NoData values and missing data values according to the configuration and the raster
-                valid_values = values[(values != src.nodata)
-                                      & (values != missing_values)& (values != no_data_values)]
-
-                # Count the number of cells with the valid values
-                # valid_values_count = np.count_nonzero(valid_values)
-                valid_values_count = valid_values.size
-
-                # Store the mean value (or any other statistic you're interested in)
-                min_value = np.min(valid_values)
-                max_value = np.max(valid_values)
-                mean_value = np.mean(valid_values)
-
-                # Round mean value to the nearest integer
-                mean_value_rounded = round(mean_value)
-
-                # Calculate percentage of availability
-                total_cells = valid_values_count+missing_values_count
-                availability_percentage = (
-                    valid_values_count / total_cells) * 100
-
-                # Round availability percentage to two decimal places
-                availability_percentage_rounded = round(
-                    availability_percentage, 1)
-                # Append rounded mean value and availability percentage to lists
-                raster_values.append(mean_value_rounded)
-                availability_percentages.append(
-                    availability_percentage_rounded)
-
-                # Print statistics
-                # print(f"Region {region}: {region_name}")
-                # print(f"  Min value: {min_value}")
-                # print(f"  Max value: {max_value}")
-                # print(f"  Mean value: {mean_value_rounded}")
-                # print(
-                #     f"  Percentage of availability: {availability_percentage:.1f}%")
             except ValueError:
-                # Handle empty intersection (assign missing_values)
+                # polygon does not overlap the raster at all:
+                # flag the mean with the missing_values sentinel, availability is 0
+                # (never export the sentinel as availability)
                 raster_values.append(missing_values)
-                availability_percentages.append(missing_values)
+                availability_percentages.append(0.0)
+                continue
+
+            # Extract the raster values
+            values = out_image[0].flatten()
+
+            # Count the number of cells with the missing values
+            missing_values_count = np.count_nonzero(
+                values == missing_values)
+
+            # Remove NoData values and missing data values according to the configuration and the raster
+            valid_values = values[(values != src.nodata)
+                                  & (values != missing_values)& (values != no_data_values)]
+
+            # Count the number of cells with the valid values
+            valid_values_count = valid_values.size
+
+            if valid_values_count == 0:
+                # region intersects the raster, but every pixel is masked/missing this day
+                raster_values.append(missing_values)
+                availability_percentages.append(0.0)
+                continue
+
+            # Round mean value to the nearest integer
+            mean_value_rounded = round(np.mean(valid_values))
+
+            # Calculate percentage of availability:
+            # share of vegetation/forest pixels with valid data. no_data pixels
+            # (value 255, outside the vegetation/forest mask) are deliberately NOT
+            # part of the denominator - in the published COG they are indistinguishable
+            # from the crop fill of mask() anyway, since the COG nodata (gdalwarp
+            # -dstnodata) equals the product no_data value
+            total_cells = valid_values_count+missing_values_count
+            availability_percentage = (
+                valid_values_count / total_cells) * 100
+
+            # Round availability percentage to two decimal places
+            availability_percentage_rounded = round(
+                availability_percentage, 1)
+            # Append rounded mean value and availability percentage to lists
+            raster_values.append(mean_value_rounded)
+            availability_percentages.append(
+                availability_percentage_rounded)
 
     # Add raster values and availability percentages to the GeoDataFrame
 
