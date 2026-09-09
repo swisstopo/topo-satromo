@@ -915,6 +915,13 @@ if __name__ == "__main__":
 
                         print(filename+" starting processing ... ")
 
+                        # Re-resolve the product parameters for THIS file: the group is
+                        # keyed by date only and can mix products (e.g. S2-SR and VHI of
+                        # the same sensing date in one run), so the values fetched for
+                        # the trigger file above may belong to a different product
+                        _, product_missing_data, product_no_data, scaling_factor = get_product_info(
+                            filename)
+
                         # read metadata from json
                         with open(os.path.join(
                                 config.PROCESSING_DIR, (filename+"_metadata.json")), 'r') as f:
