@@ -25,7 +25,7 @@ from datetime import timedelta
 import pandas as pd  # type: ignore
 from lxml import html
 
-from extract_acquisition_plans_s2 import extract_S2_entries
+from util_extract_acquisition_plans_s2 import extract_S2_entries
 
 
 # ---------------------------------------------------------------------------
