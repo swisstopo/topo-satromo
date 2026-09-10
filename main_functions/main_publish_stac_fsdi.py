@@ -435,7 +435,12 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
         current (str): If not None, indicates the 'current' substring should be used to determine the title.
 
     Returns:
-        None
+        bool: True if the asset was created and uploaded successfully, False
+              if either step failed. Callers that need the upload retried on
+              failure MUST check this - both create_asset() and
+              multipart_upload() already report failure by returning False
+              (multipart_upload() catches its own exceptions internally), but
+              a caller that ignores the return value here never finds out.
     """
     # Test if we are on Local DEV Run or if we are on PROD
     determine_run_type()
@@ -546,9 +551,12 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     # create asset payload
     payload = asset_create_json_payload(asset, asset_type, current)
 
+    success = True
+
     # Create Asset
     if not create_asset(stac_path+asset_path, payload):
         print(f"ASSET object {asset}: creation FAILED")
+        success = False
 
     # Define environment
     env = "int" if ".int." in config.STAC_FSDI_HOSTNAME else "prod"
@@ -556,6 +564,7 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
     # Upload ASSET
     if not main_multipart_upload_via_api.multipart_upload(env, collection, item, asset, asset, user, password, force=True,verbose=False):
         print(f"ASSET object {asset}: upload FAILED")
+        success = False
 
 
     print("FSDI update done: " +
@@ -563,3 +572,5 @@ def publish_to_stac(raw_asset, raw_item, collection, geocat_id, current=None):
 
     # rename it back to the orginal name for further processing
     os.rename(asset, raw_asset)
+
+    return success

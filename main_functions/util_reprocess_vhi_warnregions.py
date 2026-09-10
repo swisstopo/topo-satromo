@@ -171,8 +171,15 @@ def process_date(date_str, args, config, mps, extract, params):
                     raise RuntimeError(f"target item {item_id} could not be created")
 
                 for ext in WARNREGION_FORMATS:
-                    mps.publish_to_stac(filename + ext, item_ts, COLLECTION,
-                                        params["geocat_id"])
+                    # publish_to_stac() reports upload failure via its return
+                    # value (it does NOT raise) - checking it here is what
+                    # makes the retry loop below actually engage on a failed
+                    # upload; silently ignoring it would report this date as
+                    # "processed" even though e.g. only the (larger, so more
+                    # failure-prone) geojson or parquet upload didn't happen
+                    if not mps.publish_to_stac(filename + ext, item_ts,
+                                               COLLECTION, params["geocat_id"]):
+                        raise RuntimeError(f"upload of {filename + ext} failed")
 
                 if not args.keep:
                     for ext in WARNREGION_FORMATS:
