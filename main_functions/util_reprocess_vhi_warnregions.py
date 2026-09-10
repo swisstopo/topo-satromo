@@ -2,9 +2,11 @@
 r"""
 Reprocess the VHI warnregion statistics (CSV / GeoJSON / Parquet) for a date range.
 
-The VHI rasters (vegetation-10m / forest-10m COGs) are ALWAYS read from the
-PROD FSDI STAC (data.geo.admin.ch, collection ch.swisstopo.swisseo_vhi_v100),
-directly over HTTP - no download needed. For each date in the range the
+The VHI vegetation/forest mosaic COGs are ALWAYS read from the PROD FSDI STAC
+(data.geo.admin.ch, collection ch.swisstopo.swisseo_vhi_v100), directly over
+HTTP - no download needed (10m for the recent Sentinel-2-derived mosaics, 30m
+for the historic Landsat-derived climate-reference-period ones; auto-detected
+per date). For each date in the range the
 warnregion statistics are re-extracted with main_extract_warnregions.export()
 and the resulting CSV / GeoJSON / Parquet files are uploaded via STAC:
 
@@ -142,11 +144,19 @@ def process_date(date_str, args, config, mps, extract, params):
     attempts = 2
     for attempt in range(1, attempts + 1):
         try:
+            did_work = False
             for suffix in args.suffixes:
-                tif_asset = f"{COLLECTION}_mosaic_{item_id}_{suffix}-10m.tif"
-                if tif_asset not in source_item["assets"]:
-                    print(f"{date_str}: asset {suffix}-10m.tif missing - skipped")
+                # resolution is NOT fixed: the recent Sentinel-2-derived VHI
+                # mosaics are 10m, the historic Landsat-derived ones (climate
+                # reference period, ~1991-2016) are 30m - match whatever this
+                # date's item actually carries
+                prefix = f"{COLLECTION}_mosaic_{item_id}_{suffix}-"
+                tif_asset = next((k for k in source_item["assets"]
+                                  if k.startswith(prefix) and k.endswith("m.tif")), None)
+                if tif_asset is None:
+                    print(f"{date_str}: no {suffix} mosaic tif in item - skipped")
                     continue
+                did_work = True
                 raster_url = source_item["assets"][tif_asset]["href"]
 
                 # same naming convention as the publish pipeline (uppercase T locally,
@@ -186,6 +196,10 @@ def process_date(date_str, args, config, mps, extract, params):
                         if os.path.exists(filename + ext):
                             os.remove(filename + ext)
 
+            if not did_work:
+                print(f"{date_str}: no vegetation/forest mosaic tif for any "
+                      f"requested suffix - skipped")
+                return "skipped"
             print(f"{date_str}: done")
             return "processed"
         except Exception as e:
