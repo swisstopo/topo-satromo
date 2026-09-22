@@ -353,7 +353,6 @@ def asset_create_json_payload(id, asset_type, current):
         payload = {
             "id": id,
             "title": title,
-            "roles": ["thumbnail"],
             "type": "image/jpeg"
         }
     return payload
