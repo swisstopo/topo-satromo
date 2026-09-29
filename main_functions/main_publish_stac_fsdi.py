@@ -196,7 +196,8 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
             },
             {
                 "href": thumbnail_url,
-                "rel": "preview"
+                "rel": "preview",
+                "type": "image/jpeg"
             }
 
             # {
