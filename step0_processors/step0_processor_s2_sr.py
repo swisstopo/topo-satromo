@@ -106,7 +106,8 @@ def generate_s2_sr_mosaic_for_single_date(day_to_process: str, collection: str, 
     # DX DY - Precalculated DX DY shifts
     # source: https://github.com/SARcycle/AROSICS/
     # processing: The DX DY are  combined into a single image with multiple bands as asset per DATE.
-    dxdy_collection = "projects/satromo-432405/assets/COL_S2_SR_DXDY"
+    #dxdy_collection = "projects/satromo-432405/assets/COL_S2_SR_DXDY"
+    dxdy_collection = "projects/satromo-prod/assets/COL_S2_SR_DXDY"
 
     ##############################
     # SATELLITE DATA
