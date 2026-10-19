@@ -147,6 +147,7 @@ PRODUCT_NDVIdiff = {
     "missing_data": 32700,
     "asset_size": 1,
     "scaling_factor": 1000,
+    "visual_link_months": [8],  # STAC 'visual' link (map.geo.admin.ch) only for these months
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
     # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
