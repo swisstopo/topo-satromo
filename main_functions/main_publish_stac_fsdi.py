@@ -156,7 +156,10 @@ def has_visual_link(product, dt_iso8601):
     Returns:
         bool: True if the item should contain a 'visual' link.
     """
-    for value in vars(config).values():
+    # dir()/getattr() instead of vars(): with a config file given on the command line
+    # the 'configuration' package only forwards attributes via module __getattr__/__dir__
+    for name in dir(config):
+        value = getattr(config, name, None)
         if isinstance(value, dict) and value.get("product_name") == product:
             months = value.get("visual_link_months")
             if months is not None:
