@@ -141,6 +141,34 @@ def is_existing(stac_item_path):
         return False
 
 
+def has_visual_link(product, dt_iso8601):
+    """
+    Decides whether a STAC item gets a 'visual' link (map.geo.admin.ch).
+
+    A product can restrict the link to certain months with the optional key
+    'visual_link_months' (list of month numbers) in its PRODUCT_* config dict.
+    Products without this key always get the link.
+
+    Args:
+        product (str): Product name, e.g. 'swisseo_ndvi_diff_v100'.
+        dt_iso8601 (str): Item datetime, e.g. '2026-08-31T23:59:59Z'.
+
+    Returns:
+        bool: True if the item should contain a 'visual' link.
+    """
+    # dir()/getattr() instead of vars(): with a config file given on the command line
+    # the 'configuration' package only forwards attributes via module __getattr__/__dir__
+    for name in dir(config):
+        value = getattr(config, name, None)
+        if isinstance(value, dict) and value.get("product_name") == product:
+            months = value.get("visual_link_months")
+            if months is not None:
+                month = datetime.strptime(dt_iso8601, '%Y-%m-%dT%H:%M:%SZ').month
+                return month in months
+            break
+    return True
+
+
 def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, current):
     """
     Creates a JSON payload for a STAC item.
@@ -177,6 +205,23 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
     thumbnail_url = (domain+"ch.swisstopo."+product+"/" +
                      id+"/thumbnail.jpg")
 
+    links = []
+
+    # 'visual' link is optional per product (see has_visual_link)
+    if has_visual_link(product, dt_iso8601):
+        links.append({
+            "href": "https://map.geo.admin.ch/index.html?layers=WMS||"+title+"||https://wms.geo.admin.ch/?item="+id+"||ch.swisstopo."+product,
+            # "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
+            # id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
+            "rel": "visual"
+        })
+
+    links.append({
+        "href": thumbnail_url,
+        "rel": "preview",
+        "type": "image/jpeg"
+    })
+
     payload = {
         "id": id,
         "geometry": {
@@ -187,29 +232,7 @@ def item_create_json_payload(id, coordinates, dt_iso8601, title, geocat_id, curr
             "datetime": dt_iso8601,  # "%Y-%m-%dT%H:%M:%SZ"
             "title": title
         },
-        "links": [
-            {
-                "href": "https://map.geo.admin.ch/index.html?layers=WMS||"+title+"||https://wms.geo.admin.ch/?item="+id+"||ch.swisstopo."+product,
-                # "href": "https://cms.geo.admin.ch/Topo/umweltbeobachtung/satromocogviewer.html?url="+domain+"ch.swisstopo."+product+"/" +
-                # id+"/ch.swisstopo."+product+"_mosaic_"+id+"_bands-10m.tif",
-                "rel": "visual"
-            },
-            {
-                "href": thumbnail_url,
-                "rel": "preview",
-                "type": "image/jpeg"
-            }
-
-            # {
-            #     "href": "https://scihub.copernicus.eu/twiki/pub/SciHubWebPortal/TermsConditions/Sentinel_Data_Terms_and_Conditions.pdf",
-            #     "rel": "license",
-            #     "title": "Contains modified Copernicus Sentinel data ["+id[:4]+"]"
-            # },
-            # {
-            #     "href": "https://www.geocat.ch/geonetwork/srv/eng/catalog.search#/metadata/"+geocat_id,
-            #     "rel": "describedby"
-            # }
-        ]
+        "links": links
     }
 
     return payload

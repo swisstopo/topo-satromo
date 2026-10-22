@@ -130,6 +130,7 @@ PRODUCT_NDVIz = {
     "missing_data": 32700,
     "asset_size": 1,
     "scaling_factor": 100,
+    "visual_link_months": [8],  # STAC 'visual' link (map.geo.admin.ch) only for these months
     'NDVI_reference_data': 'projects/satromo-prod/assets/col/1991-2020_NDVI_SWISS_MM',
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIz_SWISS',
     # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
@@ -147,6 +148,7 @@ PRODUCT_NDVIdiff = {
     "missing_data": 32700,
     "asset_size": 1,
     "scaling_factor": 1000,
+    "visual_link_months": [8],  # STAC 'visual' link (map.geo.admin.ch) only for these months
     "step1_collection": 'projects/satromo-prod/assets/col/NDVIdiff_SWISS',
     # "step0_collection": 'projects/satromo-prod/assets/col/S2_SR_HARMONIZED_SWISS'
 }
